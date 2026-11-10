@@ -20,7 +20,7 @@ const INTERACT_RANGE = 1.9;
  * Emits events through callbacks so UI stays decoupled.
  */
 export class Raid {
-  constructor({ profile, seed = Math.floor(Math.random() * 1e9), callbacks, quality = {}, renderer }) {
+  constructor({ profile, seed = Math.floor(Math.random() * 1e9), callbacks, quality = {}, renderer, lz = 'centro' }) {
     this.quality = quality;
     this.renderer = renderer;
     this.profile = profile;
@@ -36,7 +36,7 @@ export class Raid {
     this.extractT = 0;
     this.extractZone = null;
     this.insertT = 0;
-    this.stats = { kills: 0, looted: 0 };
+    this.stats = { kills: 0, looted: 0, xp: 0 };
 
     this.setupScene();
 
@@ -44,9 +44,11 @@ export class Raid {
     const pf = profile.faction;
     this.player = new Actor({ name: 'Você', faction: pf, loadout: profile.loadout, isPlayer: true });
     this.player.refreshGear();
+    const LZ = { norte: [64, 34], sul: [64, 98], leste: [98, 64], oeste: [30, 58] };
     const ang = Math.random() * Math.PI * 2;
     const rr = 26 + Math.random() * 4;
-    const ins = this.map.freeSpot(64 + Math.cos(ang) * rr, 64 + Math.sin(ang) * rr, 2);
+    const [lx, lz2] = LZ[lz] ?? [64 + Math.cos(ang) * rr, 64 + Math.sin(ang) * rr];
+    const ins = this.map.freeSpot(lx + (Math.random() - 0.5) * 6, lz2 + (Math.random() - 0.5) * 6, 2);
     this.player.pos.set(ins.x, 0, ins.z);
     this.player.mesh.visible = false;
     this.player.hidden = true;
@@ -222,17 +224,27 @@ export class Raid {
     this.cb.onEnd?.({ result: 'abandon' });
   }
 
-  damage(victim, dmg, attacker) {
+  damage(victim, dmg, attacker, pierce = false) {
     const wasAlive = victim.alive;
-    victim.takeDamage(dmg, attacker);
-    if (victim.isPlayer) this.cb.onPlayerHit?.(dmg);
+    victim.takeDamage(dmg, attacker, pierce);
+    // wounds may bleed until bandaged
+    if (!pierce && victim.alive && victim.faction !== 'zombie' && Math.random() < (attacker?.faction === 'zombie' ? 0.35 : 0.22)) {
+      if (victim.isPlayer && !victim.bleeding) this.cb.onToast?.('Você está sangrando! Use bandagem ou kit médico.');
+      victim.bleeding = true;
+    }
+    if (victim.isPlayer) {
+      if (!pierce) this.cb.onPlayerHit?.(dmg);
+    }
     else {
       if (attacker?.isPlayer) sfx.hit();
       this.bots.find((b) => b.a === victim)?.hurt(attacker);
     }
     if (wasAlive && !victim.alive) {
       this.cb.onKill?.(attacker, victim);
-      if (attacker?.isPlayer) this.stats.kills++;
+      if (attacker?.isPlayer) {
+        this.stats.kills++;
+        this.stats.xp += victim.faction === 'zombie' ? 10 : victim.faction === 'scav' ? 30 : 70;
+      }
       if (victim.isPlayer) {
         this.state = 'dead';
         this.cb.onEnd?.({ result: 'dead', killer: attacker?.name ?? 'desconhecido' });
@@ -281,6 +293,11 @@ export class Raid {
 
   openContainer(c) {
     if (!c.filled) fillContainer(c);
+    if (!c.looted && !c.body) {
+      this.stats.looted++;
+      this.stats.xp += c.tier === 'rare' ? 40 : c.tier === 'military' ? 20 : 8;
+      this.cb.onLoot?.(c);
+    }
     c.looted = true;
     this.cb.onOpenLoot?.(c);
   }
@@ -316,10 +333,11 @@ export class Raid {
     if (this.state === 'play' || this.state === 'extracting') {
       if (!ctl.uiOpen) {
         pl.aiming = !!ctl.aiming;
-        const sprint = ctl.sprint && !ctl.fire && !ctl.aiming && pl.reloadT <= 0 && pl.healT <= 0;
+        const sprint = ctl.sprint && !ctl.fire && !ctl.aiming && pl.reloadT <= 0 && pl.healT <= 0 && pl.stamina > 4 && (ctl.moveX || ctl.moveZ);
         let sp = sprint ? 6.0 : ctl.aiming ? 2.3 : 4.0;
         if (pl.healT > 0) sp *= 0.5;
         pl.vel.set(ctl.moveX * sp, ctl.moveZ * sp);
+        this.survival(pl, dt, sprint);
         this.map.move(pl.pos, pl.vel.x, pl.vel.y, ACTOR_RADIUS, dt);
         pl.aim = ctl.aim;
 
@@ -366,7 +384,7 @@ export class Raid {
         if (this.extractT <= 0) {
           this.state = 'extracted';
           pl.mesh.visible = false;
-          this.cb.onEnd?.({ result: 'extracted', zone: this.extractZone.name });
+          this.cb.onEnd?.({ result: 'extracted', zone: this.extractZone.name, cost: this.extractZone.cost ?? 0 });
         }
       }
     }
@@ -405,7 +423,34 @@ export class Raid {
     }
   }
 
+  /** Stamina, thirst, hunger, bleeding (player). */
+  survival(pl, dt, sprinting) {
+    pl.boostT = Math.max(0, pl.boostT - dt);
+    if (sprinting) pl.stamina = Math.max(0, pl.stamina - (pl.boostT > 0 ? 9 : 20) * dt);
+    else pl.stamina = Math.min(100, pl.stamina + (pl.energy > 20 ? 14 : 6) * dt);
+    pl.water = Math.max(0, pl.water - dt * (sprinting ? 0.16 : 0.085));
+    pl.energy = Math.max(0, pl.energy - dt * (sprinting ? 0.12 : 0.065));
+    let dot = 0, cause = null;
+    if (pl.bleeding) {
+      dot += 1.1;
+      cause = 'Sangramento';
+    }
+    if (pl.water <= 0) {
+      dot += 0.6;
+      cause = 'Desidratação';
+    }
+    if (pl.energy <= 0) {
+      dot += 0.4;
+      cause = 'Exaustão';
+    }
+    if (dot > 0) this.damage(pl, dot * dt, { name: cause, faction: 'none', kills: 0 }, true);
+  }
+
   startExtraction(ex) {
+    if (ex.cost && this.profile.money < ex.cost) {
+      this.cb.onToast?.(`Extração paga: você precisa de ₢ ${ex.cost.toLocaleString('pt-BR')}.`);
+      return;
+    }
     this.state = 'extracting';
     this.extractZone = ex;
     this.extractT = EXTRACT_TIME;
@@ -421,7 +466,7 @@ export class Raid {
     const c = this.nearestContainer();
     if (c) return `[F] Saquear ${c.label}`;
     const ex = this.currentExtract();
-    if (ex) return `[F] Pedir extração — ${ex.name}`;
+    if (ex) return `[F] Pedir extração — ${ex.name}${ex.cost ? ` (₢ ${ex.cost.toLocaleString('pt-BR')})` : ''}`;
     return '';
   }
 

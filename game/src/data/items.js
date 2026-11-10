@@ -38,6 +38,11 @@ export const ITEMS = {
   bandagem: { name: 'Bandagem', short: 'BAND', cat: 'med', w: 1, h: 1, value: 600, kg: 0.05, med: { heal: 25, time: 2.0 } },
   medkit: { name: 'Kit Médico', short: 'MEDKIT', cat: 'med', w: 2, h: 1, value: 3500, kg: 0.6, med: { heal: 70, time: 4.0 } },
 
+  // --- food & drink ---
+  agua: { name: "Garrafa d'Água", short: 'ÁGUA', cat: 'food', w: 1, h: 2, value: 900, kg: 0.6, food: { water: 45, energy: 0 } },
+  racao: { name: 'Ração MRE', short: 'MRE', cat: 'food', w: 1, h: 1, value: 1400, kg: 0.4, food: { water: -5, energy: 55 } },
+  energetico: { name: 'Energético', short: 'ENERG.', cat: 'food', w: 1, h: 1, value: 1100, kg: 0.3, food: { water: 15, energy: 20, stamina: true } },
+
   // --- valuables ---
   cobre: { name: 'Fios de Cobre', short: 'COBRE', cat: 'loot', w: 1, h: 1, value: 1800, kg: 0.5 },
   circuito: { name: 'Placa de Circuito', short: 'PLACA', cat: 'loot', w: 1, h: 1, value: 4200, kg: 0.2 },
@@ -56,13 +61,28 @@ export const CATEGORY_TINT = {
   helmet: 'rgba(90,110,70,0.12)',
   backpack: 'rgba(90,110,70,0.12)',
   med: 'rgba(184,48,42,0.14)',
+  food: 'rgba(80,160,200,0.12)',
   loot: 'rgba(80,140,200,0.10)',
 };
 
 export const TRADER_STOCK = [
   'p9', 'vespa', 'k7', 'trovao', 'a9', 'a762', 'a12', 'coleteL', 'coleteP', 'capaceteL', 'capaceteP',
-  'mochilaP', 'mochilaM', 'mochilaT', 'bandagem', 'medkit',
+  'mochilaP', 'mochilaM', 'mochilaT', 'bandagem', 'medkit', 'agua', 'racao', 'energetico',
 ];
+
+/** Trader level requirements (unlock by gaining XP). */
+export const UNLOCK_LEVEL = { trovao: 2, mochilaM: 2, medkit: 2, k7: 3, coleteP: 4, capaceteP: 4, mochilaT: 5 };
+
+/** Level from total XP: each level needs 35% more than the previous one. */
+export function levelInfo(xp = 0) {
+  let level = 1, need = 300, rest = xp;
+  while (rest >= need) {
+    rest -= need;
+    level++;
+    need = Math.round(need * 1.35);
+  }
+  return { level, into: rest, need };
+}
 
 export const BUY_MULT = 1.6;
 
@@ -71,10 +91,12 @@ export const LOOT_TABLES = {
   common: [
     ['cobre', 10], ['a9', 9, [10, 30]], ['a12', 5, [4, 10]], ['bandagem', 8], ['bateria', 3],
     ['circuito', 4], ['a762', 4, [10, 25]], ['combustivel', 2], ['mochilaP', 2], ['capaceteL', 1],
+    ['agua', 7], ['racao', 6], ['energetico', 4],
   ],
   military: [
     ['a762', 9, [20, 50]], ['a9', 6, [20, 50]], ['medkit', 5], ['bateria', 5], ['hd', 4], ['capaceteL', 3],
     ['coleteL', 3], ['vespa', 2], ['k7', 1], ['trovao', 2], ['circuito', 4], ['mochilaM', 2],
+    ['racao', 4], ['agua', 3],
   ],
   rare: [
     ['relogio', 5], ['pendrive', 3], ['hd', 6], ['ferramentas', 5], ['coleteP', 2], ['k7', 2], ['medkit', 4],

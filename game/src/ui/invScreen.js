@@ -1,4 +1,5 @@
-import { ITEMS, TRADER_STOCK, BUY_MULT, newItem, itemValue, ammoIdFor } from '../data/items.js';
+import { ITEMS, TRADER_STOCK, BUY_MULT, newItem, itemValue, ammoIdFor, UNLOCK_LEVEL, levelInfo } from '../data/items.js';
+import { questsFor, questState } from '../data/quests.js';
 import { factionById, FACTIONS } from '../data/factions.js';
 import { slotAccepts, loadoutWeight, loadoutValue, activeWeapon, takeItem, addToStorages } from '../inventory/loadout.js';
 import { ui3d } from './icons.js';
@@ -80,7 +81,7 @@ export class InventoryScreen {
       <div class="iv-top">
         <nav class="iv-tabs">${tabs.map(([id, label, ic]) => `<button data-tab="${id}" class="${this.tab === id ? 'on' : ''}">${ic}<span>${label}</span></button>`).join('')}</nav>
         <div class="iv-top-r">
-          ${context === 'lobby' ? `<button class="iv-menu">☰ MENU</button><span class="iv-faction">${f.name}</span><span class="iv-money">₢ ${profile.money.toLocaleString('pt-BR')}</span>` : `<span class="iv-time" id="iv-time"></span>`}
+          ${context === 'lobby' ? `<button class="iv-menu">☰ MENU</button><span class="iv-faction">${f.name}</span>${(() => { const L = levelInfo(profile.xp ?? 0); return `<span class="iv-lvl"><b>NV ${L.level}</b><i style="--p:${Math.round((L.into / L.need) * 100)}%"></i></span>`; })()}<span class="iv-money">₢ ${profile.money.toLocaleString('pt-BR')}</span>` : `<span class="iv-time" id="iv-time"></span>`}
           ${context === 'raid' ? '<button class="iv-close" aria-label="Fechar">✕</button>' : ''}
         </div>
       </div>
@@ -153,7 +154,8 @@ export class InventoryScreen {
     const kg = loadoutWeight(lo);
     const stats = document.createElement('div');
     stats.className = 'stats-bar';
-    stats.innerHTML = `<span class="st-hp">${ICONS.heart}${hp}%</span><span>${ICONS.shield}${lo.armor ? Math.round(lo.armor.dur) : 0}</span><span class="${kg > 35 ? 'heavy' : ''}">${ICONS.weight}${kg.toFixed(1)} / 40kg</span>`;
+    const surv = actor ? `<span class="st-w">💧${Math.round(actor.water)}</span><span class="st-e">⚡${Math.round(actor.energy)}</span>${actor.bleeding ? '<span class="st-b">🩸</span>' : ''}` : '';
+    stats.innerHTML = `<span class="st-hp">${ICONS.heart}${hp}%</span>${surv}<span>${ICONS.shield}${lo.armor ? Math.round(lo.armor.dur) : 0}</span><span class="${kg > 35 ? 'heavy' : ''}">${ICONS.weight}${kg.toFixed(1)} / 40kg</span>`;
     p.appendChild(stats);
     body.appendChild(p);
     requestAnimationFrame(() => ui3d.drawCharacter(cv, profile.faction, lo, 3));
@@ -265,8 +267,11 @@ export class InventoryScreen {
       const price = Math.round(d.value * BUY_MULT * qty);
       const row = document.createElement('button');
       row.className = 'trader-row';
-      row.disabled = profile.money < price;
-      row.innerHTML = `<img src="${ui3d.icon(id)}" alt=""><span class="tr-name">${d.name}${d.stack ? ` ×${qty}` : ''}</span><span class="tr-price">₢ ${price.toLocaleString('pt-BR')}</span>`;
+      const need = UNLOCK_LEVEL[id] ?? 1;
+      const locked = levelInfo(profile.xp ?? 0).level < need;
+      row.disabled = locked || profile.money < price;
+      if (locked) row.classList.add('locked');
+      row.innerHTML = `<img src="${ui3d.icon(id)}" alt=""><span class="tr-name">${d.name}${d.stack ? ` ×${qty}` : ''}</span><span class="tr-price">${locked ? `🔒 NÍVEL ${need}` : `₢ ${price.toLocaleString('pt-BR')}`}</span>`;
       row.onclick = () => this.buy(id, qty, price);
       list.appendChild(row);
     }
@@ -365,15 +370,37 @@ export class InventoryScreen {
   }
 
   renderQuests(body) {
-    const p = this.pane('MISSÕES', ICONS.quest, 'iv-quests');
-    p.insertAdjacentHTML(
-      'beforeend',
-      `<ul class="quests">
-        <li><b>Primeiros passos</b><span>Extraia com vida de um raid.</span><em>${this.ctx.profile.stats.extracts > 0 ? 'CONCLUÍDA' : 'EM ANDAMENTO'}</em></li>
-        <li><b>Limpeza</b><span>Elimine 5 scavs.</span><em>EM BREVE</em></li>
-        <li><b>Dados perdidos</b><span>Traga um Pendrive Criptografado das ruínas.</span><em>EM BREVE</em></li>
-      </ul>`,
-    );
+    const { profile, context } = this.ctx;
+    const p = this.pane('MISSÕES E CONTRATOS', ICONS.quest, 'iv-quests');
+    const list = document.createElement('div');
+    list.className = 'quest-list';
+    for (const q of questsFor(profile)) {
+      const st = questState(profile, q);
+      const done = st.p >= q.target;
+      const card = document.createElement('div');
+      card.className = `quest${st.claimed ? ' claimed' : done ? ' done' : ''}${q.faction ? ' faction' : ''}`;
+      card.innerHTML = `<div class="q-head"><b>${q.title}</b>${q.faction ? '<em>FACÇÃO</em>' : ''}</div>
+        <p>${q.desc}</p>
+        <div class="q-bar"><i style="width:${Math.min(100, (st.p / q.target) * 100)}%"></i></div>
+        <div class="q-foot"><span>${Math.min(st.p, q.target)} / ${q.target}</span><span class="q-rw">₢ ${q.reward.money.toLocaleString('pt-BR')} · ${q.reward.xp} XP</span></div>`;
+      if (done && !st.claimed) {
+        const b = document.createElement('button');
+        b.className = 'mm-btn primary q-claim';
+        b.textContent = context === 'lobby' ? 'RESGATAR' : 'RESGATE NA BASE';
+        b.disabled = context !== 'lobby';
+        b.onclick = () => {
+          st.claimed = true;
+          profile.money += q.reward.money;
+          profile.xp = (profile.xp ?? 0) + q.reward.xp;
+          sfx.coin();
+          this.h.toast?.(`Recompensa: ₢ ${q.reward.money.toLocaleString('pt-BR')} e ${q.reward.xp} XP`);
+          this.changed();
+        };
+        card.appendChild(b);
+      } else if (st.claimed) card.insertAdjacentHTML('beforeend', '<div class="q-ok">✓ CONCLUÍDA</div>');
+      list.appendChild(card);
+    }
+    p.appendChild(list);
     body.appendChild(p);
   }
 

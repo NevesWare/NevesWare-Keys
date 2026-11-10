@@ -3,6 +3,7 @@ import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeom
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { soilTexture, dirtTexture, concreteTexture, plankTexture, brickTexture, rustTexture, helipadTexture } from './textures.js';
 import { createGrass, createForest, instancedChunks, shared } from './vegetation.js';
+import { vehicleModel } from './vehicles.js';
 
 /** Map cells whose visuals are props (not wall blocks). */
 export const PROP_CELLS = new Set(['trunk', 'rock', 'crate', 'crateMil', 'crateRare', 'sandbag', 'car']);
@@ -264,6 +265,14 @@ export function buildWorld({ vox, props, bounds, quality }) {
       c.rotation.y = p.rot ?? 0;
       c.traverse((o) => o.isMesh && (o.castShadow = o.receiveShadow = true));
       group.add(c);
+    }
+  }
+  for (const kind of ['truck', 'humvee', 'apc', 'suv', 'tower', 'barrier', 'barrels', 'crates', 'hangar']) {
+    for (const p of by(kind)) {
+      const m = vehicleModel(kind === 'crates' ? 'crateStack' : kind, p.v ?? 1);
+      m.position.set(p.x, 0, p.z);
+      m.rotation.y = p.rot ?? 0;
+      group.add(m);
     }
   }
   for (const p of by('car')) {

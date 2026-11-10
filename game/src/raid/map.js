@@ -185,7 +185,15 @@ export class RaidMap {
     if (cells.some(([cx, cz]) => this.isSolid(cx, cz))) return;
     for (const [cx, cz] of cells) this.block(cx, cz, 1, 'car');
     const cx = alongX ? x + 2 : x + 1, cz = alongX ? z + 1 : z + 2;
-    this.prop('car', Math.floor(this.rand() * 4), cx, cz, (alongX ? Math.PI / 2 : 0) + (this.rand() - 0.5) * 0.15);
+    const kinds = ['car', 'suv', 'car', 'humvee'];
+    this.prop(kinds[Math.floor(this.rand() * kinds.length)], Math.floor(this.rand() * 4), cx, cz, (alongX ? Math.PI / 2 : 0) + (this.rand() - 0.5) * 0.15);
+  }
+
+  /** Vehicle/structure with a solid rectangular footprint (cells w x d centered on x,z). */
+  structure(kind, x, z, w, d, rot = 0, v = 1) {
+    const x0 = Math.round(x - w / 2), z0 = Math.round(z - d / 2);
+    for (let i = 0; i < w; i++) for (let j = 0; j < d; j++) if (!this.isSolid(x0 + i, z0 + j)) this.block(x0 + i, z0 + j, 1, 'car');
+    this.prop(kind, v, x, z, rot);
   }
 
   /** Rectangular building with wall height 2 and door gaps in the middle of chosen sides. */
@@ -275,7 +283,7 @@ export class RaidMap {
     this.reserve(2, 58, 12, 70);
     for (let x = 3; x <= 10; x++) for (let z = 60; z <= 68; z++) this.ground(x, z, 'road');
     this.prop('helipad', 0, 7, 64.5, 0);
-    this.extracts.push({ name: 'Clareira Oeste', x: 7, z: 64.5, r: 4, faction: null });
+    this.extracts.push({ name: 'Clareira Oeste', x: 7, z: 64.5, r: 4, faction: null, cost: 4000 });
 
     // forest cabins
     const cabins = [[38, 40], [88, 40], [40, 92], [88, 88], [70, 32], [26, 74], [98, 64]];
@@ -355,6 +363,14 @@ export class RaidMap {
     // supply crates in the corners of the compound
     this.crate(x0 + 2, z0 + 2, 'military', 'Caixa de Suprimentos');
     this.crate(x1 - 2, z1 - 2, 'military', 'Caixa de Suprimentos');
+    // vehicles, watchtower, barriers, supplies
+    const sx = c.x < 64 ? 1 : -1, sz = c.z < 64 ? 1 : -1;
+    this.structure('truck', c.x - 6 * sx, c.z - 2, 3, 8, 0);
+    this.structure('humvee', c.x + 6 * sx, c.z - 3 * sz, 3, 5, Math.PI / 2);
+    this.structure('tower', c.x - 6 * sx, c.z + 6 * sz, 3, 3, 0);
+    this.prop('barrels', 3, c.x - 3.5 * sx, c.z + 7 * sz, 0.4);
+    this.prop('crates', f.id.length, c.x + 6 * sx, c.z + 6 * sz, 0.2);
+    for (const k of [-1, 1]) this.structure('barrier', c.x + k * 2.5 + (sx > 0 ? 9 : -9), c.z + (sz > 0 ? 3.5 : -3.5), 2, 1, 0);
     // sandbag cover
     for (let i = -2; i <= 2; i++) {
       this.sandbag(c.x + i, c.z - 5, 0);

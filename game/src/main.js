@@ -7,7 +7,7 @@ import { InventoryScreen, loadSettings } from './ui/invScreen.js';
 import { Hud, mapImage } from './ui/hud.js';
 import { TouchControls } from './ui/touch.js';
 import { ui3d } from './ui/icons.js';
-import { showScreen, hideScreens, factionSelect, resultScreen, mainMenu, pauseMenu, hidePause, confirmBox } from './ui/screens.js';
+import { showScreen, hideScreens, factionSelect, resultScreen, mainMenu, pauseMenu, hidePause, confirmBox, lzPicker } from './ui/screens.js';
 import { openSettingsModal } from './ui/settings.js';
 import { loadLayout, applyLayout, HudEditor } from './ui/hudLayout.js';
 import { view, updateView } from './ui/viewport.js';
@@ -20,7 +20,8 @@ import { VoxelLevel } from './world/voxelLevel.js';
 import { buildWorld, addLighting } from './gfx/world.js';
 import { Pipeline, TIERS, resolveTier } from './gfx/post.js';
 import { loadCharacters } from './gfx/characters.js';
-import { ITEMS, newItem } from './data/items.js';
+import { ITEMS, newItem, levelInfo } from './data/items.js';
+import { questEvent } from './data/quests.js';
 import { factionById } from './data/factions.js';
 import { newLoadout, loadoutValue, carriedItems, clearLoadout } from './inventory/loadout.js';
 import { botLoadout } from './raid/loot.js';
@@ -57,6 +58,7 @@ function applyHud() {
 }
 
 function applySettings() {
+  document.body.classList.toggle('lowfx', tierName === 'baixo');
   setVolume(settings.volume);
   touch.aimMode = settings.aimMode;
   touch.vibrate = settings.vibration;
@@ -119,7 +121,7 @@ let lobbyMap = null;
 
 const screen = new InventoryScreen(inv, {
   onClose: () => closeRaidInv(),
-  onDeploy: () => startRaid(),
+  onDeploy: () => lzPicker(profile, (lz) => startRaid(lz)),
   onReset: () => {
     wipe();
     profile = null;
@@ -194,18 +196,32 @@ function buildBase(factionId) {
       }
     }
   props.push({ kind: 'helipad', v: 0, x: 0, z: 0, rot: 0 });
-  for (const [x, z, t] of [[-8, -8, 'military'], [-6.8, -8.2, 'common'], [-8.2, -6.6, 'common'], [7, 6, 'military'], [6, 8, 'rare']]) props.push({ kind: 'crate', v: t, x: x + 0.5, z: z + 0.5, rot: x * 0.3 });
-  for (let i = -3; i <= 2; i++) props.push({ kind: 'sandbag', v: 0, x: i + 0.5, z: 7.5, rot: 0 });
-  props.push({ kind: 'car', v: 1, x: -7, z: 4.5, rot: 0.3 });
+  // vehicle park and base furniture (reference: military compound)
+  props.push(
+    { kind: 'truck', x: -7.5, z: -3, rot: Math.PI / 2 },
+    { kind: 'humvee', x: -7, z: 2.5, rot: Math.PI / 2 },
+    { kind: 'apc', x: -7.5, z: 7.5, rot: Math.PI / 2 },
+    { kind: 'suv', x: -2.5, z: 7.5, rot: Math.PI / 2 },
+    { kind: 'tower', x: 7.5, z: 7.5, rot: Math.PI },
+    { kind: 'barrels', v: 3, x: 5, z: 9, rot: 0.3 },
+    { kind: 'barrels', v: 2, x: 9.5, z: 4, rot: 1 },
+    { kind: 'crates', v: 1, x: -3, z: -9, rot: 0 },
+    { kind: 'crates', v: 2, x: 0.5, z: -9.2, rot: 0.1 },
+    { kind: 'crates', v: 3, x: 4, z: 6.5, rot: -0.2 },
+    { kind: 'hangar', x: -6, z: -8, rot: Math.PI },
+    { kind: 'barrier', x: 2, z: 10, rot: 0 },
+    { kind: 'barrier', x: 4.2, z: 10, rot: 0 },
+    { kind: 'barrier', x: 9.5, z: -2, rot: Math.PI / 2 },
+  );
   for (const [x, z, v] of [[-15, 4, 0], [14, -14, 1], [15, 10, 2], [-14, -15, 1], [-16, 13, 0], [13, 16, 2], [-17, -4, 2], [17, 1, 0]]) props.push({ kind: 'tree', v, x, z, rot: x, s: 0.85 });
   for (let i = 0; i < 30; i++) props.push({ kind: 'bush', v: i % 2, x: -19 + ((i * 7.3) % 38), z: (i % 2 ? -1 : 1) * (13.5 + (i % 5)), rot: i, s: 0.8 + (i % 3) * 0.2 });
-  for (let i = 0; i < 6; i++) props.push({ kind: 'fence', v: 0, x: 4.5 + i * 2.1, z: 12.6, rot: 0 });
   const world = buildWorld({ vox: L, props, bounds: { x0: -S, z0: -S, W: S * 2, H: S * 2 }, quality: quality() });
   scene.add(world.group);
   const light = addLighting(scene, renderer, { shadowSize: quality().shadows, extent: 20 });
   light.follow(new THREE.Vector3(0, 0, 0));
   const heli = new Helicopter(f.color);
-  heli.placeAt(0, 0.2, 0.5);
+  heli.placeAt(1.5, 0.2, -0.5);
+  heli.mesh.rotation.y = 0.9;
   heli.land();
   scene.add(heli.mesh);
   const crew = [];
@@ -220,9 +236,9 @@ function buildBase(factionId) {
   };
   const guard = (x, z, aim, s) => mk(factionId, x, z, aim, botLoadout(factionId).loadout, s);
   const hero = mk(factionId, 4.2, 4.2, 2.4, profile?.loadout ?? newLoadout(), 3);
-  guard(-6.5, 1.5, 1.4, 1);
+  guard(-3.5, -1.5, 1.4, 1);
   guard(7.5, -3, -1.9, 2);
-  guard(5.5, 5.3, -2.2, 4);
+  guard(6, 2.5, -2.2, 4);
   return { scene, heli, hero, light, world, crew, faction: factionId };
 }
 
@@ -281,17 +297,24 @@ function goLobby(msg) {
   if (msg) toast(msg);
 }
 
-function startRaid() {
+function questToast(done) {
+  for (const t of done) hud.toast(`Missão concluída: ${t}. Resgate na base.`, 4);
+}
+
+function startRaid(lz = 'centro') {
   unlockAudio();
   screen.close();
   mode = 'raid';
   raid = new Raid({
     profile,
+    lz,
     quality: quality(),
     renderer,
     callbacks: {
       onToast: (m) => hud.toast(m),
+      onLoot: () => questToast(questEvent(profile, 'loot', {})),
       onKill: (k, v) => {
+        if (k?.isPlayer) questToast(questEvent(profile, 'kill', { faction: v.faction }));
         // keep the feed clean: only fights between humans, or anything involving the player
         if (k?.isPlayer || v.isPlayer || (k && k.faction !== 'zombie' && v.faction !== 'zombie')) hud.killfeed(k, v);
       },
@@ -326,10 +349,16 @@ function endRaid(res) {
   s.raids++;
   s.kills += raid.stats.kills;
   let value = 0, items = 0;
+  const lvlBefore = levelInfo(profile.xp ?? 0).level;
+  let xp = raid.stats.xp;
   if (res.result === 'extracted') {
     s.extracts++;
     items = carriedItems(lo).length;
     value = loadoutValue(lo);
+    xp += 150 + Math.round(value / 400);
+    profile.money = Math.max(0, profile.money - (res.cost ?? 0));
+    const ids = [...carriedItems(lo), ...(lo.backpack?.grid.items() ?? [])].map((i) => i.id);
+    questEvent(profile, 'extract', { items: ids });
   } else {
     s.deaths++;
     clearLoadout(lo);
@@ -341,12 +370,16 @@ function endRaid(res) {
     profile.stash.add(newItem('a9', 36));
     note = 'O quartel-mestre te deu uma P-9 e munição de emergência.';
   }
+  profile.xp = (profile.xp ?? 0) + xp;
+  const lvlAfter = levelInfo(profile.xp).level;
+  if (lvlAfter > lvlBefore) note = `Subiu para o nível ${lvlAfter}! Novos itens no comerciante.`;
   save(profile);
   const kills = raid.stats.kills;
+  res.xp = xp;
   raid.dispose();
   raid = null;
   mode = 'result';
-  resultScreen({ ...res, kills, value, items }, () => goLobby(note));
+  resultScreen({ ...res, kills, value, items, xp }, () => goLobby(note));
 }
 
 // ---------- raid inventory ----------
@@ -372,7 +405,10 @@ function useHotbar(i) {
   else {
     const it = pl.loadout.pockets.at(i - 2, 0)?.item;
     if (it && ITEMS[it.id].cat === 'med') {
-      if (!pl.startHeal(it)) hud.toast('Vida cheia ou ocupado.');
+      if (!pl.startHeal(it) && !pl.bleeding) hud.toast('Vida cheia ou ocupado.');
+    } else if (it && ITEMS[it.id].cat === 'food') {
+      pl.consume(it);
+      hud.toast(`${ITEMS[it.id].name} consumido.`);
     } else if (it) hud.toast(`${ITEMS[it.id].name} não pode ser usado.`);
   }
 }

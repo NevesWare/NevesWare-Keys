@@ -66,6 +66,20 @@ Conteúdo do território: florestas densas e estradas, vilarejos e cidades aband
 | Extração | Helicóptero, com temporizador que pode ser interrompido **[feito]** |
 | Inimigos | Jogadores, Scavs e zumbis **[feito com bots]** |
 
+## 4b. Regras de sobrevivência e progressão (v0.5)
+
+| Mecânica | Regra |
+| --- | --- |
+| Hidratação | Cai com o tempo, mais rápido correndo. Em 0, perde vida. Água recupera. **[feito]** |
+| Energia | Cai com o tempo. Em 0, perde vida; com pouca energia, o fôlego volta devagar. Ração e energético recuperam. **[feito]** |
+| Fôlego | Correr gasta fôlego; sem fôlego não dá para correr. O energético dá 30 s de fôlego extra. **[feito]** |
+| Sangramento | Tiros (22%) e mordidas de zumbi (35%) podem causar sangramento contínuo até usar bandagem ou kit médico. **[feito]** |
+| XP e nível | Abates (zumbi 10, Scav 30, operador 70), caixas saqueadas e extração (150 + valor do loot) dão XP. O XP fica mesmo se você morrer. **[feito]** |
+| Desbloqueios | O comerciante libera itens por nível (Trovão nv 2, K-7 nv 3, Colete Pesado nv 4, Mochila Tática nv 5…). **[feito]** |
+| Missões | Missões gerais e um contrato por facção (Death Cult: caça a operadores). Recompensas em créditos e XP, resgatadas na base. **[feito]** |
+| Inserção | O jogador escolhe o ponto de entrada: Ground Zero, Norte, Sul, Leste ou Oeste. **[feito]** |
+| Extração paga | A Clareira Oeste (neutra) cobra ₢ 4.000; o heliponto da facção é gratuito. **[feito]** |
+
 ## 5. Fluxo da incursão
 
 1. **Base da facção:** preparação, stash global, comerciante. **[feito]**

@@ -1,12 +1,12 @@
 import { sfx } from '../audio.js';
 import { toApp, view } from './viewport.js';
 
-const KEY = 'deadsector-hud-v2';
+const KEY = 'deadsector-hud-v3';
 
 /** Widget centers in % of the viewport, scale and opacity. Tuned for phones in landscape. */
 export const DEFAULT_LAYOUT = {
   menu: { x: 3.6, y: 7, s: 1, o: 1 },
-  status: { x: 20, y: 7, s: 1, o: 1 },
+  status: { x: 20, y: 11.5, s: 1, o: 1 },
   timer: { x: 50, y: 5.5, s: 1, o: 1 },
   feed: { x: 50, y: 14, s: 1, o: 1 },
   minimap: { x: 91.5, y: 18, s: 1, o: 1 },

@@ -221,6 +221,17 @@ const BUILDERS = {
       box(0.14, 0.03, 0.03, polymer(), 0, 0.19, 0, 0.01),
     );
   },
+  agua() {
+    const bottle = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.038, 0.22, 18), new THREE.MeshStandardMaterial({ color: '#9cc8e8', roughness: 0.05, metalness: 0, transparent: true, opacity: 0.75 }));
+    bottle.position.y = 0.11;
+    return group(bottle, cyl(0.039, 0.07, paint('#2f6db0', 0.5, 0), 0, 0.12, 0, 'y'), cyl(0.016, 0.03, paint('#1e5a9a', 0.4, 0), 0, 0.24, 0, 'y'));
+  },
+  racao() {
+    return group(box(0.14, 0.05, 0.2, paint('#a08a5c', 0.85, 0), 0, 0.025, 0, 0.01), box(0.1, 0.002, 0.06, paint('#2a2a20', 0.8, 0), 0, 0.051, 0.03, 0));
+  },
+  energetico() {
+    return group(cyl(0.03, 0.12, paint('#1e3a8a', 0.3, 0.8), 0, 0.06, 0, 'y'), cyl(0.031, 0.025, paint('#d0d4d8', 0.3, 0.9), 0, 0.03, 0, 'y'), cyl(0.026, 0.004, paint('#c0c4c8', 0.3, 0.9), 0, 0.122, 0, 'y'));
+  },
   pendrive() {
     return group(box(0.025, 0.012, 0.06, paint('#2a4a7a', 0.4, 0.2), 0, 0.006, 0, 0.004), box(0.016, 0.006, 0.018, paint('#b0b4b8', 0.25, 0.9), 0, 0.006, 0.038, 0.001));
   },

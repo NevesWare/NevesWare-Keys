@@ -116,6 +116,13 @@ export class Hud {
     const ar = pl.loadout.armor;
     $('hud-ar-fill').style.width = ar ? `${(ar.dur / ITEMS[ar.id].armor.durability) * 100}%` : '0%';
     $('hud-armor').textContent = ar ? Math.round(ar.dur) : '';
+    $('hud-st-fill').style.width = `${pl.stamina}%`;
+    const wt = $('hud-water'), en = $('hud-energy');
+    wt.textContent = `💧 ${Math.round(pl.water)}`;
+    en.textContent = `⚡ ${Math.round(pl.energy)}`;
+    wt.classList.toggle('low', pl.water < 25);
+    en.classList.toggle('low', pl.energy < 25);
+    $('hud-bleed').classList.toggle('hidden', !pl.bleeding);
     const w = pl.weapon;
     $('hud-weapon').textContent = w ? ITEMS[w.id].name.toUpperCase() : 'DESARMADO';
     $('hud-ammo').innerHTML = w ? `${w.mag}<small> / ${pl.ammoReserve()}</small>` : '—';

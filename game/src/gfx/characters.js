@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as skeletonClone } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { itemModel } from './items.js';
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 
 /*
  * Animated humanoids built on Quaternius' Universal Animation Library mannequin (CC0).
@@ -25,7 +26,16 @@ let assets = null;
 
 export async function loadCharacters(url) {
   if (assets) return assets;
-  const gltf = await new GLTFLoader().loadAsync(url);
+  const loader = new GLTFLoader();
+  let gltf;
+  if (url.startsWith('data:')) {
+    // Published pages block fetch() of data: URLs (CSP) — decode in memory instead.
+    const b64 = url.slice(url.indexOf(',') + 1);
+    const bin = atob(b64);
+    const buf = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+    gltf = await loader.parseAsync(buf.buffer, '');
+  } else gltf = await loader.loadAsync(url);
   const clips = {};
   for (const c of gltf.animations) {
     // keep the character in place (no root motion)
@@ -72,8 +82,85 @@ function computeGearOffsets() {
     armor: { bone: 'DEF-spine003', m: local(chest, cp.clone().add(new THREE.Vector3(0, -0.24, 0.0)), 0, 1.12) },
     backpack: { bone: 'DEF-spine003', m: local(chest, cp.clone().add(new THREE.Vector3(0, -0.3, -0.21)), Math.PI, 1.0) },
     weapon: { bone: 'DEF-handR', m: local(hand, hd.clone().add(new THREE.Vector3(-0.02, -0.03, 0.02)).addScaledVector(fwd, 0.0), 0, 1.0) },
+    // clothing / kit always worn by humans (fitted in idle pose)
+    wear: [
+      ['DEF-head', 'balaclava', new THREE.Vector3(0, 0.1, 0.012)],
+      ['DEF-head', 'goggles', new THREE.Vector3(0, 0.125, 0.1)],
+      ['DEF-handL', 'glove', new THREE.Vector3(0, -0.02, 0.0)],
+      ['DEF-handR', 'glove', new THREE.Vector3(0, -0.02, 0.0)],
+      ['DEF-footL', 'boot', new THREE.Vector3(0, -0.02, 0.04)],
+      ['DEF-footR', 'boot', new THREE.Vector3(0, -0.02, 0.04)],
+      ['DEF-shinL', 'knee', new THREE.Vector3(0, 0.0, 0.07)],
+      ['DEF-shinR', 'knee', new THREE.Vector3(0, 0.0, 0.07)],
+      ['DEF-thighR', 'holster', new THREE.Vector3(0.11, -0.12, 0.0)],
+      ['DEF-spine001', 'belt', new THREE.Vector3(0, 0.02, 0)],
+    ].map(([bone, kind, off]) => {
+      const b = idle(bone);
+      return { bone, kind, m: local(b, wp(b).add(off), 0, 1) };
+    }),
   };
 }
+
+const WEAR_GEO = {};
+function wearMesh(kind, mats) {
+  const g = (WEAR_GEO[kind] ??= (() => {
+    switch (kind) {
+      case 'balaclava': return new THREE.SphereGeometry(0.118, 18, 14).scale(1, 1.12, 1.08);
+      case 'goggles': return new RoundedBoxGeometry(0.17, 0.05, 0.05, 2, 0.02);
+      case 'glove': return new THREE.SphereGeometry(0.052, 12, 10).scale(1, 1.25, 0.8);
+      case 'boot': return new RoundedBoxGeometry(0.12, 0.13, 0.27, 2, 0.04);
+      case 'knee': return new RoundedBoxGeometry(0.11, 0.12, 0.05, 2, 0.02);
+      case 'holster': return new RoundedBoxGeometry(0.06, 0.2, 0.13, 2, 0.02);
+      case 'belt': return new THREE.CylinderGeometry(0.17, 0.17, 0.06, 18).scale(1, 1, 0.78);
+      case 'cap': return new THREE.SphereGeometry(0.125, 18, 10, 0, Math.PI * 2, 0, Math.PI * 0.5);
+      case 'brim': return new RoundedBoxGeometry(0.18, 0.015, 0.09, 1, 0.006);
+      default: return new THREE.BoxGeometry(0.05, 0.05, 0.05);
+    }
+  })());
+  const m = new THREE.Mesh(g, kind === 'goggles' ? mats.glass : kind === 'boot' ? mats.boot : mats.kit);
+  m.castShadow = true;
+  return m;
+}
+
+/** Procedural camouflage on the body (the mannequin has no UVs: noise in bind-pose space). */
+function camoMaterial(colors, roughness = 0.88) {
+  const mat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness, metalness: 0 });
+  const u = { uC0: { value: new THREE.Color(colors[0]) }, uC1: { value: new THREE.Color(colors[1]) }, uC2: { value: new THREE.Color(colors[2]) } };
+  mat.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, u);
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vCamo;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvCamo = position;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace(
+        '#include <common>',
+        `#include <common>
+        varying vec3 vCamo; uniform vec3 uC0, uC1, uC2;
+        float h3(vec3 p){ return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
+        float vn(vec3 p){ vec3 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f);
+          return mix(mix(mix(h3(i), h3(i+vec3(1,0,0)), f.x), mix(h3(i+vec3(0,1,0)), h3(i+vec3(1,1,0)), f.x), f.y),
+                     mix(mix(h3(i+vec3(0,0,1)), h3(i+vec3(1,0,1)), f.x), mix(h3(i+vec3(0,1,1)), h3(i+vec3(1,1,1)), f.x), f.y), f.z); }`,
+      )
+      .replace(
+        '#include <color_fragment>',
+        `#include <color_fragment>
+        float n1 = vn(vCamo * 9.0) * 0.65 + vn(vCamo * 22.0) * 0.35;
+        float n2 = vn(vCamo * 14.0 + 7.3);
+        vec3 cc = mix(uC0, uC1, smoothstep(0.45, 0.55, n1));
+        cc = mix(cc, uC2, smoothstep(0.6, 0.68, n2));
+        cc *= 0.9 + vn(vCamo * 120.0) * 0.2; // fabric grain
+        diffuseColor.rgb *= cc;`,
+      );
+  };
+  return mat;
+}
+
+const CAMO = {
+  bears: ['#3f4534', '#59604a', '#262a1f'],
+  eagle: ['#6f6650', '#8c8062', '#4b4f3c'],
+  cult: ['#1c1c1f', '#2e2e32', '#3c3c41'],
+  zombie: ['#6f7a5c', '#58614a', '#5a2a24'],
+};
 
 export function charactersReady() {
   return !!assets;
@@ -87,7 +174,7 @@ export class CharacterRig {
     this.model = skeletonClone(assets.scene);
     this.root.add(this.model);
     const bodyColor = faction === 'scav' ? SCAV_BODIES[seed % SCAV_BODIES.length] : look.body;
-    this.bodyMat = new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.85, metalness: 0 });
+    this.bodyMat = CAMO[faction] ? camoMaterial(CAMO[faction]) : new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.88, metalness: 0 });
     this.jointMat = new THREE.MeshStandardMaterial({ color: look.joints, roughness: 0.7, metalness: 0.05 });
     this.model.traverse((o) => {
       if (!o.isMesh) return;
@@ -99,6 +186,24 @@ export class CharacterRig {
     this.model.traverse((o) => {
       if (o.isBone) this.bones[o.name] = o;
     });
+    // worn kit: balaclava, goggles, gloves, boots, knee pads, holster, belt
+    if (faction !== 'zombie') {
+      const dark = faction === 'cult' ? '#111113' : faction === 'scav' ? '#2a2622' : '#1d1f1c';
+      const mats = {
+        kit: new THREE.MeshStandardMaterial({ color: dark, roughness: 0.9 }),
+        boot: new THREE.MeshStandardMaterial({ color: '#1a1714', roughness: 0.7 }),
+        glass: new THREE.MeshStandardMaterial({ color: '#0e1418', roughness: 0.08, metalness: 0.6 }),
+      };
+      this.wear = [];
+      for (const w of assets.offsets.wear) {
+        if (faction === 'scav' && (w.kind === 'knee' || w.kind === 'holster')) continue;
+        const m = wearMesh(w.kind, mats);
+        m.matrixAutoUpdate = false;
+        m.matrix.copy(w.m);
+        this.bones[w.bone]?.add(m);
+        this.wear.push({ kind: w.kind, mesh: m });
+      }
+    }
     // faction armband on the left upper arm
     const band = look.band && new THREE.Mesh(new THREE.CylinderGeometry(0.058, 0.058, 0.07, 12, 1, true), new THREE.MeshStandardMaterial({ color: look.band, roughness: 0.6, side: THREE.DoubleSide }));
     band?.position.set(0, 0.12, 0);

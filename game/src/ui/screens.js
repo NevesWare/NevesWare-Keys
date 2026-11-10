@@ -65,7 +65,7 @@ export function factionSelect(onPick, onBack) {
   showScreen('screen-faction');
 }
 
-export function resultScreen({ result, killer, zone, kills, value, items }, onContinue) {
+export function resultScreen({ result, killer, zone, kills, value, items, xp = 0 }, onContinue) {
   const title = $('result-title');
   const body = $('result-body');
   const stats = (a, b, c) => `<div class="r-stats"><div><small>ABATES</small><strong>${a}</strong></div><div><small>ITENS</small><strong>${b}</strong></div><div><small>VALOR</small><strong>₢ ${c.toLocaleString('pt-BR')}</strong></div></div>`;
@@ -82,6 +82,7 @@ export function resultScreen({ result, killer, zone, kills, value, items }, onCo
     title.className = 'bad';
     body.innerHTML = `Morto por <b>${killer}</b>. Todo o equipamento levado foi perdido.${stats(kills, 0, 0)}`;
   }
+  body.insertAdjacentHTML('beforeend', `<div class="r-xp">+${xp} XP</div>`);
   $('result-continue').onclick = onContinue;
   showScreen('screen-result');
 }
@@ -111,5 +112,29 @@ export function confirmBox(text, onYes, yes = 'CONFIRMAR') {
     c.classList.add('hidden');
     onYes();
   };
+  c.querySelector('[data-n]').onclick = () => c.classList.add('hidden');
+}
+
+const LZS = [
+  ['centro', 'Ground Zero', 'Perto do centro. Mais zumbis e o melhor loot.', 'ALTO RISCO'],
+  ['norte', 'Setor Norte', 'Florestas e cabanas entre a base Red Bears e o centro.', 'MÉDIO'],
+  ['leste', 'Setor Leste', 'Estradas e carros abandonados perto da vila Scav.', 'MÉDIO'],
+  ['sul', 'Setor Sul', 'Campos abertos entre Eagle Force e Death Cult.', 'MÉDIO'],
+  ['oeste', 'Setor Oeste', 'Próximo da Clareira Oeste (extração paga).', 'BAIXO'],
+];
+
+/** Insertion point chooser shown before calling the helicopter. */
+export function lzPicker(profile, onPick) {
+  const c = $('confirm');
+  c.innerHTML = `<div class="pause-card wide lz-card"><h2>PONTO DE INSERÇÃO</h2>
+    <p class="lz-sub">Escolha onde o helicóptero vai te deixar.</p>
+    <div class="lz-list">${LZS.map(([id, name, desc, risk]) => `<button class="lz-opt" data-lz="${id}"><b>${name}</b><span>${desc}</span><em class="risk-${risk === 'ALTO RISCO' ? 'hi' : risk === 'BAIXO' ? 'lo' : 'md'}">${risk}</em></button>`).join('')}</div>
+    <button class="mm-btn" data-n>CANCELAR</button></div>`;
+  c.classList.remove('hidden');
+  c.querySelectorAll('[data-lz]').forEach((b) => (b.onclick = () => {
+    sfx.coin();
+    c.classList.add('hidden');
+    onPick(b.dataset.lz);
+  }));
   c.querySelector('[data-n]').onclick = () => c.classList.add('hidden');
 }

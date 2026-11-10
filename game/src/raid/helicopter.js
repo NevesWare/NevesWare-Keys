@@ -4,62 +4,54 @@ import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeom
 /** Transport helicopter (procedural PBR model) with a scripted descend/hover/ascend. Nose toward +z. */
 export class Helicopter {
   constructor(color = '#4a5560') {
-    const tone = new THREE.Color('#4b5244').lerp(new THREE.Color(color), 0.3);
-    const paint = new THREE.MeshStandardMaterial({ color: tone, roughness: 0.6, metalness: 0.3 });
-    const dark = new THREE.MeshStandardMaterial({ color: '#1e2022', roughness: 0.6, metalness: 0.5 });
-    const glass = new THREE.MeshStandardMaterial({ color: '#1a2830', roughness: 0.05, metalness: 0.5 });
-    const stripe = new THREE.MeshStandardMaterial({ color: '#e8e0cc', roughness: 0.6 });
+    // UH-60 style transport: dark grey airframe with a faction stripe
+    const paint = new THREE.MeshStandardMaterial({ color: '#2f3438', roughness: 0.55, metalness: 0.45 });
+    const dark = new THREE.MeshStandardMaterial({ color: '#1b1e20', roughness: 0.6, metalness: 0.5 });
+    const glass = new THREE.MeshStandardMaterial({ color: '#10181e', roughness: 0.04, metalness: 0.7 });
+    const stripe = new THREE.MeshStandardMaterial({ color: new THREE.Color(color).lerp(new THREE.Color('#2f3438'), 0.25), roughness: 0.5 });
+    const tire = new THREE.MeshStandardMaterial({ color: '#141414', roughness: 0.9 });
     const g = new THREE.Group();
-    const body = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 20), paint);
-    body.scale.set(1.25, 1.15, 3.0);
-    body.position.set(0, 1.55, 0.2);
-    const nose = new THREE.Mesh(new THREE.SphereGeometry(1, 28, 16, 0, Math.PI * 2, 0, Math.PI * 0.5), glass);
-    nose.scale.set(1.1, 1.0, 1.6);
-    nose.rotation.x = Math.PI / 2;
-    nose.position.set(0, 1.75, 1.75);
-    const boom = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.42, 5.2, 16), paint);
-    boom.rotation.x = Math.PI / 2;
-    boom.position.set(0, 1.9, -4.9);
-    const fin = new THREE.Mesh(new RoundedBoxGeometry(0.12, 1.5, 0.9, 2, 0.05), paint);
-    fin.position.set(0, 2.55, -7.3);
-    fin.rotation.x = -0.3;
-    const stab = new THREE.Mesh(new RoundedBoxGeometry(1.8, 0.08, 0.5, 2, 0.03), paint);
-    stab.position.set(0, 1.95, -6.8);
-    const engine = new THREE.Mesh(new RoundedBoxGeometry(1.3, 0.6, 2.6, 3, 0.2), dark);
-    engine.position.set(0, 2.75, -0.3);
-    const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.16, 0.5, 12), dark);
-    mast.position.set(0, 3.2, -0.2);
-    const band = new THREE.Mesh(new THREE.CylinderGeometry(1.0, 1.0, 0.25, 32, 1, true), stripe);
-    band.rotation.x = Math.PI / 2;
-    band.scale.set(1.26, 1, 1.16);
-    band.position.set(0, 1.55, -1.4);
-    const door = new THREE.Mesh(new THREE.BoxGeometry(0.05, 1.1, 1.5), dark);
-    door.position.set(1.22, 1.45, 0.1);
-    const door2 = door.clone();
-    door2.position.x = -1.22;
-    g.add(body, nose, boom, fin, stab, engine, mast, band, door, door2);
-    for (const x of [-0.95, 0.95]) {
-      const skid = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 4.2, 10), dark);
-      skid.rotation.x = Math.PI / 2;
-      skid.position.set(x, 0.07, 0.2);
-      g.add(skid);
-      for (const z of [-1.0, 1.3]) {
-        const strut = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.75, 8), dark);
-        strut.position.set(x * 0.92, 0.42, z);
-        strut.rotation.z = x > 0 ? 0.25 : -0.25;
-        g.add(strut);
-      }
+    const add = (m, x, y, z, rx = 0) => {
+      m.position.set(x, y, z);
+      m.rotation.x = rx;
+      g.add(m);
+      return m;
+    };
+    add(new THREE.Mesh(new RoundedBoxGeometry(2.1, 1.75, 5.4, 4, 0.55), paint), 0, 1.6, 0);
+    const nose = add(new THREE.Mesh(new THREE.SphereGeometry(1, 28, 18), paint), 0, 1.5, 2.75);
+    nose.scale.set(1.0, 0.85, 1.3);
+    const cockpit = add(new THREE.Mesh(new THREE.SphereGeometry(1, 28, 16, 0, Math.PI * 2, 0, Math.PI * 0.45), glass), 0, 1.75, 2.75, 1.1);
+    cockpit.scale.set(0.98, 0.9, 1.05);
+    add(new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.8, 1.3), glass), 1.06, 1.95, 0.6);
+    add(new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.8, 1.3), glass), -1.06, 1.95, 0.6);
+    add(new THREE.Mesh(new THREE.BoxGeometry(2.14, 0.22, 5.2), stripe), 0, 1.15, 0);
+    // engines + mast
+    add(new THREE.Mesh(new RoundedBoxGeometry(1.7, 0.7, 3.4, 3, 0.25), paint), 0, 2.7, -0.4);
+    for (const x of [-0.6, 0.6]) add(new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 1.6, 14), dark), x, 2.75, -1.6, Math.PI / 2);
+    add(new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.2, 0.55, 12), dark), 0, 3.25, 0);
+    // tail boom, fin, stabilizer
+    add(new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.55, 6.2, 16), paint), 0, 2.0, -5.6, Math.PI / 2 + 0.06);
+    const fin = add(new THREE.Mesh(new RoundedBoxGeometry(0.16, 1.8, 1.0, 2, 0.06), paint), 0, 2.85, -8.6);
+    fin.rotation.x = -0.35;
+    add(new THREE.Mesh(new RoundedBoxGeometry(2.6, 0.08, 0.6, 2, 0.03), paint), 0, 2.2, -8.2);
+    // landing gear (wheels)
+    for (const x of [-1.0, 1.0]) {
+      add(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.8, 8), dark), x * 0.95, 0.55, 1.6);
+      add(new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.18, 16), tire), x * 1.05, 0.26, 1.6).rotation.z = Math.PI / 2;
     }
+    add(new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.1, 12), tire), 0, 0.5, -7.6).rotation.z = Math.PI / 2;
+    add(new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 1.6), dark), 1.12, 0.75, 1.0);
+    add(new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 1.6), dark), -1.12, 0.75, 1.0);
     this.rotor = new THREE.Group();
     for (let i = 0; i < 4; i++) {
-      const blade = new THREE.Mesh(new RoundedBoxGeometry(5.6, 0.04, 0.32, 1, 0.015), dark);
-      blade.position.x = 2.8;
+      const blade = new THREE.Mesh(new RoundedBoxGeometry(7.2, 0.05, 0.42, 1, 0.02), dark);
+      blade.position.x = 3.6;
       const arm = new THREE.Group();
       arm.rotation.y = (i * Math.PI) / 2;
       arm.add(blade);
       this.rotor.add(arm);
     }
-    this.rotor.position.set(0, 3.48, -0.2);
+    this.rotor.position.set(0, 3.55, 0);
     g.add(this.rotor);
     this.tailRotor = new THREE.Group();
     for (let i = 0; i < 2; i++) {
@@ -67,7 +59,7 @@ export class Helicopter {
       b.rotation.x = (i * Math.PI) / 2;
       this.tailRotor.add(b);
     }
-    this.tailRotor.position.set(0.15, 2.6, -7.4);
+    this.tailRotor.position.set(0.15, 3.2, -8.75);
     g.add(this.tailRotor);
     g.traverse((o) => {
       if (o.isMesh) {

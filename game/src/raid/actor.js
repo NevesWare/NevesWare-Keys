@@ -27,6 +27,12 @@ export class Actor {
     this.alive = true;
     this.hidden = false;
     this.aiming = false;
+    // survival (used for the player)
+    this.water = 100;
+    this.energy = 100;
+    this.stamina = 100;
+    this.bleeding = false;
+    this.boostT = 0;
     if (faction === 'zombie') this.health = this.maxHealth = 70;
     this.cooldown = 0;
     this.reloadT = 0;
@@ -115,7 +121,7 @@ export class Actor {
 
   /** Use a specific med item, or the best one carried. */
   startHeal(item = null) {
-    if (this.healT > 0 || this.reloadT > 0 || this.health >= this.maxHealth) return false;
+    if (this.healT > 0 || this.reloadT > 0 || (this.health >= this.maxHealth && !this.bleeding)) return false;
     let med = item;
     if (!med) {
       const meds = storages(this.loadout).flatMap((g) => g.items()).filter((i) => ITEMS[i.id].cat === 'med');
@@ -130,16 +136,31 @@ export class Actor {
     return true;
   }
 
+  /** Eat/drink a food item from carried storages. */
+  consume(item) {
+    const f = ITEMS[item.id].food;
+    if (!f) return false;
+    this.water = Math.max(0, Math.min(100, this.water + (f.water ?? 0)));
+    this.energy = Math.max(0, Math.min(100, this.energy + (f.energy ?? 0)));
+    if (f.stamina) {
+      this.stamina = 100;
+      this.boostT = 30;
+    }
+    for (const g of storages(this.loadout)) if (g.remove(item)) break;
+    return true;
+  }
+
   finishHeal() {
     if (!this.healItem) return;
+    this.bleeding = false;
     this.health = Math.min(this.maxHealth, this.health + ITEMS[this.healItem.id].med.heal);
     for (const g of storages(this.loadout)) if (g.remove(this.healItem)) break;
     this.healItem = null;
   }
 
-  takeDamage(dmg, attacker) {
+  takeDamage(dmg, attacker, pierce = false) {
     if (!this.alive) return 0;
-    for (const slot of ['armor', 'helmet']) {
+    for (const slot of pierce ? [] : ['armor', 'helmet']) {
       const a = this.loadout[slot];
       if (a && a.dur > 0) {
         const absorbed = dmg * ITEMS[a.id].armor.reduce;
@@ -148,9 +169,11 @@ export class Actor {
       }
     }
     this.health -= dmg;
-    this.hitFlash = 0.08;
-    this.healT = 0;
-    this.healItem = null;
+    if (!pierce) {
+      this.hitFlash = 0.08;
+      this.healT = 0;
+      this.healItem = null;
+    }
     if (this.health <= 0) {
       this.health = 0;
       this.alive = false;
