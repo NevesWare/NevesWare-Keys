@@ -80,6 +80,32 @@ const BUILDERS = {
       box(0.032, 0.08, 0.035, wood(), 0, -0.035, -0.02),
     );
   },
+  awm() {
+    // bolt-action sniper: olive chassis, long fluted barrel, muzzle brake, scope, bipod
+    const olive = paint('#4a5136', 0.7, 0.1);
+    const scope = new THREE.Group();
+    scope.add(cyl(0.018, 0.3, darkMetal(), 0, 0, 0), cyl(0.024, 0.06, darkMetal(), 0, 0, 0.15), cyl(0.022, 0.05, darkMetal(), 0, 0, -0.14));
+    scope.add(new THREE.Mesh(new THREE.CircleGeometry(0.019, 16), mat('lens', { color: '#1a3040', metalness: 0.9, roughness: 0.05 })).translateZ(0.181));
+    scope.add(box(0.012, 0.03, 0.02, metal(), 0, -0.03, 0.08), box(0.012, 0.03, 0.02, metal(), 0, -0.03, -0.08));
+    scope.position.set(0, 0.11, 0.08);
+    return group(
+      box(0.055, 0.075, 0.42, olive, 0, 0.03, 0.08), // chassis
+      cyl(0.012, 0.6, darkMetal(), 0, 0.05, 0.58), // barrel
+      box(0.03, 0.03, 0.06, darkMetal(), 0, 0.05, 0.9, 0.006), // muzzle brake
+      box(0.04, 0.09, 0.04, olive, 0, -0.04, -0.01), // grip
+      box(0.045, 0.07, 0.3, olive, 0, 0.02, -0.28), // stock
+      box(0.045, 0.13, 0.04, polymer(), 0, -0.01, -0.44), // butt pad
+      box(0.02, 0.05, 0.12, olive, 0, 0.075, -0.25), // cheek rest
+      box(0.03, 0.06, 0.05, darkMetal(), 0, -0.035, 0.1), // mag
+      cyl(0.006, 0.05, metal(), 0.035, 0.06, -0.02, 'x', 8), // bolt handle
+      box(0.008, 0.18, 0.008, darkMetal(), 0.02, -0.07, 0.36).rotateX(0.5), // bipod legs
+      box(0.008, 0.18, 0.008, darkMetal(), -0.02, -0.07, 0.36).rotateX(0.5),
+      scope,
+    );
+  },
+  a338() {
+    return BUILDERS.ammoBox('#3e4430', '#c8a24a', 6);
+  },
   p9() {
     return group(
       box(0.03, 0.035, 0.19, polymer(), 0, 0.03, 0.06),
@@ -245,4 +271,4 @@ export function itemModel(id) {
 }
 
 /** Muzzle offset (meters, model space) per weapon — used for tracers/flash. */
-export const MUZZLE = { k7: 0.66, vespa: 0.34, trovao: 0.76, p9: 0.17 };
+export const MUZZLE = { k7: 0.66, vespa: 0.34, trovao: 0.76, p9: 0.17, awm: 0.93 };

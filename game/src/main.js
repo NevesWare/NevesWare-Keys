@@ -21,6 +21,7 @@ import { VoxelLevel } from './world/voxelLevel.js';
 import { buildWorld, addLighting } from './gfx/world.js';
 import { Pipeline, TIERS, resolveTier } from './gfx/post.js';
 import { loadCharacters } from './gfx/characters.js';
+import { loadRealAssets } from './gfx/realism.js';
 import { ITEMS, newItem, levelInfo } from './data/items.js';
 import { questEvent } from './data/quests.js';
 import { factionById } from './data/factions.js';
@@ -40,7 +41,7 @@ const isTouch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in win
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 const pipeline = new Pipeline(renderer);
-const cam = new FollowCamera({ distance: isTouch ? 15 : 19 });
+const cam = new FollowCamera();
 const viewport = new THREE.Vector2();
 const input = new Input(canvas);
 const touch = new TouchControls(input);
@@ -165,7 +166,7 @@ function toast(m) {
 
 const quality = () => {
   const t = TIERS[tierName];
-  return { shadows: settings.shadows === 'off' ? 0 : t.shadows, grass: settings.grass === false ? 0 : t.grass, grassPatch: t.grassPatch };
+  return { shadows: settings.shadows === 'off' ? 0 : t.shadows, grass: settings.grass === false ? 0 : t.grass, grassPatch: t.grassPatch, viewDist: t.view };
 };
 
 function resize() {
@@ -194,7 +195,10 @@ function goTitle() {
   document.body.classList.remove('in-hub');
   ensureHub(profile?.faction ?? 'bears');
   hub.player.mesh.visible = false;
-  cam.distance = isTouch ? 30 : 34;
+  cam.blocker = null;
+  cam.cine = cam.cineTarget = 1;
+  cam.cineDist = isTouch ? 30 : 34;
+  cam.cinePitch = 0.6;
   resize();
   cam.snapTo(new THREE.Vector3(28, 0, 30));
   mainMenu(profile, {
@@ -236,6 +240,8 @@ function goHub(msg, where = 'gate') {
   cineHide();
   cam.cine = cam.cineTarget = 0;
   cam.aim = cam.aimTarget = 0;
+  cam.cineDist = 34;
+  cam.blocker = (x, z, dx, dz, max) => hub.map.raycast(x, z, dx, dz, max);
   hud.setupMinimap(hub.map, profile.faction);
   const f = factionById(profile.faction);
   document.body.classList.add('in-hub');
@@ -318,6 +324,21 @@ function chaseYaw(heading, swing = 0.5) {
   cam.targetYaw = cam.yaw + wrapA(heading + Math.PI + swing - cam.yaw);
 }
 
+/** Aim angle from the player toward what the crosshair (screen center) is on. */
+const xhairPt = new THREE.Vector3();
+function crosshairAim(pl) {
+  // the shot converges with the camera's forward line where it meets cover (or the weapon's range)
+  const w = cam.forwardAngle(), fx = Math.sin(w), fz = Math.cos(w);
+  const c = cam.camera.position;
+  const map = (raid ?? hub)?.map;
+  const range = pl.weaponDef?.range ?? 30;
+  const along = (pl.pos.x - c.x) * fx + (pl.pos.z - c.z) * fz; // player's distance ahead of the camera
+  const d = map ? Math.min(range + along, map.raycast(c.x, c.z, fx, fz, range + along)) : range;
+  xhairPt.set(c.x + fx * d, 0, c.z + fz * d);
+  const dx = xhairPt.x - pl.pos.x, dz = xhairPt.z - pl.pos.z;
+  return Math.hypot(dx, dz) > 1 ? Math.atan2(dx, dz) : w;
+}
+
 /** Mouse aim angle on the ground plane (desktop). */
 function mouseAim(pos) {
   const rect = canvas.getBoundingClientRect();
@@ -388,7 +409,7 @@ function hubStep(dt) {
   const ax = cam.groundAxes();
   const pl = hub.player;
   const aiming = !invOpen && !!pl.weapon && (touch.enabled ? touch.aiming : input.isHeld('aim'));
-  const aim = touch.enabled ? cam.forwardAngle() : mouseAim(pl.pos) ?? pl.aim;
+  const aim = crosshairAim(pl);
   hub.update(dt, {
     moveX: ax.right.x * m.x + ax.forward.x * m.y,
     moveZ: ax.right.y * m.x + ax.forward.y * m.y,
@@ -408,12 +429,8 @@ function hubStep(dt) {
   }
   cam.cineTarget = 0;
   cam.aimTarget = aiming ? 1 : 0;
-  const focus = pl.pos.clone().setY(0);
-  if (aiming) {
-    focus.x += Math.sin(pl.aim) * 1.4;
-    focus.z += Math.cos(pl.aim) * 1.4;
-  }
-  cam.update(dt, focus);
+  document.body.classList.toggle('aiming', aiming);
+  cam.update(dt, pl.pos.clone().setY(0));
   hub.lighting.follow(cam.focus);
   hub.world.update(dt, cam.camera, cam.focus, pl.pos, viewport);
   // full HUD (same as in the raid)
@@ -463,7 +480,9 @@ function startRaid(lz = null) {
   hud.show(true);
   touch.reset();
   applyHud();
-  cam.distance = isTouch ? 15 : 19;
+  cam.blocker = (x, z, dx, dz, max) => raid?.map.raycast(x, z, dx, dz, max) ?? max;
+  cam.cineDist = 44;
+  cam.cinePitch = 0.6;
   resize();
   cam.yaw = cam.targetYaw = raid.heli.mesh.rotation.y + Math.PI + 0.5;
   cam.cine = cam.cineTarget = 1;
@@ -615,8 +634,8 @@ function raidCinematic(dt) {
   cam.aimTarget = 0;
   if (st === 'flight') chaseYaw(raid.heli.mesh.rotation.y, 0.5);
   cam.update(dt, fp);
-  raid.scene.fog.near = 34 + 50 * cam.cine;
-  raid.scene.fog.far = 150 + 90 * cam.cine;
+  raid.scene.fog.near = raid.lighting.fogNear + 50 * cam.cine;
+  raid.scene.fog.far = raid.lighting.fogFar + 90 * cam.cine;
   raid.lighting.follow(cam.focus.clone().setY(0));
   raid.world.update(dt, cam.camera, cam.focus.clone().setY(0), null, viewport);
   const eta = Math.ceil(raid.eta());
@@ -632,9 +651,9 @@ function raidStep(dt) {
   if (CINE_STATES.has(raid.state)) return raidCinematic(dt);
   cineHide();
   cam.cineTarget = 0;
-  if (raid.scene.fog.near !== 34) {
-    raid.scene.fog.near = 34;
-    raid.scene.fog.far = 150;
+  if (raid.scene.fog.near !== raid.lighting.fogNear) {
+    raid.scene.fog.near = raid.lighting.fogNear;
+    raid.scene.fog.far = raid.lighting.fogFar;
   }
   const invOpen = screen.isOpen;
   if (invOpen) {
@@ -664,21 +683,15 @@ function raidStep(dt) {
   let aim = pl.aim;
   const firingHeld = input.isHeld('fire') && !invOpen;
   let aiming = false;
-  if (touch.enabled) {
-    aiming = touch.aiming;
-    if (aiming) {
-      aim = cam.forwardAngle();
-      if (settings.aimAssist) aim = assist(pl, aim, 0.07);
-    } else {
-      if (Math.hypot(moveX, moveZ) > 0.2) aim = Math.atan2(moveX, moveZ);
-      if (firingHeld && settings.aimAssist) aim = assist(pl, aim, 0.35);
-    }
-  } else {
-    aiming = input.isHeld('aim');
-    aim = mouseAim(pl.pos) ?? aim;
-    const pad = input.stickAim();
-    if (pad) aim = Math.atan2(ax.right.x * pad.x + ax.forward.x * pad.y, ax.right.y * pad.x + ax.forward.y * pad.y);
-  }
+  // third person: aiming or firing shoots at the crosshair (screen center);
+  // otherwise the character faces where it walks
+  aiming = touch.enabled ? touch.aiming : input.isHeld('aim');
+  if (aiming || firingHeld) {
+    aim = crosshairAim(pl);
+    if (settings.aimAssist && touch.enabled) aim = assist(pl, aim, aiming ? 0.05 : 0.12);
+  } else if (Math.hypot(moveX, moveZ) > 0.2) aim = Math.atan2(moveX, moveZ);
+  const pad = !touch.enabled && input.stickAim();
+  if (pad) aim = Math.atan2(ax.right.x * pad.x + ax.forward.x * pad.y, ax.right.y * pad.x + ax.forward.y * pad.y);
 
   raid.update(dt, {
     moveX, moveZ, aim, aiming,
@@ -695,12 +708,9 @@ function raidStep(dt) {
   if (!raid) return;
   if (CINE_STATES.has(raid.state)) return;
   cam.aimTarget = aiming && pl.alive ? 1 : 0;
+  document.body.classList.toggle('aiming', cam.aimTarget > 0);
 
-  const focus = pl.pos.clone();
-  const lookDist = aiming ? 1.4 : touch.enabled ? 1.0 : 1.6;
-  focus.x += Math.sin(pl.aim) * lookDist;
-  focus.z += Math.cos(pl.aim) * lookDist;
-  focus.y = 0;
+  const focus = pl.pos.clone().setY(0);
   cam.update(dt, focus);
   raid.lighting.follow(focus);
   raid.world.update(dt, cam.camera, cam.focus, pl.alive ? pl.pos : null, viewport);
@@ -862,7 +872,19 @@ window.addEventListener('pointerup', () => {
 window.addEventListener('orientationchange', () => setTimeout(resize, 250));
 
 // ---------- boot ----------
-touch.onCamera = (dx) => cam.addYaw(-dx * 0.0065 * settings.sens);
+touch.onCamera = (dx, dy = 0) => {
+  cam.addYaw(-dx * 0.0065 * settings.sens);
+  cam.addPitch(dy * 0.0045 * settings.sens);
+};
+// desktop: click to capture the mouse, then the mouse turns the camera
+canvas.addEventListener('click', () => {
+  if (!isTouch && (mode === 'raid' || mode === 'hub') && !screen.isOpen && !document.pointerLockElement) canvas.requestPointerLock?.()?.catch?.(() => {});
+});
+document.addEventListener('mousemove', (e) => {
+  if (document.pointerLockElement !== canvas) return;
+  cam.addYaw(-e.movementX * 0.0026 * settings.sens);
+  cam.addPitch(e.movementY * 0.0022 * settings.sens);
+});
 touch.onZoom = (f) => cam.zoom(f);
 touch.onStickReset = () => applyHud();
 canvas.addEventListener('wheel', (e) => {
@@ -904,13 +926,12 @@ function startGame() {
   }
 }
 
-loadCharacters(params.has('nomodel') ? 'data:,invalid' : mannequinUrl)
-  .then(startGame)
-  .catch((e) => {
-    // the game still runs with simplified characters
-    showBootError('Modelo 3D (usando bonecos simplificados)', e);
-    startGame();
-  });
+const realJob = params.has('noreal') ? Promise.resolve(false) : loadRealAssets().catch((e) => (showBootError('Texturas HD', e), false));
+const charJob = loadCharacters(params.has('nomodel') ? 'data:,invalid' : mannequinUrl).catch((e) => {
+  // the game still runs with simplified characters
+  showBootError('Modelo 3D (usando bonecos simplificados)', e);
+});
+Promise.all([realJob, charJob]).then(startGame);
 requestAnimationFrame(frame);
 
 // test/debug hook

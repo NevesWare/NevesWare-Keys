@@ -5,24 +5,29 @@ export const ITEMS = {
   // --- weapons ---
   p9: {
     name: 'Pistola P-9', short: 'P-9', cat: 'weapon', slot: 'secondary', w: 2, h: 1, value: 4000, kg: 0.8,
-    weapon: { caliber: '9mm', mag: 12, rpm: 320, auto: false, damage: 22, spread: 3, range: 24, reload: 1.4, pellets: 1 },
+    weapon: { caliber: '9mm', mag: 12, rpm: 320, auto: false, damage: 22, spread: 3, range: 24, reload: 1.4, pellets: 1, sound: 'pistol' },
   },
   vespa: {
     name: 'SMG Vespa', short: 'VESPA', cat: 'weapon', slot: 'primary', w: 4, h: 2, value: 14000, kg: 2.6,
-    weapon: { caliber: '9mm', mag: 30, rpm: 780, auto: true, damage: 17, spread: 5, range: 26, reload: 2.0, pellets: 1 },
+    weapon: { caliber: '9mm', mag: 30, rpm: 780, auto: true, damage: 17, spread: 5, range: 26, reload: 2.0, pellets: 1, sound: 'mp5' },
   },
   k7: {
     name: 'Fuzil K-7', short: 'K-7', cat: 'weapon', slot: 'primary', w: 7, h: 2, value: 32000, kg: 3.6,
-    weapon: { caliber: '7.62', mag: 30, rpm: 600, auto: true, damage: 33, spread: 2.5, range: 34, reload: 2.4, pellets: 1 },
+    weapon: { caliber: '7.62', mag: 30, rpm: 600, auto: true, damage: 33, spread: 2.5, range: 34, reload: 2.4, pellets: 1, sound: 'ak' },
   },
   trovao: {
     name: 'Escopeta Trovão', short: 'TROVÃO', cat: 'weapon', slot: 'primary', w: 8, h: 2, value: 18000, kg: 3.3,
-    weapon: { caliber: '12g', mag: 6, rpm: 90, auto: false, damage: 11, spread: 9, range: 14, reload: 2.8, pellets: 8 },
+    weapon: { caliber: '12g', mag: 6, rpm: 90, auto: false, damage: 11, spread: 9, range: 14, reload: 2.8, pellets: 8, sound: 'shotgun' },
+  },
+  awm: {
+    name: 'Sniper AWM', short: 'AWM', cat: 'weapon', slot: 'primary', w: 10, h: 2, value: 68000, kg: 6.5,
+    weapon: { caliber: '.338', mag: 5, rpm: 42, auto: false, damage: 95, spread: 0.35, range: 70, reload: 3.4, pellets: 1, sound: 'awm' },
   },
 
   // --- ammo ---
   a9: { name: 'Munição 9x19mm', short: '9x19', cat: 'ammo', w: 1, h: 1, value: 40, stack: 60, caliber: '9mm', kg: 0.008 },
   a762: { name: 'Munição 7.62x39', short: '7.62x39', cat: 'ammo', w: 1, h: 1, value: 110, stack: 60, caliber: '7.62', kg: 0.016 },
+  a338: { name: 'Munição .338 Lapua', short: '.338', cat: 'ammo', w: 1, h: 1, value: 420, stack: 30, caliber: '.338', kg: 0.05 },
   a12: { name: 'Cartucho 12/70', short: '12/70', cat: 'ammo', w: 1, h: 1, value: 90, stack: 20, caliber: '12g', kg: 0.04 },
 
   // --- gear ---
@@ -69,7 +74,7 @@ export const CATEGORY_TINT = {
 };
 
 export const TRADER_STOCK = [
-  'p9', 'vespa', 'k7', 'trovao', 'a9', 'a762', 'a12', 'coleteL', 'coleteP', 'capaceteL', 'capaceteP',
+  'p9', 'vespa', 'k7', 'trovao', 'awm', 'a9', 'a762', 'a12', 'a338', 'coleteL', 'coleteP', 'capaceteL', 'capaceteP',
   'mochilaP', 'mochilaM', 'mochilaT', 'bandagem', 'medkit', 'agua', 'racao', 'energetico',
 ];
 
@@ -85,7 +90,7 @@ export const BARTERS = [
 ];
 
 /** Trader level requirements (unlock by gaining XP). */
-export const UNLOCK_LEVEL = { trovao: 2, mochilaM: 2, medkit: 2, k7: 3, coleteP: 4, capaceteP: 4, mochilaT: 5 };
+export const UNLOCK_LEVEL = { trovao: 2, mochilaM: 2, medkit: 2, k7: 3, coleteP: 4, capaceteP: 4, mochilaT: 5, awm: 6, a338: 6 };
 
 /** Level from total XP: each level needs 35% more than the previous one. */
 export function levelInfo(xp = 0) {
@@ -114,7 +119,7 @@ export const LOOT_TABLES = {
   ],
   rare: [
     ['relogio', 5], ['pendrive', 3], ['hd', 6], ['ferramentas', 5], ['coleteP', 2], ['k7', 2], ['medkit', 4],
-    ['capaceteP', 2], ['mochilaT', 1],
+    ['capaceteP', 2], ['mochilaT', 1], ['awm', 1], ['a338', 3, [5, 15]],
   ],
 };
 

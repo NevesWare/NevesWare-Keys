@@ -75,7 +75,7 @@ export class Hub {
 
     this.world = buildWorld({ map: m, bounds: { x0: 0, z0: 0, W, H: W }, quality });
     this.scene.add(this.world.group);
-    this.lighting = addLighting(this.scene, renderer, { shadowSize: quality.shadows, extent: 24 });
+    this.lighting = addLighting(this.scene, renderer, { shadowSize: quality.shadows, extent: 24, viewDist: quality.viewDist });
     this.lighting.follow(new THREE.Vector3(28, 0, 28));
 
     this.heli = new Helicopter(f.color);

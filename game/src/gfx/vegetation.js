@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { leafTexture, barkTexture } from './textures.js';
+import { pbrMaterial } from './realism.js';
 
 export const shared = {
   time: { value: 0 },
@@ -289,7 +290,7 @@ export function instancedChunks(geo, mat, items, { castShadow = true, depth = nu
 /** Trees + bushes for a list of placements. */
 export function createForest(trees, bushes) {
   const group = new THREE.Group();
-  const bark = new THREE.MeshLambertMaterial({ map: barkTexture(), color: '#b9a690' });
+  const bark = pbrMaterial('bark_willow', { repeat: 1, color: '#c8bca8' }) ?? new THREE.MeshLambertMaterial({ map: barkTexture(), color: '#b9a690' });
   const hues = [52, 70, 40];
   for (let v = 0; v < 3; v++) {
     const list = trees.filter((t) => t.v % 3 === v);

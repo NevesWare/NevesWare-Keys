@@ -528,3 +528,11 @@ body.cine #hud > *:not(#hud-toast) { opacity: 0 !important; pointer-events: none
 .ts-icon { font-size: 44px; color: var(--accent); animation: pulse 1.4s infinite; }
 .ts-card b { font-family: 'Barlow Condensed', sans-serif; font-size: 26px; letter-spacing: 4px; }
 .ts-card small { font: 500 13px Inter, sans-serif; color: var(--dim); }
+
+/* third-person crosshair */
+#xhair { position: absolute; left: 50%; top: 50%; width: 26px; height: 26px; transform: translate(-50%, -50%); pointer-events: none; opacity: 0.85; }
+#xhair::before, #xhair::after { content: ''; position: absolute; background: rgba(255,255,255,0.9); box-shadow: 0 0 2px rgba(0,0,0,0.8); }
+#xhair::before { left: 12px; top: 0; width: 2px; height: 26px; clip-path: polygon(0 0, 100% 0, 100% 35%, 0 35%, 0 65%, 100% 65%, 100% 100%, 0 100%); }
+#xhair::after { top: 12px; left: 0; height: 2px; width: 26px; clip-path: polygon(0 0, 35% 0, 35% 100%, 0 100%, 0 0, 65% 0, 100% 0, 100% 100%, 65% 100%); }
+#xhair i { position: absolute; left: 11.5px; top: 11.5px; width: 3px; height: 3px; border-radius: 50%; background: #ff4a36; }
+body.aiming #xhair { transform: translate(-50%, -50%) scale(0.75); }

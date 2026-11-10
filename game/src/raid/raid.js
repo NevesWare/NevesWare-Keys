@@ -139,12 +139,11 @@ export class Raid {
 
   setupScene() {
     const s = this.scene;
-    const key = `${this.quality.grass}/${this.quality.grassPatch}`;
+    const key = `${this.quality.grass}/${this.quality.grassPatch}/${this.quality.viewDist}`;
     if (worldVisual?.key !== key) worldVisual = { key, world: buildWorld({ map: this.map, bounds: { x0: 0, z0: 0, W: MAP_SIZE, H: MAP_SIZE }, quality: this.quality }) };
     this.world = worldVisual.world;
     s.add(this.world.group);
-    this.lighting = addLighting(s, this.renderer, { shadowSize: this.quality.shadows ?? 2048 });
-    s.fog.far = 150;
+    this.lighting = addLighting(s, this.renderer, { shadowSize: this.quality.shadows ?? 2048, viewDist: this.quality.viewDist });
     // pooled muzzle flash lights (fixed count so shaders never recompile)
     this.flashes = [];
     for (let i = 0; i < 4; i++) {
@@ -212,7 +211,7 @@ export class Raid {
       if (victim) this.damage(victim, w.damage, actor);
     }
     const dist = Math.hypot(actor.pos.x - this.player.pos.x, actor.pos.z - this.player.pos.z);
-    sfx.shot(w.caliber, actor.isPlayer ? 0 : dist);
+    sfx.shot(w.sound ?? 'mp5', actor.isPlayer ? 0 : dist, actor);
     const fl = this.flashes[this.flashIdx++ % this.flashes.length];
     fl.position.set(ox, MUZZLE_HEIGHT + 0.3, oz);
     fl.intensity = 18;
@@ -504,8 +503,8 @@ export class Raid {
         continue;
       }
       b.update(dt);
-      const far = dx > 48 || dz > 48;
-      b.a.mesh.visible = !far;
+      const far = dx > 48 || dz > 48; // beyond this: no animation (pose freezes)
+      b.a.mesh.visible = dx < 125 && dz < 125;
       b.a.update(dt, !far);
     }
 

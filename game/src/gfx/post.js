@@ -8,9 +8,9 @@ import { view } from '../ui/viewport.js';
 
 /** Quality tiers. 'auto' resolves from the device. */
 export const TIERS = {
-  baixo: { label: 'Baixo', dpr: 1, shadows: 1024, grass: 16000, grassPatch: 24, post: 'none', bloom: false },
-  medio: { label: 'Médio', dpr: 1.5, shadows: 1024, grass: 40000, grassPatch: 30, post: 'grade', bloom: false },
-  alto: { label: 'Alto', dpr: 2, shadows: 2048, grass: 110000, grassPatch: 40, post: 'full', bloom: true },
+  baixo: { label: 'Baixo', dpr: 1, shadows: 1024, grass: 16000, grassPatch: 24, view: 95, post: 'none', bloom: false },
+  medio: { label: 'Médio', dpr: 1.5, shadows: 1024, grass: 40000, grassPatch: 30, view: 135, post: 'grade', bloom: false },
+  alto: { label: 'Alto', dpr: 2, shadows: 2048, grass: 110000, grassPatch: 40, view: 180, post: 'full', bloom: true },
 };
 
 export function resolveTier(setting) {

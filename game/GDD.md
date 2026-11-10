@@ -107,6 +107,15 @@ Ao voltar de uma incursão, o jogador desembarca no heliponto da base.
 - **Rolar (Espaço / botão):** esquiva rápida de 0,7 s que custa 15 de estamina.
 - **Câmera de mira:** ao mirar, a câmera desce (~30°), aproxima por trás do ombro, sobe para a altura dos olhos e fecha um pouco o FOV, para ver mais longe na direção da mira.
 
+## 4e. Terceira pessoa, visual HD e sons reais (v0.8)
+
+- **Câmera:** terceira pessoa sobre o ombro (estilo DayZ/War Dogs). Arrastar gira para os lados e para cima/baixo; pinça muda a distância. A câmera encosta nas paredes para não atravessá-las.
+- **Mira:** a cruz fica no centro da tela. Mirar aproxima a câmera do ombro e fecha o FOV. Tiro mirado ou do quadril vai para onde a cruz aponta; andando sem atirar, o personagem vira para onde anda. No PC, clicar captura o mouse para girar a câmera.
+- **Visual HD:** texturas fotoescaneadas da Poly Haven (CC0) no chão, nas paredes de tijolo, pedra, madeira e concreto e na casca das árvores; céu HDRI real com iluminação de dia; modelos reais de caixas militares, galões, barris, barreiras de concreto, pneus, botijões, pedras, troncos caídos e carros cobertos.
+- **Distância de visão** por nível gráfico: baixo 95 m, médio 135 m, alto 180 m.
+- **Sons de arma gravados:** AK (K-7), MP5 (Vespa), pistola silenciada (P-9), AWM (sniper nova, e escopeta com tom mais grave). Rajadas tocam um disparo por tiro mais o eco no fim; tiros distantes soam abafados.
+- **Nova arma:** Sniper AWM (.338 Lapua, 5 tiros, dano 95, alcance 70 m), nível 6 no comerciante e rara no loot.
+
 ## 6b. Tamanhos realistas no inventário (v0.6)
 
 **1 célula ≈ 12,5 cm.** Cada item ocupa o tamanho real dele, e o tooltip mostra o tamanho em células e em cm. **[feito]**

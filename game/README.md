@@ -27,7 +27,8 @@ npm run build    # gera dist/ (estático, pode hospedar em qualquer lugar)
 ## Controles (celular)
 
 - **Joystick (esquerda):** mover. Empurrar até o fim faz correr.
-- **Arrastar no resto da tela:** girar a câmera em 360°. Pinça: zoom.
+- **Câmera em terceira pessoa:** arrastar no resto da tela gira para os lados e para cima/baixo. Pinça: distância.
+- **Mira:** a cruz no centro da tela é para onde o tiro vai.
 - **MIRAR:** levanta a arma, trava o personagem para a frente da câmera e mostra a linha de mira. Girar a câmera gira a mira, e dá para andar mirando. Pode ser "alternar" ou "segurar" (Configurações › Controles).
 - **ATIRAR:** dispara. Sem mirar, é tiro rápido na direção em que você anda.
 - **Agachar** e **rolar** (botões próprios). Ao mirar, a câmera desce para trás do ombro e olha à frente.
@@ -81,3 +82,7 @@ O hook `window.__game` expõe o estado para testes automatizados.
 - Multiplayer online (servidor autoritativo Node + WebSocket)
 - Mochilas/rigs de tamanhos diferentes, modificação de armas, quests do comerciante
 - Áudio posicional melhor e névoa de guerra por linha de visão
+
+## Créditos
+
+Texturas, modelos e céu HD: Poly Haven (CC0), ver `src/assets/ph/CREDITS.md`.

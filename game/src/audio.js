@@ -1,4 +1,48 @@
-// Tiny synthesized SFX (no asset files). Volume falls off with distance from the listener.
+// SFX: recorded weapon samples (src/assets/snd) + small synthesized UI/world sounds.
+// Volume and brightness fall off with distance from the listener.
+import { bytesFromUrl } from './util/bytes.js';
+
+const SAMPLE_URLS = import.meta.glob('./assets/snd/*.mp3', { query: '?url', import: 'default', eager: true });
+const samples = {};
+let samplesLoading = false;
+function loadSamples(c) {
+  if (samplesLoading) return;
+  samplesLoading = true;
+  for (const [path, url] of Object.entries(SAMPLE_URLS)) {
+    const key = path.split('/').pop().replace('.mp3', '');
+    bytesFromUrl(url)
+      .then((buf) => c.decodeAudioData(buf))
+      .then((b) => (samples[key] = b))
+      .catch(() => {});
+  }
+}
+
+/** Weapon sound sets: single shot sample, optional burst tail, synth fallback. */
+const GUN = {
+  ak: { shot: 'ak_shot', tail: 'ak_tail', vol: 0.9, fb: [0.18, 1800] },
+  mp5: { shot: 'mp5_shot', tail: 'mp5_tail', vol: 0.75, fb: [0.11, 2600] },
+  pistol: { shot: 'pistol_shot', vol: 0.8, fb: [0.09, 1400] },
+  awm: { shot: 'awm_shot', vol: 1.0, fb: [0.4, 900] },
+  shotgun: { shot: 'awm_shot', vol: 0.95, rate: 0.82, fb: [0.28, 900] },
+};
+const tailTimers = new Map();
+
+function playSample(name, vol, dist, rate = 1) {
+  const c = ensure();
+  const b = samples[name];
+  if (!c || !b || vol <= 0.003) return false;
+  const src = c.createBufferSource();
+  src.buffer = b;
+  src.playbackRate.value = rate * (0.97 + Math.random() * 0.06);
+  const f = c.createBiquadFilter();
+  f.type = 'lowpass';
+  f.frequency.value = 18000 * Math.exp(-dist / 40) + 700; // far shots sound muffled
+  const g = c.createGain();
+  g.gain.value = vol;
+  src.connect(f).connect(g).connect(out());
+  src.start();
+  return true;
+}
 let ctx = null;
 let noiseBuf = null;
 let master = null;
@@ -22,6 +66,7 @@ function ensure() {
   if (ctx) return ctx;
   try {
     ctx = new (window.AudioContext || window.webkitAudioContext)();
+    loadSamples(ctx);
     noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 0.5, ctx.sampleRate);
     const d = noiseBuf.getChannelData(0);
     for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
@@ -70,13 +115,21 @@ function tone(freq, dur, vol, type = 'square') {
 }
 
 const falloff = (dist) => Math.max(0, 1 - dist / 45);
+const gunFalloff = (dist) => 1 / (1 + (dist / 14) ** 1.6) * Math.max(0, 1 - dist / 220);
 
 export const sfx = {
-  shot(caliber, dist = 0) {
-    const v = 0.35 * falloff(dist);
-    if (caliber === '12g') noise(0.28, 900, v * 1.2);
-    else if (caliber === '7.62') noise(0.18, 1800, v);
-    else noise(0.11, 2600, v * 0.8);
+  /** Gunshot. `sound` = weapon sound set (ak, mp5, pistol, awm, shotgun); `who` keys the burst tail. */
+  shot(sound, dist = 0, who = null) {
+    const G = GUN[sound] ?? GUN.mp5;
+    const v = G.vol * gunFalloff(dist);
+    if (!playSample(G.shot, v, dist, G.rate)) noise(G.fb[0], G.fb[1], 0.35 * falloff(dist));
+    if (G.tail && who) {
+      clearTimeout(tailTimers.get(who));
+      tailTimers.set(who, setTimeout(() => {
+        tailTimers.delete(who);
+        playSample(G.tail, v * 0.8, dist);
+      }, 130));
+    }
   },
   empty() {
     tone(1400, 0.04, 0.05);

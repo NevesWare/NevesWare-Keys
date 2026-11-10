@@ -390,6 +390,26 @@ export class RaidMap {
       for (let k = 0; k < 4; k++) this.prop('fence', 0, p.x + (ax ? k * 2.1 : 0), p.z + (ax ? 0 : k * 2.1), ax ? 0 : Math.PI / 2);
     }
 
+    // debris around places (decoration, no collision): tyres, jerrycans, gas bottles
+    const spots = [...POIS, ...Object.values(CORNERS)];
+    for (const c of spots) {
+      for (let i = 0; i < 26; i++) {
+        const a = R() * Math.PI * 2, rr = 6 + R() * 34;
+        const x = c.x + Math.cos(a) * rr, z = c.z + Math.sin(a) * rr;
+        if (!this.inBounds(Math.floor(x), Math.floor(z)) || this.isSolid(Math.floor(x), Math.floor(z))) continue;
+        const k = R();
+        this.prop(k < 0.45 ? 'tyre' : k < 0.8 ? 'jerry' : 'propane', 0, x, z, R() * 6.28);
+      }
+    }
+    // fallen logs in the woods
+    for (let i = 0; i < 900; i++) {
+      const x = 10 + R() * (W - 20), z = 10 + R() * (H - 20);
+      if (noise(x + 50, z + 50, 14) < 0.55) continue;
+      const cx = Math.floor(x), cz = Math.floor(z);
+      if (this.reserved[this.idx(cx, cz)] || this.isSolid(cx, cz) || this.gnd[this.idx(cx, cz)] === 3) continue;
+      this.prop('log', 0, x, z, R() * 6.28, 0.6 + R() * 0.8);
+    }
+
     // wildlife of the sector: scavs and zombie hordes
     for (let i = 0; i < 40; i++) this.botSpawns.push({ x: 40 + R() * (W - 80), z: 40 + R() * (H - 80), faction: 'scav' });
     for (let h = 0; h < 10; h++) {

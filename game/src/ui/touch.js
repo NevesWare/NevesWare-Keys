@@ -132,10 +132,10 @@ export class TouchControls {
       this.pinch = dist;
       return;
     }
-    const dx = p.x - d.x;
+    const dx = p.x - d.x, dy = p.y - d.y;
     d.x = p.x;
     d.y = p.y;
-    this.onCamera?.(dx);
+    this.onCamera?.(dx, dy);
   }
 
   endStick() {
