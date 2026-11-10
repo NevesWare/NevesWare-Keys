@@ -455,3 +455,5 @@ body.compact .lz-opt span { display: none; }
 .w-status .surv { display: flex; gap: 10px; font-size: 13px; font-weight: 600; }
 .w-status .surv .low { color: #ff7a5c; animation: pulse 1s infinite; }
 #hud-bleed { color: #ff6a55; animation: pulse 0.9s infinite; }
+
+#boot-error { position: fixed; left: 50%; bottom: 10px; transform: translateX(-50%); z-index: 300; max-width: 90%; padding: 8px 14px; border-radius: 10px; background: rgba(120, 20, 15, 0.92); color: #fff; font-family: Inter, sans-serif; font-size: 12px; user-select: text; -webkit-user-select: text; }

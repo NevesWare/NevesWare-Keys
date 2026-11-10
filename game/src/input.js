@@ -68,7 +68,12 @@ export class Input {
     this.padMove.x = this.padMove.y = 0;
     this.padAim.x = this.padAim.y = 0;
     this.padHeld.clear();
-    const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+    let pads = [];
+    try {
+      pads = navigator.getGamepads ? navigator.getGamepads() : [];
+    } catch {
+      pads = []; // blocked by the page's permission policy
+    }
     const pad = pads && Array.from(pads).find(Boolean);
     if (!pad) return;
     const dz = (v) => (Math.abs(v) < 0.2 ? 0 : v);

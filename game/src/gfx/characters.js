@@ -170,6 +170,10 @@ export function charactersReady() {
 export class CharacterRig {
   constructor({ faction, seed = 0 }) {
     const look = FACTION_LOOK[faction] ?? FACTION_LOOK.scav;
+    if (!assets) {
+      this.initFallback(faction, look);
+      return;
+    }
     this.root = new THREE.Group();
     this.model = skeletonClone(assets.scene);
     this.root.add(this.model);
@@ -219,6 +223,30 @@ export class CharacterRig {
     this.play('upper', 'Idle_Loop', 0);
   }
 
+  /** Simple static humanoid used if the animated model could not be loaded. */
+  initFallback(faction, look) {
+    this.fallback = true;
+    this.root = new THREE.Group();
+    this.bodyMat = CAMO[faction] ? camoMaterial(CAMO[faction]) : new THREE.MeshStandardMaterial({ color: look.body, roughness: 0.88 });
+    const dark = new THREE.MeshStandardMaterial({ color: '#1d1f1c', roughness: 0.9 });
+    const cap = (r, len, m, x, y, z) => {
+      const mesh = new THREE.Mesh(new THREE.CapsuleGeometry(r, len, 4, 10), m);
+      mesh.position.set(x, y, z);
+      mesh.castShadow = true;
+      this.root.add(mesh);
+      return mesh;
+    };
+    this.legL = cap(0.085, 0.7, this.bodyMat, -0.11, 0.48, 0);
+    this.legR = cap(0.085, 0.7, this.bodyMat, 0.11, 0.48, 0);
+    cap(0.17, 0.42, this.bodyMat, 0, 1.2, 0);
+    cap(0.11, 0.02, dark, 0, 1.66, 0);
+    cap(0.06, 0.45, this.bodyMat, -0.22, 1.25, 0.18).rotation.x = 1.2;
+    cap(0.06, 0.45, this.bodyMat, 0.22, 1.25, 0.18).rotation.x = 1.2;
+    this.gear = {};
+    this.phase = 0;
+    this.dead = false;
+  }
+
   action(layer, name) {
     const c = assets.clips[name];
     return this.mixer.clipAction(layer === 'full' ? c.full : c[layer]);
@@ -244,6 +272,22 @@ export class CharacterRig {
 
   /** Show equipment: { helmet, armor, backpack, weapon } item ids or null. */
   setGear(g) {
+    if (this.fallback) {
+      const spots = { helmet: [0, 1.7, 0], armor: [0, 0.98, 0], backpack: [0, 1.0, -0.2], weapon: [0.12, 1.32, 0.35] };
+      for (const slot of Object.keys(spots)) {
+        const id = g[slot] ?? null;
+        if (this.gear[slot]?.id === id) continue;
+        if (this.gear[slot]) this.gear[slot].obj.removeFromParent();
+        this.gear[slot] = null;
+        if (!id) continue;
+        const obj = itemModel(id);
+        obj.position.set(...spots[slot]);
+        if (slot === 'backpack') obj.rotation.y = Math.PI;
+        this.root.add(obj);
+        this.gear[slot] = { id, obj };
+      }
+      return;
+    }
     for (const slot of ['helmet', 'armor', 'backpack', 'weapon']) {
       const id = g[slot] ?? null;
       if (this.gear[slot]?.id === id) continue;
@@ -260,19 +304,25 @@ export class CharacterRig {
   }
 
   melee() {
-    if (this.dead) return;
+    if (this.dead || this.fallback) return;
     this.oneShot = 0.55;
     this.play('upper', Math.random() < 0.5 ? 'Punch_Jab' : 'Punch_Cross', 0.08, { once: true, timeScale: 1.4 });
   }
 
   shoot() {
-    if (this.dead) return;
+    if (this.dead || this.fallback) return;
     this.oneShot = 0.18;
     this.play('upper', 'Pistol_Shoot', 0.05, { once: true, timeScale: 2.2 });
   }
 
   die() {
     if (this.dead) return;
+    if (this.fallback) {
+      this.dead = true;
+      this.root.rotation.x = -Math.PI / 2;
+      this.root.position.y = 0.2;
+      return;
+    }
     this.dead = true;
     this.mixer.stopAllAction();
     this.layers = { lower: null, upper: null };
@@ -291,6 +341,14 @@ export class CharacterRig {
    * @param s { speed, sprint, armed, aiming, reloading, healing, backwards, zombie }
    */
   update(dt, s) {
+    if (this.fallback) {
+      if (this.dead) return;
+      this.phase += (s.speed ?? 0) * dt * 2.5;
+      const sw = (s.speed ?? 0) > 0.25 ? Math.sin(this.phase) * 0.5 : 0;
+      this.legL.rotation.x = sw;
+      this.legR.rotation.x = -sw;
+      return;
+    }
     if (!this.dead) {
       const moving = s.speed > 0.25;
       const ts = s.backwards ? -1 : 1;

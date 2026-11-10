@@ -679,16 +679,41 @@ const playBtn = $('mm-play');
 showScreen('main-menu');
 playBtn.disabled = true;
 playBtn.textContent = 'CARREGANDO…';
-loadCharacters(mannequinUrl)
-  .then(() => {
-    setTimeout(() => ui3d.preloadAll(), 50);
+function showBootError(where, e) {
+  const box = document.getElementById('boot-error');
+  box.classList.remove('hidden');
+  box.textContent = `${where}: ${e?.message ?? e}`;
+  console.error(e);
+}
+window.addEventListener('error', (e) => showBootError('Erro', e.error ?? e.message));
+window.addEventListener('unhandledrejection', (e) => showBootError('Erro', e.reason));
+
+function startGame() {
+  try {
+    setTimeout(() => {
+      try {
+        ui3d.preloadAll();
+      } catch (e) {
+        showBootError('Ícones', e);
+      }
+    }, 50);
     playBtn.disabled = false;
     if (params.has('showcase')) buildShowcase();
     else goTitle();
-  })
+  } catch (e) {
+    showBootError('Inicialização', e);
+    playBtn.disabled = false;
+    playBtn.textContent = 'JOGAR';
+    playBtn.onclick = () => goFaction();
+  }
+}
+
+loadCharacters(params.has('nomodel') ? 'data:,invalid' : mannequinUrl)
+  .then(startGame)
   .catch((e) => {
-    playBtn.textContent = 'ERRO AO CARREGAR';
-    console.error(e);
+    // the game still runs with simplified characters
+    showBootError('Modelo 3D (usando bonecos simplificados)', e);
+    startGame();
   });
 requestAnimationFrame(frame);
 
