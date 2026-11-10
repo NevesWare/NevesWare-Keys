@@ -80,6 +80,36 @@ Conteúdo do território: florestas densas e estradas, vilarejos e cidades aband
 | Inserção | O jogador escolhe o ponto de entrada: Ground Zero, Norte, Sul, Leste ou Oeste. **[feito]** |
 | Extração paga | A Clareira Oeste (neutra) cobra ₢ 4.000; o heliponto da facção é gratuito. **[feito]** |
 
+## 4c. Safe zone jogável (v0.6)
+
+A base não é uma tela: é um lugar dentro do jogo. Do menu principal você entra andando na safe zone da sua facção (as três bases seguem o mesmo padrão). Nela não há combate. **[feito]**
+
+| Ponto | Função |
+| --- | --- |
+| Armeiro (barraca) | Compra e venda de armas e munição |
+| Intendente (barraca) | Coletes, capacetes, mochilas e **trocas** (itens de loot por equipamento) |
+| Médico (barraca) | Remédios, água e comida |
+| Comandante (QG) | Missões e contratos |
+| Armário | Stash global e equipamento |
+| Heliponto | Escolher o ponto de inserção e embarcar no helicóptero |
+
+Ao voltar de uma incursão, o jogador desembarca no heliponto da base.
+
+## 6b. Tamanhos realistas no inventário (v0.6)
+
+**1 célula ≈ 12,5 cm.** Cada item ocupa o tamanho real dele, e o tooltip mostra o tamanho em células e em cm. **[feito]**
+
+| Item | Células | Real aprox. |
+| --- | --- | --- |
+| Fuzil K-7 | 7×2 | 88 cm |
+| Escopeta Trovão | 8×2 | 100 cm |
+| SMG Vespa | 4×2 | 50 cm |
+| Pistola P-9 | 2×1 | 25 cm |
+| Colete leve / pesado | 3×3 / 4×3 | |
+| Mochila Assalto / Média / Tática (fechada → espaço interno) | 3×4 → 4×5 / 4×4 → 5×6 / 4×5 → 6×7 | |
+
+Fuzis inteiros não cabem na mochila de assalto: vão no slot de arma ou no stash, como na vida real.
+
 ## 5. Fluxo da incursão
 
 1. **Base da facção:** preparação, stash global, comerciante. **[feito]**

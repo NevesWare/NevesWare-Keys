@@ -1,4 +1,4 @@
-import { ITEMS, CATEGORY_TINT, itemValue, itemWeight } from '../data/items.js';
+import { ITEMS, CATEGORY_TINT, itemValue, itemWeight, CELL_CM } from '../data/items.js';
 import { size } from '../inventory/grid.js';
 import { ui3d } from './icons.js';
 import { sfx } from '../audio.js';
@@ -207,6 +207,7 @@ export class InventoryUI {
     const d = ITEMS[item.id];
     const row = (a, b) => `<div class="tt-row"><span>${a}</span><span>${b}</span></div>`;
     let html = `<b>${d.name}</b>${row('Valor', `₢ ${itemValue(item).toLocaleString('pt-BR')}`)}${row('Peso', `${itemWeight(item).toFixed(2)} kg`)}`;
+    html += row('Tamanho', `${d.w}×${d.h} · ≈${Math.round(d.w * CELL_CM)}×${Math.round(d.h * CELL_CM)} cm`);
     if (d.weapon)
       html += row('Calibre', d.weapon.caliber) + row('Dano', `${d.weapon.damage}${d.weapon.pellets > 1 ? `×${d.weapon.pellets}` : ''}`) + row('Modo', d.weapon.auto ? 'Automático' : 'Semi');
     if (d.armor) html += row('Proteção', `${Math.round(d.armor.reduce * 100)}%`) + row('Durabilidade', `${Math.round(item.dur)}/${d.armor.durability}`);

@@ -1,4 +1,4 @@
-import { ITEMS, TRADER_STOCK, BUY_MULT, newItem, itemValue, ammoIdFor, UNLOCK_LEVEL, levelInfo } from '../data/items.js';
+import { ITEMS, TRADER_STOCK, BUY_MULT, newItem, itemValue, ammoIdFor, UNLOCK_LEVEL, levelInfo, BARTERS } from '../data/items.js';
 import { questsFor, questState } from '../data/quests.js';
 import { factionById, FACTIONS } from '../data/factions.js';
 import { slotAccepts, loadoutWeight, loadoutValue, activeWeapon, takeItem, addToStorages } from '../inventory/loadout.js';
@@ -55,7 +55,7 @@ export class InventoryScreen {
 
   computeCell() {
     const W = view.w, H = view.h;
-    const c = Math.floor(Math.min((W - 96) / 24.6, (H - 118) / 11));
+    const c = Math.floor(Math.min((W - 96) / 26.8, (H - 118) / 11));
     return Math.max(24, Math.min(54, c));
   }
 
@@ -81,8 +81,8 @@ export class InventoryScreen {
       <div class="iv-top">
         <nav class="iv-tabs">${tabs.map(([id, label, ic]) => `<button data-tab="${id}" class="${this.tab === id ? 'on' : ''}">${ic}<span>${label}</span></button>`).join('')}</nav>
         <div class="iv-top-r">
-          ${context === 'lobby' ? `<button class="iv-menu">☰ MENU</button><span class="iv-faction">${f.name}</span>${(() => { const L = levelInfo(profile.xp ?? 0); return `<span class="iv-lvl"><b>NV ${L.level}</b><i style="--p:${Math.round((L.into / L.need) * 100)}%"></i></span>`; })()}<span class="iv-money">₢ ${profile.money.toLocaleString('pt-BR')}</span>` : `<span class="iv-time" id="iv-time"></span>`}
-          ${context === 'raid' ? '<button class="iv-close" aria-label="Fechar">✕</button>' : ''}
+          ${context === 'lobby' ? `${this.ctx.fromHub ? '' : '<button class="iv-menu">☰ MENU</button>'}<span class="iv-faction">${f.name}</span>${(() => { const L = levelInfo(profile.xp ?? 0); return `<span class="iv-lvl"><b>NV ${L.level}</b><i style="--p:${Math.round((L.into / L.need) * 100)}%"></i></span>`; })()}<span class="iv-money">₢ ${profile.money.toLocaleString('pt-BR')}</span>` : `<span class="iv-time" id="iv-time"></span>`}
+          ${context === 'raid' || this.ctx.fromHub ? '<button class="iv-close" aria-label="Fechar">✕</button>' : ''}
         </div>
       </div>
       <div class="iv-body"></div>
@@ -241,7 +241,12 @@ export class InventoryScreen {
   // ---------------------------------------------------------------- bottom bar
   renderBottom(el) {
     const { context, profile } = this.ctx;
-    if (context === 'lobby') {
+    if (context === 'lobby' && this.ctx.fromHub) {
+      const lo = profile.loadout;
+      el.innerHTML = `<div class="risk">Em risco na incursão: <b>₢ ${loadoutValue(lo).toLocaleString('pt-BR')}</b> · embarque no heliponto da base para iniciar</div>
+        <button class="btn deploy">VOLTAR À BASE</button>`;
+      el.querySelector('.deploy').onclick = () => this.h.onClose?.();
+    } else if (context === 'lobby') {
       const lo = profile.loadout;
       el.innerHTML = `<div class="risk">Em risco no raid: <b>₢ ${loadoutValue(lo).toLocaleString('pt-BR')}</b></div>
         <button class="btn deploy">CHAMAR HELICÓPTERO</button>`;
@@ -258,10 +263,11 @@ export class InventoryScreen {
   // ---------------------------------------------------------------- trader tab
   renderTrader(body) {
     const { profile } = this.ctx;
-    const p = this.pane('COMERCIANTE', ICONS.trade, 'iv-trader');
+    const p = this.pane(this.ctx.traderName ?? 'COMERCIANTE', ICONS.trade, 'iv-trader');
     const list = document.createElement('div');
     list.className = 'trader-list';
-    for (const id of TRADER_STOCK) {
+    const filter = this.ctx.traderFilter;
+    for (const id of TRADER_STOCK.filter((i) => !filter || filter.includes(ITEMS[i].cat))) {
       const d = ITEMS[id];
       const qty = d.stack ? (d.caliber === '12g' ? 20 : 30) : 1;
       const price = Math.round(d.value * BUY_MULT * qty);
@@ -276,6 +282,23 @@ export class InventoryScreen {
       list.appendChild(row);
     }
     p.appendChild(list);
+    if (this.ctx.barter) {
+      const h = document.createElement('h3');
+      h.innerHTML = '<span>TROCAS</span>';
+      p.appendChild(h);
+      const bl = document.createElement('div');
+      bl.className = 'trader-list';
+      for (const b of BARTERS) {
+        const ok = b.give.every(([id, n]) => this.countOwned(id) >= n);
+        const row = document.createElement('button');
+        row.className = 'trader-row barter';
+        row.disabled = !ok;
+        row.innerHTML = `<span class="bt-give">${b.give.map(([id, n]) => `<img src="${ui3d.icon(id)}" alt="">${n}×`).join(' ')}</span><span class="tr-name">→ ${ITEMS[b.get].name}</span><img src="${ui3d.icon(b.get)}" alt="">`;
+        row.onclick = () => this.barter(b);
+        bl.appendChild(row);
+      }
+      p.appendChild(bl);
+    }
     body.appendChild(p);
     const r = this.pane('INVENTÁRIO GLOBAL', ICONS.inv, 'iv-right');
     const sell = document.createElement('div');
@@ -288,6 +311,24 @@ export class InventoryScreen {
     sc.appendChild(this.inv.panelEl({ id: 'stash', type: 'grid', grid: profile.stash }));
     r.appendChild(sc);
     body.appendChild(r);
+  }
+
+  /** Units of an item in the stash (stacks count their size). */
+  countOwned(id) {
+    return this.ctx.profile.stash.items().reduce((n, i) => n + (i.id === id ? (ITEMS[id].stack ? i.count : 1) : 0), 0);
+  }
+
+  barter(b) {
+    const st = this.ctx.profile.stash;
+    for (const [id, n] of b.give) {
+      if (ITEMS[id].stack) st.take(id, n);
+      else for (let k = 0; k < n; k++) st.remove(st.items().find((i) => i.id === id));
+    }
+    const it = newItem(b.get);
+    if (st.add(it) > 0) this.h.toast?.('Stash cheio: item perdido.');
+    else this.h.toast?.(`Troca feita: ${ITEMS[b.get].name}`);
+    sfx.coin();
+    this.changed();
   }
 
   buy(id, qty, price) {

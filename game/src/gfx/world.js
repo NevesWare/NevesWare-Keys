@@ -267,7 +267,7 @@ export function buildWorld({ vox, props, bounds, quality }) {
       group.add(c);
     }
   }
-  for (const kind of ['truck', 'humvee', 'apc', 'suv', 'tower', 'barrier', 'barrels', 'crates', 'hangar']) {
+  for (const kind of ['truck', 'humvee', 'apc', 'suv', 'tower', 'barrier', 'barrels', 'crates', 'hangar', 'stall', 'locker']) {
     for (const p of by(kind)) {
       const m = vehicleModel(kind === 'crates' ? 'crateStack' : kind, p.v ?? 1);
       m.position.set(p.x, 0, p.z);

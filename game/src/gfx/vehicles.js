@@ -247,7 +247,49 @@ export function hangar() {
   return finish(g);
 }
 
-const BUILD = { truck, humvee, apc, suv, tower, barrier, barrels, crateStack, hangar };
+export function stall(color = '#888888') {
+  const g = new THREE.Group();
+  const pole = new THREE.MeshStandardMaterial({ color: '#2b2d2f', roughness: 0.5, metalness: 0.6 });
+  const cloth = new THREE.MeshStandardMaterial({ color: new THREE.Color(color).lerp(new THREE.Color('#4a4a3e'), 0.55), roughness: 0.95, side: THREE.DoubleSide });
+  const wood = new THREE.MeshStandardMaterial({ color: '#6b5238', roughness: 0.85 });
+  for (const x of [-1.6, 1.6]) for (const z of [-1.2, 1.2]) {
+    const p = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.6, 8), pole);
+    p.position.set(x, 1.3, z);
+    g.add(p);
+  }
+  const roof = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 3.0), cloth);
+  roof.rotation.x = -Math.PI / 2 + 0.18;
+  roof.position.y = 2.6;
+  g.add(roof);
+  const table = new THREE.Mesh(new THREE.BoxGeometry(3.0, 0.08, 0.9), wood);
+  table.position.set(0, 0.85, 0.7);
+  g.add(table);
+  for (const x of [-1.35, 1.35]) {
+    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.85, 0.8), wood);
+    leg.position.set(x, 0.42, 0.7);
+    g.add(leg);
+  }
+  g.traverse((o) => o.isMesh && (o.castShadow = o.receiveShadow = true));
+  return g;
+}
+
+export function locker() {
+  const g = new THREE.Group();
+  const m = new THREE.MeshStandardMaterial({ color: '#4e5a5e', roughness: 0.45, metalness: 0.7 });
+  for (let i = 0; i < 3; i++) {
+    const b = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.9, 0.55), m);
+    b.position.set(i * 0.62 - 0.62, 0.95, 0);
+    g.add(b);
+    const h = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.2, 0.04), new THREE.MeshStandardMaterial({ color: '#c8c8c0', metalness: 0.8, roughness: 0.3 }));
+    h.position.set(i * 0.62 - 0.4, 1.0, 0.29);
+    g.add(h);
+  }
+  g.traverse((o) => o.isMesh && (o.castShadow = o.receiveShadow = true));
+  return g;
+}
+
+
+const BUILD = { truck, humvee, apc, suv, tower, barrier, barrels, crateStack, hangar, stall, locker };
 const protos = {};
 /** Instance of a vehicle/structure by kind (clones share geometry and materials). */
 export function vehicleModel(kind, v = 1) {

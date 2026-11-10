@@ -13,6 +13,7 @@ import { loadLayout, applyLayout, HudEditor } from './ui/hudLayout.js';
 import { view, updateView } from './ui/viewport.js';
 import { load, save, newProfile, wipe } from './save.js';
 import { Raid } from './raid/raid.js';
+import { Hub, HUB_POINTS } from './hub/hub.js';
 import { RaidMap } from './raid/map.js';
 import { MUZZLE_HEIGHT, Actor } from './raid/actor.js';
 import { Helicopter } from './raid/helicopter.js';
@@ -89,7 +90,7 @@ function onSettingsAction(a) {
       profile = null;
       document.getElementById('settings-modal').classList.add('hidden');
       screen.close();
-      base = null;
+      hub = null;
       goTitle();
     }, 'APAGAR PERFIL');
   }
@@ -116,11 +117,10 @@ function openHudEditor(onDone) {
 let profile = load();
 let mode = 'title'; // title | faction | lobby | raid | ending | result | showcase
 let raid = null;
-let base = null; // lobby backdrop world
 let lobbyMap = null;
 
 const screen = new InventoryScreen(inv, {
-  onClose: () => closeRaidInv(),
+  onClose: () => (raid ? closeRaidInv() : closeHubScreen()),
   onDeploy: () => lzPicker(profile, (lz) => startRaid(lz)),
   onReset: () => {
     wipe();
@@ -130,7 +130,7 @@ const screen = new InventoryScreen(inv, {
   },
   onChange: () => {
     if (profile) save(profile);
-    refreshBaseHero();
+    hub?.player.refreshGear();
   },
   onHotbar: (i) => useHotbar(i),
   onSettings: onSettingsChange,
@@ -177,92 +177,31 @@ function resize() {
 }
 window.addEventListener('resize', resize);
 
-// ---------- base / lobby backdrop ----------
-function buildBase(factionId) {
-  const f = factionById(factionId) ?? factionById('bears');
-  const scene = new THREE.Scene();
-  const L = new VoxelLevel();
-  const props = [];
-  const S = 20;
-  for (let x = -S; x < S; x++)
-    for (let z = -S; z < S; z++) {
-      const edge = Math.max(Math.abs(x + 0.5), Math.abs(z + 0.5));
-      const pad = Math.abs(x + 0.5) <= 3 && Math.abs(z + 0.5) <= 3;
-      const road = Math.abs(x + 0.5 - 1) <= 1.5 && z > 9;
-      L.set(x, -1, z, road ? 'road' : edge > 11 ? (edge > 15 ? 'grassDark' : 'grass') : pad ? 'helipad' : 'concrete');
-      if (Math.floor(edge) === 11 && !(Math.abs(x + 0.5 - 1) <= 1.5 && z > 0)) {
-        L.set(x, 0, z, `wall_${f.id}`);
-        L.set(x, 1, z, `wall_${f.id}`);
-      }
-    }
-  props.push({ kind: 'helipad', v: 0, x: 0, z: 0, rot: 0 });
-  // vehicle park and base furniture (reference: military compound)
-  props.push(
-    { kind: 'truck', x: -7.5, z: -3, rot: Math.PI / 2 },
-    { kind: 'humvee', x: -7, z: 2.5, rot: Math.PI / 2 },
-    { kind: 'apc', x: -7.5, z: 7.5, rot: Math.PI / 2 },
-    { kind: 'suv', x: -2.5, z: 7.5, rot: Math.PI / 2 },
-    { kind: 'tower', x: 7.5, z: 7.5, rot: Math.PI },
-    { kind: 'barrels', v: 3, x: 5, z: 9, rot: 0.3 },
-    { kind: 'barrels', v: 2, x: 9.5, z: 4, rot: 1 },
-    { kind: 'crates', v: 1, x: -3, z: -9, rot: 0 },
-    { kind: 'crates', v: 2, x: 0.5, z: -9.2, rot: 0.1 },
-    { kind: 'crates', v: 3, x: 4, z: 6.5, rot: -0.2 },
-    { kind: 'hangar', x: -6, z: -8, rot: Math.PI },
-    { kind: 'barrier', x: 2, z: 10, rot: 0 },
-    { kind: 'barrier', x: 4.2, z: 10, rot: 0 },
-    { kind: 'barrier', x: 9.5, z: -2, rot: Math.PI / 2 },
-  );
-  for (const [x, z, v] of [[-15, 4, 0], [14, -14, 1], [15, 10, 2], [-14, -15, 1], [-16, 13, 0], [13, 16, 2], [-17, -4, 2], [17, 1, 0]]) props.push({ kind: 'tree', v, x, z, rot: x, s: 0.85 });
-  for (let i = 0; i < 30; i++) props.push({ kind: 'bush', v: i % 2, x: -19 + ((i * 7.3) % 38), z: (i % 2 ? -1 : 1) * (13.5 + (i % 5)), rot: i, s: 0.8 + (i % 3) * 0.2 });
-  const world = buildWorld({ vox: L, props, bounds: { x0: -S, z0: -S, W: S * 2, H: S * 2 }, quality: quality() });
-  scene.add(world.group);
-  const light = addLighting(scene, renderer, { shadowSize: quality().shadows, extent: 20 });
-  light.follow(new THREE.Vector3(0, 0, 0));
-  const heli = new Helicopter(f.color);
-  heli.placeAt(1.5, 0.2, -0.5);
-  heli.mesh.rotation.y = 0.9;
-  heli.land();
-  scene.add(heli.mesh);
-  const crew = [];
-  const mk = (fac, x, z, aim, lo, seed) => {
-    const a = new Actor({ name: 'npc', faction: fac, loadout: lo, seed });
-    a.pos.set(x, 0, z);
-    a.aim = aim;
-    a.syncMesh(0);
-    scene.add(a.mesh);
-    crew.push(a);
-    return a;
-  };
-  const guard = (x, z, aim, s) => mk(factionId, x, z, aim, botLoadout(factionId).loadout, s);
-  const hero = mk(factionId, 4.2, 4.2, 2.4, profile?.loadout ?? newLoadout(), 3);
-  guard(-3.5, -1.5, 1.4, 1);
-  guard(7.5, -3, -1.9, 2);
-  guard(6, 2.5, -2.2, 4);
-  return { scene, heli, hero, light, world, crew, faction: factionId };
-}
+// ---------- safe zone (hub) ----------
+let hub = null;
 
-function refreshBaseHero() {
-  if (base && profile) {
-    base.hero.loadout = profile.loadout;
-    base.hero.refreshGear();
-    base.hero.syncMesh(0);
+function ensureHub(faction) {
+  if (!hub || hub.faction !== faction || (profile && hub.profile !== profile)) {
+    hub = new Hub({ profile, renderer, quality: quality(), faction });
   }
+  return hub;
 }
 
 // ---------- flow ----------
 function goTitle() {
   mode = 'title';
   hud.show(false);
-  if (!base || base.faction !== (profile?.faction ?? 'bears')) base = buildBase(profile?.faction ?? 'bears');
-  cam.distance = isTouch ? 13 : 16;
+  document.body.classList.remove('in-hub');
+  ensureHub(profile?.faction ?? 'bears');
+  hub.player.mesh.visible = false;
+  cam.distance = isTouch ? 30 : 34;
   resize();
-  cam.snapTo(new THREE.Vector3(0, 0, 0));
+  cam.snapTo(new THREE.Vector3(28, 0, 30));
   mainMenu(profile, {
     play: () => {
       unlockAudio();
       goImmersive();
-      if (profile) goLobby();
+      if (profile) goHub();
       else goFaction();
     },
     settings: () => openSettings(),
@@ -276,25 +215,119 @@ function goFaction() {
     (fid) => {
       profile = newProfile(fid);
       save(profile);
-      base = buildBase(fid);
-      goLobby('Bem-vindo à base. Prepare o equipamento e chame o helicóptero.');
+      goHub('Bem-vindo à safe zone. Fale com os comerciantes e embarque no heliponto.');
     },
     () => goTitle(),
   );
 }
 
-function goLobby(msg) {
-  mode = 'lobby';
+function goHub(msg, where = 'gate') {
+  mode = 'hub';
   hideScreens();
-  hud.show(false);
+  screen.close();
   touch.reset();
-  if (!base || base.faction !== profile.faction) base = buildBase(profile.faction);
-  refreshBaseHero();
-  cam.distance = isTouch ? 13 : 16;
+  ensureHub(profile.faction);
+  hub.player.loadout = profile.loadout;
+  hub.player.alive = true;
+  hub.player.health = hub.player.maxHealth;
+  hub.player.mesh.visible = true;
+  hub.spawnPlayer(where);
+  const f = factionById(profile.faction);
+  document.body.classList.add('in-hub');
+  document.body.style.setProperty('--fc', f.color);
+  hud.show(true);
+  applyHud();
+  $('hud-time').textContent = f.name.toUpperCase();
+  $('hud-sub').textContent = 'SAFE ZONE';
+  $('hud-hotbar').innerHTML = '';
+  cam.distance = isTouch ? 17 : 20;
   resize();
-  cam.snapTo(new THREE.Vector3(0, 0, 0));
-  screen.open({ context: 'lobby', profile });
+  cam.snapTo(hub.player.pos.clone());
   if (msg) toast(msg);
+}
+
+/** Open the inventory/trader UI from an interaction point in the base. */
+function openHubScreen(id = 'armario') {
+  const meta = HUB_POINTS[id];
+  if (meta.tab === 'deploy') {
+    lzPicker(profile, (lz) => {
+      document.body.classList.remove('in-hub');
+      startRaid(lz);
+    });
+    return;
+  }
+  touch.reset();
+  screen.open({
+    context: 'lobby', profile, fromHub: true, tab: meta.tab,
+    traderFilter: meta.filter, traderName: meta.label, barter: !!meta.barter,
+  });
+}
+
+function closeHubScreen() {
+  if (screen.isOpen) screen.close();
+  hub?.player.refreshGear();
+  input.clear();
+}
+
+function hubMenu() {
+  mode = 'hubmenu';
+  touch.reset();
+  const m = $('pause-menu');
+  m.querySelector('h2').textContent = 'SAFE ZONE';
+  const ab = m.querySelector('[data-p=abandon]');
+  ab.textContent = 'MENU PRINCIPAL';
+  pauseMenu({
+    resume: () => {
+      hidePause();
+      mode = 'hub';
+    },
+    settings: () => openSettings(),
+    hud: () => {
+      hidePause();
+      mode = 'hub';
+      openHudEditor();
+    },
+    abandon: () => {
+      hidePause();
+      goTitle();
+    },
+  });
+}
+
+function hubStep(dt) {
+  input.poll();
+  const invOpen = screen.isOpen;
+  if (invOpen) {
+    if (input.pressed('inventory') || input.pressed('escape')) closeHubScreen();
+  } else {
+    if (input.pressed('inventory')) openHubScreen('armario');
+    if (input.pressed('menu') || input.pressed('escape')) return hubMenu();
+  }
+  if (input.isHeld('rotL')) cam.addYaw(dt * 2.2);
+  if (input.isHeld('rotR')) cam.addYaw(-dt * 2.2);
+  const m = input.move();
+  const ax = cam.groundAxes();
+  hub.update(dt, {
+    moveX: ax.right.x * m.x + ax.forward.x * m.y,
+    moveZ: ax.right.y * m.x + ax.forward.y * m.y,
+    sprint: input.isHeld('sprint'),
+    uiOpen: invOpen || editor.active,
+  });
+  const near = hub.nearest();
+  if (!invOpen && near && input.pressed('interact')) openHubScreen(near.id);
+  input.pressed('fire');
+  const pl = hub.player;
+  cam.update(dt, pl.pos.clone().setY(0));
+  hub.lighting.follow(cam.focus);
+  hub.world.update(dt, cam.camera, cam.focus, pl.pos, viewport);
+  // light HUD
+  $('hud-hp-fill').style.width = `${pl.health}%`;
+  $('hud-hp-txt').textContent = Math.ceil(pl.health);
+  const ar = pl.loadout.armor;
+  $('hud-ar-fill').style.width = ar ? `${(ar.dur / ITEMS[ar.id].armor.durability) * 100}%` : '0%';
+  $('hud-armor').textContent = ar ? Math.round(ar.dur) : '';
+  touch.setInteract(near ? HUB_POINTS[near.id].label : '');
+  $('hud-prompt').textContent = near ? `[F] ${HUB_POINTS[near.id].label} — ${HUB_POINTS[near.id].role}` : '';
 }
 
 function questToast(done) {
@@ -379,7 +412,7 @@ function endRaid(res) {
   raid.dispose();
   raid = null;
   mode = 'result';
-  resultScreen({ ...res, kills, value, items, xp }, () => goLobby(note));
+  resultScreen({ ...res, kills, value, items, xp }, () => goHub(note, 'heli'));
 }
 
 // ---------- raid inventory ----------
@@ -441,6 +474,8 @@ function pauseRaid() {
   if (mode !== 'raid') return;
   mode = 'paused';
   touch.reset();
+  $('pause-menu').querySelector('h2').textContent = 'PAUSADO';
+  $('pause-menu').querySelector('[data-p=abandon]').textContent = 'ABANDONAR INCURSÃO';
   pauseMenu({
     resume: () => {
       hidePause();
@@ -548,17 +583,21 @@ function raidStep(dt) {
 raidStep.n = 0;
 
 function menuStep(dt) {
-  if (!base) return;
+  if (!hub) return;
   cam.targetYaw += dt * 0.05;
-  const f = new THREE.Vector3(1.5, 0, 1.5);
-  cam.update(dt, f);
-  base.heli.update(dt, 3);
-  base.world.update(dt, cam.camera, cam.focus, null, viewport);
-  for (const a of base.crew) a.update(dt);
+  cam.update(dt, new THREE.Vector3(28, 0, 30));
+  hub.heli.update(dt, 3);
+  hub.world.update(dt, cam.camera, cam.focus, null, viewport);
+  for (const b of hub.bots) {
+    b.update(dt);
+    b.a.update(dt);
+  }
+  for (const q of hub.points) q.actor?.update(dt);
 }
 
 function step(dt) {
-  if (mode === 'paused') return;
+  if (mode === 'paused' || mode === 'hubmenu') return;
+  if (mode === 'hub') return hubStep(dt);
   if (editor.active && mode === 'raid') return;
   if (mode === 'raid') raidStep(dt);
   else if (mode === 'ending') {
@@ -568,7 +607,7 @@ function step(dt) {
 }
 
 function render() {
-  const scene = (mode === 'raid' || mode === 'ending' || mode === 'paused') && raid ? raid.scene : showcase?.scene ?? base?.scene;
+  const scene = (mode === 'raid' || mode === 'ending' || mode === 'paused') && raid ? raid.scene : showcase?.scene ?? hub?.scene;
   if (scene) pipeline.render(scene, cam.camera);
 }
 
@@ -722,6 +761,7 @@ window.__game = {
   get mode() { return mode; },
   get raid() { return raid; },
   get profile() { return profile; },
+  get hub() { return hub; },
   input,
   cam,
   touch,

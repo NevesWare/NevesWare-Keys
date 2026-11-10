@@ -457,3 +457,18 @@ body.compact .lz-opt span { display: none; }
 #hud-bleed { color: #ff6a55; animation: pulse 0.9s infinite; }
 
 #boot-error { position: fixed; left: 50%; bottom: 10px; transform: translateX(-50%); z-index: 300; max-width: 90%; padding: 8px 14px; border-radius: 10px; background: rgba(120, 20, 15, 0.92); color: #fff; font-family: Inter, sans-serif; font-size: 12px; user-select: text; -webkit-user-select: text; }
+
+.trader-row.barter { grid-template-columns: auto 1fr 54px; }
+.bt-give { display: inline-flex; align-items: center; gap: 2px; color: var(--dim); font-size: 14px; }
+.bt-give img { width: 30px; height: 26px; object-fit: contain; }
+.trader-row.barter > img { width: 54px; height: 32px; object-fit: contain; }
+body.in-hub [data-w=fire], body.in-hub [data-w=aim], body.in-hub [data-w=reload], body.in-hub [data-w=swap], body.in-hub [data-w=heal],
+body.in-hub [data-w=ammo], body.in-hub [data-w=minimap], body.in-hub [data-w=feed], body.in-hub .w-status .surv, body.in-hub .w-status .bar.st { display: none !important; }
+body.in-hub #hud-sub { color: var(--fc, var(--gold)); }
+
+.iv-top-r { white-space: nowrap; }
+.iv-faction, .iv-money, .iv-lvl b { white-space: nowrap; }
+.iv-trader { width: calc(var(--cell) * 10.5); }
+.trader-row .tr-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.trader-row { grid-template-columns: 54px minmax(0, 1fr) auto; }
+body.compact .iv-faction { display: none; }

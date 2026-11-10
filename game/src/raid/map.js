@@ -218,7 +218,7 @@ export class RaidMap {
   crate(x, z, tier, label = 'Caixa') {
     this.block(x, z, 1, tier === 'rare' ? 'crateRare' : tier === 'military' ? 'crateMil' : 'crate');
     this.prop('crate', tier, x + 0.5, z + 0.5, Math.floor(this.rand() * 4) * (Math.PI / 2));
-    const c = { x: x + 0.5, z: z + 0.5, tier, label, grid: new Grid(5, 4), looted: false, filled: false };
+    const c = { x: x + 0.5, z: z + 0.5, tier, label, grid: new Grid(7, 5), looted: false, filled: false };
     this.containers.push(c);
     return c;
   }

@@ -8,15 +8,15 @@ export const ITEMS = {
     weapon: { caliber: '9mm', mag: 12, rpm: 320, auto: false, damage: 22, spread: 3, range: 24, reload: 1.4, pellets: 1 },
   },
   vespa: {
-    name: 'SMG Vespa', short: 'VESPA', cat: 'weapon', slot: 'primary', w: 3, h: 2, value: 14000, kg: 2.6,
+    name: 'SMG Vespa', short: 'VESPA', cat: 'weapon', slot: 'primary', w: 4, h: 2, value: 14000, kg: 2.6,
     weapon: { caliber: '9mm', mag: 30, rpm: 780, auto: true, damage: 17, spread: 5, range: 26, reload: 2.0, pellets: 1 },
   },
   k7: {
-    name: 'Fuzil K-7', short: 'K-7', cat: 'weapon', slot: 'primary', w: 5, h: 2, value: 32000, kg: 3.6,
+    name: 'Fuzil K-7', short: 'K-7', cat: 'weapon', slot: 'primary', w: 7, h: 2, value: 32000, kg: 3.6,
     weapon: { caliber: '7.62', mag: 30, rpm: 600, auto: true, damage: 33, spread: 2.5, range: 34, reload: 2.4, pellets: 1 },
   },
   trovao: {
-    name: 'Escopeta Trovão', short: 'TROVÃO', cat: 'weapon', slot: 'primary', w: 5, h: 1, value: 18000, kg: 3.3,
+    name: 'Escopeta Trovão', short: 'TROVÃO', cat: 'weapon', slot: 'primary', w: 8, h: 2, value: 18000, kg: 3.3,
     weapon: { caliber: '12g', mag: 6, rpm: 90, auto: false, damage: 11, spread: 9, range: 14, reload: 2.8, pellets: 8 },
   },
 
@@ -26,13 +26,13 @@ export const ITEMS = {
   a12: { name: 'Cartucho 12/70', short: '12/70', cat: 'ammo', w: 1, h: 1, value: 90, stack: 20, caliber: '12g', kg: 0.04 },
 
   // --- gear ---
-  coleteL: { name: 'Colete Leve', short: 'COLETE L', cat: 'armor', w: 2, h: 2, value: 9000, kg: 3.5, armor: { reduce: 0.3, durability: 60 } },
-  coleteP: { name: 'Colete Pesado', short: 'COLETE P', cat: 'armor', w: 3, h: 3, value: 26000, kg: 9, armor: { reduce: 0.5, durability: 110 } },
+  coleteL: { name: 'Colete Leve', short: 'COLETE L', cat: 'armor', w: 3, h: 3, value: 9000, kg: 3.5, armor: { reduce: 0.3, durability: 60 } },
+  coleteP: { name: 'Colete Pesado', short: 'COLETE P', cat: 'armor', w: 4, h: 3, value: 26000, kg: 9, armor: { reduce: 0.5, durability: 110 } },
   capaceteL: { name: 'Capacete Leve', short: 'CAPACETE', cat: 'helmet', w: 2, h: 2, value: 6000, kg: 1.2, armor: { reduce: 0.12, durability: 30 } },
   capaceteP: { name: 'Capacete Balístico', short: 'BALÍSTICO', cat: 'helmet', w: 2, h: 2, value: 17000, kg: 2.4, armor: { reduce: 0.22, durability: 55 } },
-  mochilaP: { name: 'Mochila de Assalto', short: 'ASSALTO', cat: 'backpack', w: 2, h: 3, value: 5000, kg: 0.9, grid: [4, 4] },
-  mochilaM: { name: 'Mochila Média', short: 'MÉDIA', cat: 'backpack', w: 3, h: 3, value: 12000, kg: 1.4, grid: [5, 5] },
-  mochilaT: { name: 'Mochila Tática', short: 'TÁTICA', cat: 'backpack', w: 3, h: 4, value: 24000, kg: 2.1, grid: [6, 6] },
+  mochilaP: { name: 'Mochila de Assalto', short: 'ASSALTO', cat: 'backpack', w: 3, h: 4, value: 5000, kg: 0.9, grid: [4, 5] },
+  mochilaM: { name: 'Mochila Média', short: 'MÉDIA', cat: 'backpack', w: 4, h: 4, value: 12000, kg: 1.4, grid: [5, 6] },
+  mochilaT: { name: 'Mochila Tática', short: 'TÁTICA', cat: 'backpack', w: 4, h: 5, value: 24000, kg: 2.1, grid: [6, 7] },
 
   // --- meds ---
   bandagem: { name: 'Bandagem', short: 'BAND', cat: 'med', w: 1, h: 1, value: 600, kg: 0.05, med: { heal: 25, time: 2.0 } },
@@ -40,19 +40,22 @@ export const ITEMS = {
 
   // --- food & drink ---
   agua: { name: "Garrafa d'Água", short: 'ÁGUA', cat: 'food', w: 1, h: 2, value: 900, kg: 0.6, food: { water: 45, energy: 0 } },
-  racao: { name: 'Ração MRE', short: 'MRE', cat: 'food', w: 1, h: 1, value: 1400, kg: 0.4, food: { water: -5, energy: 55 } },
+  racao: { name: 'Ração MRE', short: 'MRE', cat: 'food', w: 2, h: 1, value: 1400, kg: 0.4, food: { water: -5, energy: 55 } },
   energetico: { name: 'Energético', short: 'ENERG.', cat: 'food', w: 1, h: 1, value: 1100, kg: 0.3, food: { water: 15, energy: 20, stamina: true } },
 
   // --- valuables ---
   cobre: { name: 'Fios de Cobre', short: 'COBRE', cat: 'loot', w: 1, h: 1, value: 1800, kg: 0.5 },
-  circuito: { name: 'Placa de Circuito', short: 'PLACA', cat: 'loot', w: 1, h: 1, value: 4200, kg: 0.2 },
+  circuito: { name: 'Placa de Circuito', short: 'PLACA', cat: 'loot', w: 2, h: 1, value: 4200, kg: 0.2 },
   bateria: { name: 'Bateria Militar', short: 'BATERIA', cat: 'loot', w: 1, h: 2, value: 6500, kg: 1.8 },
-  hd: { name: 'Disco Rígido', short: 'HD', cat: 'loot', w: 2, h: 1, value: 7800, kg: 0.4 },
+  hd: { name: 'Disco Rígido', short: 'HD', cat: 'loot', w: 1, h: 1, value: 7800, kg: 0.4 },
   relogio: { name: 'Relógio de Ouro', short: 'RELÓGIO', cat: 'loot', w: 1, h: 1, value: 15000, kg: 0.1 },
-  combustivel: { name: 'Galão de Combustível', short: 'GALÃO', cat: 'loot', w: 2, h: 2, value: 9500, kg: 5 },
-  ferramentas: { name: 'Kit de Ferramentas', short: 'FERRAM.', cat: 'loot', w: 2, h: 2, value: 11000, kg: 3 },
+  combustivel: { name: 'Galão de Combustível', short: 'GALÃO', cat: 'loot', w: 3, h: 3, value: 9500, kg: 5 },
+  ferramentas: { name: 'Kit de Ferramentas', short: 'FERRAM.', cat: 'loot', w: 3, h: 2, value: 11000, kg: 3 },
   pendrive: { name: 'Pendrive Criptografado', short: 'USB', cat: 'loot', w: 1, h: 1, value: 24000, kg: 0.02 },
 };
+
+/** Grid scale shown to the player. */
+export const CELL_CM = 12.5;
 
 export const CATEGORY_TINT = {
   weapon: 'rgba(120,120,130,0.10)',
@@ -68,6 +71,17 @@ export const CATEGORY_TINT = {
 export const TRADER_STOCK = [
   'p9', 'vespa', 'k7', 'trovao', 'a9', 'a762', 'a12', 'coleteL', 'coleteP', 'capaceteL', 'capaceteP',
   'mochilaP', 'mochilaM', 'mochilaT', 'bandagem', 'medkit', 'agua', 'racao', 'energetico',
+];
+
+/** Barter offers at the Intendente: give items, receive an item. */
+export const BARTERS = [
+  { give: [['cobre', 3]], get: 'coleteL' },
+  { give: [['circuito', 2], ['bateria', 1]], get: 'vespa' },
+  { give: [['hd', 2]], get: 'capaceteP' },
+  { give: [['relogio', 1]], get: 'k7' },
+  { give: [['combustivel', 1]], get: 'mochilaM' },
+  { give: [['ferramentas', 1], ['cobre', 2]], get: 'mochilaT' },
+  { give: [['pendrive', 1]], get: 'coleteP' },
 ];
 
 /** Trader level requirements (unlock by gaining XP). */

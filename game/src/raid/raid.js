@@ -250,7 +250,7 @@ export class Raid {
         this.cb.onEnd?.({ result: 'dead', killer: attacker?.name ?? 'desconhecido' });
       } else if (victim.faction === 'zombie') {
         if (Math.random() < 0.25) {
-          const c = { x: victim.pos.x, z: victim.pos.z, label: 'Restos', grid: new Grid(4, 3), tier: 'common', filled: false, body: true };
+          const c = { x: victim.pos.x, z: victim.pos.z, label: 'Restos', grid: new Grid(5, 4), tier: 'common', filled: false, body: true };
           this.containers.push(c);
         }
       } else {
