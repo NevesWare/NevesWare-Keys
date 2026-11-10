@@ -1,0 +1,218 @@
+:root {
+  --ink: #140c1c;
+  --deep: #2a1d3d;
+  --purple: #44305e;
+  --violet: #5d4a87;
+  --blue: #3b5a8c;
+  --sky: #5f8fbf;
+  --pale: #a3c6e0;
+  --cream: #f4e9d8;
+  --yellow: #ffd66b;
+  --orange: #ff9f4a;
+  --red: #e0583c;
+  --wine: #9e3a4a;
+  --panel: rgba(20, 12, 28, 0.86);
+  --fc: #ffd66b;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--ink);
+  color: var(--cream);
+  font-family: 'VT323', ui-monospace, monospace;
+  font-size: 20px;
+  user-select: none;
+}
+
+#game {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  display: block;
+  image-rendering: pixelated;
+  cursor: crosshair;
+}
+
+.hidden { display: none !important; }
+
+button { font-family: inherit; }
+
+.btn {
+  font-size: 26px;
+  padding: 8px 22px;
+  color: var(--ink);
+  background: var(--yellow);
+  border: 0;
+  box-shadow: 0 4px 0 var(--orange), 0 0 0 3px var(--ink);
+  cursor: pointer;
+  letter-spacing: 1px;
+}
+.btn:hover { background: var(--cream); }
+.btn:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--orange), 0 0 0 3px var(--ink); }
+.btn.small { font-size: 18px; padding: 4px 10px; margin-top: 8px; }
+.ghost-btn { background: none; border: 1px solid var(--violet); color: var(--pale); cursor: pointer; font-size: 16px; }
+
+/* ---------- screens ---------- */
+.screen {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(20, 12, 28, 0.55);
+  z-index: 30;
+  padding: 16px;
+}
+.title-box {
+  background: var(--panel);
+  border: 3px solid var(--violet);
+  padding: 28px 36px;
+  text-align: center;
+  max-width: 560px;
+}
+.title-box.wide { max-width: 980px; }
+.title-box h1 { margin: 0 0 6px; font-size: 64px; color: var(--yellow); letter-spacing: 4px; font-weight: normal; }
+.title-box h1.ok { color: #8bbf4f; }
+.title-box h1.bad { color: var(--red); }
+.title-box p { color: var(--pale); margin: 8px 0 18px; }
+.title-box .hint { font-size: 16px; color: var(--violet); margin-top: 18px; }
+
+#faction-list { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; }
+.faction-card {
+  width: 260px;
+  text-align: left;
+  background: var(--deep);
+  color: var(--cream);
+  border: 3px solid var(--fc);
+  padding: 14px;
+  cursor: pointer;
+  font-size: 18px;
+}
+.faction-card:hover { background: var(--purple); transform: translateY(-3px); }
+.faction-card h3 { margin: 6px 0; font-size: 28px; font-weight: normal; color: var(--fc); }
+.fc-badge { width: 28px; height: 28px; background: var(--fc); box-shadow: 4px 4px 0 var(--ink); }
+.fc-motto { color: var(--pale); margin: 4px 0; }
+.fc-corner { color: var(--violet); margin: 4px 0; }
+.fc-perk { color: var(--yellow); margin: 4px 0; }
+
+/* ---------- HUD ---------- */
+#hud { position: fixed; inset: 0; pointer-events: none; z-index: 10; text-shadow: 2px 2px 0 var(--ink); }
+.hud-tl { position: absolute; top: 12px; left: 16px; }
+#hud-time { font-size: 40px; color: var(--yellow); }
+.hud-sub { font-size: 15px; color: var(--pale); opacity: 0.8; }
+.hud-tr { position: absolute; top: 12px; right: 16px; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+#minimap-wrap {
+  width: 150px; height: 150px; border-radius: 50%; overflow: hidden; position: relative;
+  border: 3px solid var(--violet); background: var(--ink);
+}
+#minimap {
+  position: absolute; left: 11px; top: 11px; width: 128px; height: 128px;
+  image-rendering: pixelated; transform-origin: 64px 64px;
+}
+#hud-feed { font-size: 17px; text-align: right; }
+.hud-bl { position: absolute; left: 16px; bottom: 16px; }
+#hud-hp { width: 240px; height: 22px; background: var(--deep); border: 2px solid var(--ink); position: relative; }
+#hud-hp-fill { height: 100%; background: #8bbf4f; transition: width 0.15s; }
+#hud-hp-fill.low { background: var(--red); }
+#hud-hp-txt { position: absolute; left: 8px; top: -2px; }
+#hud-armor { color: var(--pale); margin-top: 4px; }
+.hud-br { position: absolute; right: 16px; bottom: 16px; text-align: right; }
+#hud-weapon { color: var(--pale); }
+#hud-ammo { font-size: 44px; color: var(--cream); line-height: 1; }
+#hud-status { color: var(--yellow); min-height: 20px; }
+#hud-toast {
+  position: absolute; top: 70px; left: 50%; transform: translateX(-50%);
+  background: var(--panel); padding: 6px 14px; border-left: 4px solid var(--yellow);
+}
+#hud-prompt { position: absolute; bottom: 90px; left: 50%; transform: translateX(-50%); color: var(--yellow); font-size: 24px; }
+#hud-extract { position: absolute; bottom: 70px; left: 50%; transform: translateX(-50%); width: 300px; height: 10px; background: var(--deep); border: 2px solid var(--ink); }
+#hud-extract-fill { height: 100%; background: var(--yellow); }
+#hud-dmg { position: absolute; inset: 0; box-shadow: inset 0 0 120px 30px var(--red); opacity: 0; }
+#hud-dmg.flash { animation: dmg 0.35s ease-out; }
+@keyframes dmg { from { opacity: 0.7; } to { opacity: 0; } }
+
+/* ---------- inventory ---------- */
+.inv-panel { margin-bottom: 10px; }
+.inv-title { font-size: 17px; color: var(--pale); margin-bottom: 2px; }
+.inv-grid, .inv-slot {
+  position: relative;
+  background-color: var(--deep);
+  background-image:
+    linear-gradient(to right, rgba(93, 74, 135, 0.6) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(93, 74, 135, 0.6) 1px, transparent 1px);
+  background-size: var(--cell) var(--cell);
+  border: 2px solid var(--violet);
+  box-sizing: content-box;
+}
+.inv-slot { background-image: none; border-style: dashed; }
+.slot-hint { position: absolute; inset: 0; display: grid; place-items: center; color: var(--violet); font-size: 16px; }
+.inv-item {
+  position: absolute;
+  margin: 1px;
+  border: 2px solid rgba(244, 233, 216, 0.25);
+  cursor: grab;
+  overflow: hidden;
+  font-size: 15px;
+  line-height: 1;
+}
+.inv-item:hover { border-color: var(--yellow); }
+.inv-item .lbl { position: absolute; left: 3px; top: 2px; white-space: nowrap; }
+.inv-item .cnt { position: absolute; right: 3px; bottom: 2px; color: var(--yellow); }
+.cat-weapon { box-shadow: inset 0 -6px 0 rgba(20, 12, 28, 0.4); }
+.drag-ghost { position: fixed; z-index: 100; pointer-events: none; opacity: 0.85; border-color: var(--yellow); }
+.drop-preview { position: absolute; pointer-events: none; z-index: 5; }
+.drop-preview.ok { background: rgba(139, 191, 79, 0.45); }
+.drop-preview.bad { background: rgba(224, 88, 60, 0.45); }
+.tooltip {
+  position: fixed; z-index: 120; display: none; pointer-events: none;
+  background: var(--ink); border: 2px solid var(--violet); padding: 6px 8px; font-size: 17px; max-width: 230px;
+}
+.tooltip i { color: var(--violet); font-style: normal; font-size: 15px; }
+
+#raid-inv { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; background: rgba(20, 12, 28, 0.45); }
+.raid-inv-box { background: var(--panel); border: 3px solid var(--violet); padding: 14px 18px; max-height: 96vh; overflow: auto; }
+.raid-inv-head { color: var(--yellow); margin-bottom: 8px; font-size: 24px; }
+.raid-inv-head span { color: var(--violet); font-size: 16px; margin-left: 12px; }
+#raid-inv-panels { display: flex; gap: 22px; flex-wrap: wrap; align-items: flex-start; }
+
+/* ---------- lobby ---------- */
+#lobby { position: fixed; inset: 0; z-index: 15; display: flex; flex-direction: column; padding: 12px 18px; gap: 10px; }
+.lobby-head { display: flex; justify-content: space-between; align-items: center; background: var(--panel); border-bottom: 3px solid var(--fc); padding: 8px 14px; }
+#lobby-faction { font-size: 34px; color: var(--fc); }
+#lobby-stats { color: var(--pale); font-size: 17px; }
+.lobby-head-r { text-align: right; }
+#lobby-money { font-size: 34px; color: var(--yellow); }
+.lobby-main { flex: 1; display: flex; gap: 16px; min-height: 0; }
+.lobby-col { background: var(--panel); padding: 10px 14px; overflow: auto; }
+.lobby-col h2 { margin: 0 0 8px; font-weight: normal; color: var(--yellow); font-size: 26px; }
+.panels-col .inv-panel { margin-bottom: 8px; }
+#lobby-risk { color: var(--orange); font-size: 17px; margin-top: 8px; }
+.stash-scroll { max-height: 100%; }
+.trader { width: 300px; display: flex; flex-direction: column; margin-left: auto; }
+#trader-list { display: flex; flex-direction: column; gap: 4px; overflow: auto; flex: 1; }
+.trader-row {
+  display: flex; justify-content: space-between; gap: 8px; text-align: left;
+  background: var(--deep); color: var(--cream); border: 1px solid var(--purple); padding: 4px 8px; cursor: pointer; font-size: 18px;
+}
+.trader-row:hover:not(:disabled) { border-color: var(--yellow); }
+.trader-row:disabled { opacity: 0.4; cursor: not-allowed; }
+.tr-price { color: var(--yellow); }
+.sell-zone {
+  margin: 10px 0; padding: 14px; text-align: center; border: 3px dashed var(--wine); color: var(--red); font-size: 22px;
+}
+.sell-zone small { color: var(--pale); font-size: 15px; }
+.sell-zone.sell-hover { background: rgba(224, 88, 60, 0.3); color: var(--cream); }
+.btn.deploy { width: 100%; }
+#lobby-msg {
+  position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
+  background: var(--ink); border: 2px solid var(--yellow); padding: 6px 16px; z-index: 40;
+}
+
+@media (max-width: 1000px) {
+  .lobby-main { flex-wrap: wrap; overflow: auto; }
+  .trader { width: 100%; }
+}

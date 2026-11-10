@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Zona Rasa</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <canvas id="game"></canvas>
+
+    <!-- In-raid HUD -->
+    <div id="hud" class="hidden">
+      <div id="hud-dmg"></div>
+      <div class="hud-tl">
+        <div id="hud-time">20:00</div>
+        <div class="hud-sub">TAB inventário · F interagir · R recarregar · H curar · Q/E girar · SHIFT correr</div>
+      </div>
+      <div class="hud-tr">
+        <div id="minimap-wrap"><canvas id="minimap"></canvas></div>
+        <div id="hud-feed"></div>
+      </div>
+      <div class="hud-bl">
+        <div id="hud-hp"><div id="hud-hp-fill"></div><span id="hud-hp-txt">100</span></div>
+        <div id="hud-armor">SEM COLETE</div>
+      </div>
+      <div class="hud-br">
+        <div id="hud-weapon"></div>
+        <div id="hud-ammo"></div>
+        <div id="hud-status"></div>
+      </div>
+      <div id="hud-toast" class="hidden"></div>
+      <div id="hud-prompt"></div>
+      <div id="hud-extract" class="hidden"><div id="hud-extract-fill"></div></div>
+    </div>
+
+    <!-- In-raid inventory -->
+    <div id="raid-inv" class="hidden">
+      <div class="raid-inv-box">
+        <div class="raid-inv-head">INVENTÁRIO <span>TAB / ESC fecha · duplo-clique transfere · R gira ao arrastar</span></div>
+        <div id="raid-inv-panels"></div>
+      </div>
+    </div>
+
+    <!-- Lobby / safe zone -->
+    <div id="lobby" class="hidden">
+      <header class="lobby-head">
+        <div>
+          <div id="lobby-faction"></div>
+          <div id="lobby-stats"></div>
+        </div>
+        <div class="lobby-head-r">
+          <div id="lobby-money"></div>
+          <button id="lobby-reset" class="ghost-btn">reiniciar perfil</button>
+        </div>
+      </header>
+      <main class="lobby-main">
+        <section class="lobby-col">
+          <h2>Equipamento</h2>
+          <div id="lobby-loadout" class="panels-col"></div>
+          <button id="lobby-load-ammo" class="btn small">Carregar munição da arma</button>
+          <div id="lobby-risk"></div>
+        </section>
+        <section class="lobby-col">
+          <h2>Inventário global</h2>
+          <div id="lobby-stash" class="stash-scroll"></div>
+        </section>
+        <section class="lobby-col trader">
+          <h2>Comerciante</h2>
+          <div id="trader-list"></div>
+          <div class="sell-zone" data-sell>VENDER<br /><small>arraste um item aqui</small></div>
+          <button id="lobby-deploy" class="btn deploy">CHAMAR HELICÓPTERO</button>
+        </section>
+      </main>
+      <div id="lobby-msg" class="hidden"></div>
+    </div>
+
+    <!-- Screens -->
+    <div id="screen-title" class="screen">
+      <div class="title-box">
+        <h1>ZONA RASA</h1>
+        <p>extraction shooter isométrico</p>
+        <button id="title-start" class="btn">ENTRAR</button>
+        <p class="hint">WASD mover · mouse mirar/atirar · TAB inventário</p>
+      </div>
+    </div>
+    <div id="screen-faction" class="screen hidden">
+      <div class="title-box wide">
+        <h1>ESCOLHA SUA FACÇÃO</h1>
+        <p>Cada facção controla um canto do mapa. As outras são hostis, assim como os scavs.</p>
+        <div id="faction-list"></div>
+      </div>
+    </div>
+    <div id="screen-result" class="screen hidden">
+      <div class="title-box">
+        <h1 id="result-title"></h1>
+        <p id="result-body"></p>
+        <button id="result-continue" class="btn">VOLTAR À BASE</button>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
