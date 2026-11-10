@@ -6,82 +6,142 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="theme-color" content="#0e0f10" />
-    <title>Zona Rasa</title>
+    <meta name="theme-color" content="#0b0c0d" />
+    <title>DeadSector</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
   </head>
   <body>
     <canvas id="game"></canvas>
 
-    <!-- In-raid HUD -->
+    <!-- ============ In-raid HUD (every [data-w] is editable) ============ -->
     <div id="hud" class="hidden">
+      <div id="touch-zone"></div>
       <div id="hud-dmg"></div>
-      <div class="hud-tl">
+
+      <button data-w="menu" data-act="menu" class="w-icon" aria-label="Menu">
+        <svg viewBox="0 0 24 24"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/></svg>
+      </button>
+
+      <div data-w="status" class="w-status">
+        <div class="bar hp"><i id="hud-hp-fill"></i><span id="hud-hp-txt">100</span></div>
+        <div class="bar ar"><i id="hud-ar-fill"></i><span id="hud-armor">—</span></div>
+      </div>
+
+      <div data-w="timer" class="w-timer">
         <div id="hud-time">20:00</div>
-        <div id="hud-fps"></div>
-        <div id="hud-hp"><div id="hud-hp-fill"></div><span id="hud-hp-txt">100</span></div>
-        <div id="hud-armor"></div>
+        <div id="hud-sub"></div>
       </div>
-      <div class="hud-tr">
-        <div id="minimap-wrap"><canvas id="minimap"></canvas></div>
-        <div id="hud-feed"></div>
+
+      <div data-w="feed" id="hud-feed" class="w-feed"></div>
+
+      <div data-w="minimap" class="w-minimap" data-act="map">
+        <div id="minimap-wrap"><canvas id="minimap"></canvas><i class="mm-n">N</i></div>
       </div>
-      <div class="hud-br">
+
+      <button data-w="bag" data-act="inventory" class="w-icon" aria-label="Mochila">
+        <svg viewBox="0 0 24 24"><path d="M9 3h6a2 2 0 012 2v1h1a2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V8a2 2 0 012-2h1V5a2 2 0 012-2zm0 3h6V5H9zm-1 7v2h8v-2z"/></svg>
+      </button>
+
+      <div data-w="hotbar" id="hud-hotbar" class="hotbar w-hotbar"></div>
+
+      <div data-w="ammo" class="w-ammo">
+        <div id="hud-ammo">—</div>
         <div id="hud-weapon"></div>
-        <div id="hud-ammo"></div>
         <div id="hud-status"></div>
       </div>
-      <div id="hud-hotbar" class="hotbar"></div>
+
+      <div data-w="joystick" class="t-joy touch-only"><div class="ring"></div><div class="knob"></div></div>
+
+      <button data-w="fire" data-act="fire" class="t-btn t-fire touch-only" aria-label="Atirar">
+        <svg viewBox="0 0 24 24"><path d="M3 10h11l2-2h3v2h2v3h-2v2h-3l-1.2-1.6H11L9 17H6l1.2-4H3z"/></svg>
+      </button>
+      <button data-w="aim" data-act="aim" class="t-btn t-aim touch-only" aria-label="Mirar">
+        <svg viewBox="0 0 24 24"><path d="M11 2h2v4h-2zm0 16h2v4h-2zM2 11h4v2H2zm16 0h4v2h-4zM12 8a4 4 0 110 8 4 4 0 010-8zm0 2a2 2 0 100 4 2 2 0 000-4z"/></svg>
+      </button>
+      <button data-w="reload" data-act="reload" class="t-btn t-sm touch-only" aria-label="Recarregar">
+        <svg viewBox="0 0 24 24"><path d="M12 4a8 8 0 017.7 6h-2.1A6 6 0 106 12H9l-4 4-4-4h3a8 8 0 018-8z"/></svg>
+      </button>
+      <button data-w="swap" data-act="swap" class="t-btn t-sm touch-only" aria-label="Trocar arma">
+        <svg viewBox="0 0 24 24"><path d="M4 7h12l-3-3 1.4-1.4L20 8l-5.6 5.4L13 12l3-3H4zm16 10H8l3 3-1.4 1.4L4 16l5.6-5.4L11 12l-3 3h12z"/></svg>
+      </button>
+      <button data-w="heal" data-act="heal" class="t-btn t-sm touch-only" aria-label="Curar">
+        <svg viewBox="0 0 24 24"><path d="M10 3h4v7h7v4h-7v7h-4v-7H3v-4h7z"/></svg>
+      </button>
+      <button data-w="interact" data-act="interact" class="t-pill off"><span>SAQUEAR</span></button>
+
       <div id="hud-toast" class="hidden"></div>
       <div id="hud-prompt"></div>
       <div id="hud-extract" class="hidden"><div id="hud-extract-fill"></div></div>
-      <div class="hud-keys">WASD mover · Mouse mirar/atirar · F interagir · R recarregar · H curar · 1-6 hotbar · TAB inventário · Q/E câmera</div>
+      <div id="hud-fps"></div>
     </div>
 
-    <!-- Mobile controls -->
-    <div id="touch" class="hidden">
-      <div class="t-zone"></div>
-      <div class="t-buttons">
-        <button data-act="interact" class="t-btn t-interact hidden">SAQUEAR</button>
-        <button data-act="reload" class="t-btn t-reload">↻<small>RECARR.</small></button>
-        <button data-act="heal" class="t-btn t-heal">✚<small>CURAR</small></button>
-        <button data-act="swap" class="t-btn t-swap">⇄<small>ARMA</small></button>
-        <button data-act="inventory" class="t-btn t-inv">▣<small>MOCHILA</small></button>
-      </div>
-      <div class="t-cam">
-        <button data-act="rotL" class="t-btn t-small">⟲</button>
-        <button data-act="rotR" class="t-btn t-small">⟳</button>
-      </div>
-      <div class="t-hint">esquerda: mover · direita: mirar (puxe até o fim para atirar)</div>
-    </div>
+    <div id="hud-editor" class="hidden"></div>
 
-    <!-- Inventory / lobby -->
+    <!-- ============ Inventory / lobby ============ -->
     <div id="inv-screen" class="hidden"></div>
 
-    <!-- Screens -->
-    <div id="screen-title" class="screen">
-      <div class="title-box">
-        <div class="logo">ZONA<span>RASA</span></div>
-        <p>Extraction shooter tático · voxel</p>
-        <button id="title-start" class="btn">ENTRAR</button>
+    <!-- ============ Main menu ============ -->
+    <div id="main-menu" class="screen">
+      <div class="mm-side">
+        <div class="brand">
+          <div class="logo">DEAD<span>SECTOR</span></div>
+          <div class="tag">MILITARY SURVIVAL EXTRACTION</div>
+        </div>
+        <div id="mm-profile" class="mm-profile hidden"></div>
+        <nav class="mm-nav">
+          <button id="mm-play" class="mm-btn primary">JOGAR</button>
+          <button id="mm-settings" class="mm-btn">CONFIGURAÇÕES</button>
+          <button id="mm-hud" class="mm-btn">EDITAR HUD</button>
+          <button id="mm-credits" class="mm-btn">CRÉDITOS</button>
+        </nav>
+        <div class="mm-foot">v0.4 · protótipo</div>
       </div>
     </div>
+
     <div id="screen-faction" class="screen hidden">
-      <div class="title-box wide">
-        <h1>ESCOLHA SUA FACÇÃO</h1>
-        <p>Cada facção controla um canto do mapa. As outras são hostis — assim como os scavs.</p>
+      <div class="fs-wrap">
+        <div class="fs-head">
+          <button class="back" id="fs-back">‹ VOLTAR</button>
+          <h1>ESCOLHA SUA FACÇÃO</h1>
+          <p>Três organizações disputam o setor. A escolha define sua base, aliados e inimigos.</p>
+        </div>
         <div id="faction-list"></div>
       </div>
     </div>
+
     <div id="screen-result" class="screen hidden">
-      <div class="title-box">
+      <div class="result-card">
+        <div class="r-badge" id="result-badge"></div>
         <h1 id="result-title"></h1>
-        <p id="result-body"></p>
-        <button id="result-continue" class="btn">VOLTAR À BASE</button>
+        <div id="result-body"></div>
+        <button id="result-continue" class="mm-btn primary">VOLTAR À BASE</button>
       </div>
     </div>
+
+    <div id="pause-menu" class="screen hidden">
+      <div class="pause-card">
+        <h2>PAUSADO</h2>
+        <button data-p="resume" class="mm-btn primary">CONTINUAR</button>
+        <button data-p="settings" class="mm-btn">CONFIGURAÇÕES</button>
+        <button data-p="hud" class="mm-btn">EDITAR HUD</button>
+        <button data-p="abandon" class="mm-btn danger">ABANDONAR INCURSÃO</button>
+      </div>
+    </div>
+
+    <div id="credits" class="screen hidden">
+      <div class="pause-card wide">
+        <h2>CRÉDITOS</h2>
+        <p>DeadSector — protótipo em desenvolvimento.</p>
+        <p>Personagens animados: <b>Universal Animation Library</b> por Quaternius (CC0).</p>
+        <p>Vegetação, terreno, armas, veículos, interface e sons gerados por código.</p>
+        <button class="mm-btn" data-close>FECHAR</button>
+      </div>
+    </div>
+
+    <div id="settings-modal" class="screen hidden"></div>
+    <div id="confirm" class="screen hidden"></div>
     <div id="toast" class="hidden"></div>
     <div id="portrait-warn"><div>⟳</div>Gire o celular para jogar na horizontal</div>
 

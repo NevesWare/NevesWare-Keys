@@ -1,4 +1,4 @@
-# Zona Rasa
+# DeadSector
 
 Extraction shooter com câmera de cima em perspectiva e visual **realista estilizado**: luz de fim de tarde, capim denso balançando ao vento (gerado na GPU), árvores com folhagem, névoa, bloom e desfoque tilt-shift. Personagens animados (andar, correr, mirar, recarregar, morrer) com capacete, colete, mochila e armas. Feito em Three.js, **mobile-first**, com níveis de qualidade automáticos (Baixo / Médio / Alto).
 
@@ -26,11 +26,12 @@ npm run build    # gera dist/ (estático, pode hospedar em qualquer lugar)
 
 ## Controles (celular)
 
-- **Metade esquerda da tela:** joystick de movimento (empurrar até o fim = correr)
-- **Metade direita:** joystick de mira; puxe além do anel interno para atirar (com leve auxílio de mira)
-- Botões: Recarregar, Curar, Trocar arma, Mochila; botão SAQUEAR/EXTRAIR aparece quando há algo por perto
-- Hotbar 1–6 tocável: arma principal, secundária e itens dos bolsos
-- No inventário: arraste; toque duplo transfere; botão GIRAR aparece durante o arrasto
+- **Joystick (esquerda):** mover. Empurrar até o fim faz correr.
+- **Arrastar no resto da tela:** girar a câmera em 360°. Pinça: zoom.
+- **MIRAR:** levanta a arma, trava o personagem para a frente da câmera e mostra a linha de mira. Girar a câmera gira a mira, e dá para andar mirando. Pode ser "alternar" ou "segurar" (Configurações › Controles).
+- **ATIRAR:** dispara. Sem mirar, é tiro rápido na direção em que você anda.
+- Recarregar, curar, trocar arma, SAQUEAR/EXTRAIR (contextual), mochila, minimapa (abre o mapa), ☰ pausa.
+- **Editor de HUD:** menu principal, pausa ou Configurações › Interface. Arraste os botões e ajuste tamanho e opacidade.
 
 ## Controles (PC)
 
@@ -45,7 +46,10 @@ npm run build    # gera dist/ (estático, pode hospedar em qualquer lugar)
 | Inventário | Tab / I |
 | Hotbar | 1–6 |
 | Trocar arma | X |
-| Girar câmera | Q / E |
+| Girar câmera | Q / E (segurar) · roda do mouse = zoom |
+| Mira precisa (linha) | Botão direito |
+| Mapa | M |
+| Pausa | Esc |
 | Inventário: girar item | R ou botão direito durante o arrasto |
 | Inventário: transferir rápido | Duplo-clique ou Ctrl+clique |
 

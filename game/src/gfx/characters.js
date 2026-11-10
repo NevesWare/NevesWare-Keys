@@ -101,7 +101,7 @@ export class CharacterRig {
     });
     // faction armband on the left upper arm
     const band = look.band && new THREE.Mesh(new THREE.CylinderGeometry(0.058, 0.058, 0.07, 12, 1, true), new THREE.MeshStandardMaterial({ color: look.band, roughness: 0.6, side: THREE.DoubleSide }));
-    band.position.set(0, 0.12, 0);
+    band?.position.set(0, 0.12, 0);
     if (band) this.bones['DEF-upper_armL']?.add(band);
 
     this.mixer = new THREE.AnimationMixer(this.model);

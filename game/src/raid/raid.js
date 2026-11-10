@@ -123,10 +123,11 @@ export class Raid {
     }
     this.tracerMat = new THREE.LineBasicMaterial({ color: '#ffe8a0', transparent: true, opacity: 0.9 });
     // aim laser (player)
-    this.laser = new THREE.Line(
-      new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3(0, 0, 1)]),
-      new THREE.LineBasicMaterial({ color: '#ff4a3a', transparent: true, opacity: 0.85, depthTest: false }),
-    );
+    // a thin glowing strip, 1 m long along +z, scaled to the hit distance each frame
+    const lg = new THREE.PlaneGeometry(0.045, 1);
+    lg.rotateX(-Math.PI / 2);
+    lg.translate(0, 0, 0.5);
+    this.laser = new THREE.Mesh(lg, new THREE.MeshBasicMaterial({ color: '#ff3b2a', transparent: true, opacity: 0.8, depthTest: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }));
     this.laser.renderOrder = 20;
     this.laser.frustumCulled = false;
     this.laserDot = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), new THREE.MeshBasicMaterial({ color: '#ff5a44', depthTest: false }));
@@ -377,10 +378,9 @@ export class Raid {
     this.laser.visible = this.laserDot.visible = showLaser;
     if (showLaser) {
       const h = this.aimHit(pl.aim, pl.weaponDef.range);
-      const pos = this.laser.geometry.attributes.position;
-      pos.setXYZ(0, h.ox, MUZZLE_HEIGHT, h.oz);
-      pos.setXYZ(1, h.x, MUZZLE_HEIGHT, h.z);
-      pos.needsUpdate = true;
+      this.laser.position.set(h.ox, MUZZLE_HEIGHT, h.oz);
+      this.laser.rotation.y = pl.aim;
+      this.laser.scale.set(1, 1, Math.max(0.01, Math.hypot(h.x - h.ox, h.z - h.oz)));
       this.laserDot.position.set(h.x, MUZZLE_HEIGHT, h.z);
     }
 

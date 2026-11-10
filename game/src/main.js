@@ -7,7 +7,9 @@ import { InventoryScreen, loadSettings } from './ui/invScreen.js';
 import { Hud, mapImage } from './ui/hud.js';
 import { TouchControls } from './ui/touch.js';
 import { ui3d } from './ui/icons.js';
-import { showScreen, hideScreens, factionSelect, resultScreen } from './ui/screens.js';
+import { showScreen, hideScreens, factionSelect, resultScreen, mainMenu, pauseMenu, hidePause, confirmBox } from './ui/screens.js';
+import { openSettingsModal } from './ui/settings.js';
+import { loadLayout, applyLayout, HudEditor } from './ui/hudLayout.js';
 import { load, save, newProfile, wipe } from './save.js';
 import { Raid } from './raid/raid.js';
 import { RaidMap } from './raid/map.js';
@@ -21,7 +23,7 @@ import { ITEMS, newItem } from './data/items.js';
 import { factionById } from './data/factions.js';
 import { newLoadout, loadoutValue, carriedItems, clearLoadout } from './inventory/loadout.js';
 import { botLoadout } from './raid/loot.js';
-import { unlockAudio } from './audio.js';
+import { unlockAudio, setVolume } from './audio.js';
 
 const $ = (id) => document.getElementById(id);
 const STEP = 1 / 60;
@@ -44,6 +46,68 @@ const hud = new Hud();
 let settings = loadSettings();
 let tierName = resolveTier(settings.quality ?? 'auto');
 pipeline.setTier(tierName);
+let hudLayout = loadLayout();
+const editor = new HudEditor(() => ({ scale: settings.hudScale }));
+
+function applyHud() {
+  if (editor.active) return;
+  applyLayout(hudLayout, { scale: settings.hudScale, opacity: settings.hudOpacity });
+}
+
+function applySettings() {
+  setVolume(settings.volume);
+  touch.aimMode = settings.aimMode;
+  touch.vibrate = settings.vibration;
+  applyHud();
+}
+
+function onSettingsChange(s, key) {
+  settings = s;
+  applySettings();
+  if (key === 'quality' || !key) {
+    const t = resolveTier(s.quality ?? 'auto');
+    if (t !== tierName) {
+      tierName = t;
+      pipeline.setTier(t);
+      resize();
+    }
+  }
+}
+
+function onSettingsAction(a) {
+  if (a === 'editHud') openHudEditor();
+  else if (a === 'fullscreen') {
+    if (document.fullscreenElement) document.exitFullscreen?.();
+    else document.documentElement.requestFullscreen?.().catch(() => {});
+  } else if (a === 'reset') {
+    confirmBox('Apagar o perfil? Facção, stash, dinheiro e progresso serão perdidos.', () => {
+      wipe();
+      profile = null;
+      document.getElementById('settings-modal').classList.add('hidden');
+      screen.close();
+      base = null;
+      goTitle();
+    }, 'APAGAR PERFIL');
+  }
+}
+
+function openSettings(onClose) {
+  openSettingsModal(settings, { onChange: onSettingsChange, onAction: onSettingsAction, onClose });
+}
+
+function openHudEditor(onDone) {
+  const wasHidden = document.getElementById('hud').classList.contains('hidden');
+  const invWasOpen = screen.isOpen;
+  if (invWasOpen) screen.root.classList.add('hidden');
+  hud.show(true);
+  editor.open(hudLayout, (l) => {
+    hudLayout = l;
+    applyHud();
+    if (wasHidden) hud.show(false);
+    if (invWasOpen) screen.root.classList.remove('hidden');
+    onDone?.();
+  });
+}
 
 let profile = load();
 let mode = 'title'; // title | faction | lobby | raid | ending | result | showcase
@@ -65,14 +129,12 @@ const screen = new InventoryScreen(inv, {
     refreshBaseHero();
   },
   onHotbar: (i) => useHotbar(i),
-  onSettings: (s) => {
-    settings = s;
-    const t = resolveTier(s.quality ?? 'auto');
-    if (t !== tierName) {
-      tierName = t;
-      pipeline.setTier(t);
-      resize();
-    }
+  onSettings: onSettingsChange,
+  onAction: onSettingsAction,
+  getSettings: () => settings,
+  onMenu: () => {
+    screen.close();
+    goTitle();
   },
   toast: (m) => toast(m),
   getMapCanvas: () => {
@@ -103,6 +165,7 @@ const quality = () => {
 };
 
 function resize() {
+  applyHud();
   pipeline.resize();
   cam.setAspect(window.innerWidth / window.innerHeight);
   renderer.getDrawingBufferSize(viewport);
@@ -157,7 +220,7 @@ function buildBase(factionId) {
   guard(-6.5, 1.5, 1.4, 1);
   guard(7.5, -3, -1.9, 2);
   guard(5.5, 5.3, -2.2, 4);
-  return { scene, heli, hero, light, world, crew };
+  return { scene, heli, hero, light, world, crew, faction: factionId };
 }
 
 function refreshBaseHero() {
@@ -171,35 +234,42 @@ function refreshBaseHero() {
 // ---------- flow ----------
 function goTitle() {
   mode = 'title';
-  base = buildBase(profile?.faction ?? 'bears');
+  hud.show(false);
+  if (!base || base.faction !== (profile?.faction ?? 'bears')) base = buildBase(profile?.faction ?? 'bears');
   cam.distance = isTouch ? 13 : 16;
   resize();
   cam.snapTo(new THREE.Vector3(0, 0, 0));
-  showScreen('screen-title');
-  $('title-start').onclick = () => {
-    unlockAudio();
-    if (isTouch) document.documentElement.requestFullscreen?.().catch(() => {});
-    if (profile) goLobby();
-    else goFaction();
-  };
+  mainMenu(profile, {
+    play: () => {
+      unlockAudio();
+      if (isTouch) document.documentElement.requestFullscreen?.().catch(() => {});
+      if (profile) goLobby();
+      else goFaction();
+    },
+    settings: () => openSettings(),
+    hud: () => openHudEditor(),
+  });
 }
 
 function goFaction() {
   mode = 'faction';
-  factionSelect((fid) => {
-    profile = newProfile(fid);
-    save(profile);
-    base = buildBase(fid);
-    goLobby('Bem-vindo à base. Prepare o equipamento e chame o helicóptero.');
-  });
+  factionSelect(
+    (fid) => {
+      profile = newProfile(fid);
+      save(profile);
+      base = buildBase(fid);
+      goLobby('Bem-vindo à base. Prepare o equipamento e chame o helicóptero.');
+    },
+    () => goTitle(),
+  );
 }
 
 function goLobby(msg) {
   mode = 'lobby';
   hideScreens();
   hud.show(false);
-  touch.show(false);
-  if (!base) base = buildBase(profile.faction);
+  touch.reset();
+  if (!base || base.faction !== profile.faction) base = buildBase(profile.faction);
   refreshBaseHero();
   cam.distance = isTouch ? 13 : 16;
   resize();
@@ -218,20 +288,27 @@ function startRaid() {
     renderer,
     callbacks: {
       onToast: (m) => hud.toast(m),
-      onKill: (k, v) => hud.killfeed(k, v),
-      onPlayerHit: () => hud.damageFlash(),
+      onKill: (k, v) => {
+        // keep the feed clean: only fights between humans, or anything involving the player
+        if (k?.isPlayer || v.isPlayer || (k && k.faction !== 'zombie' && v.faction !== 'zombie')) hud.killfeed(k, v);
+      },
+      onPlayerHit: () => {
+        hud.damageFlash();
+        if (settings.vibration) navigator.vibrate?.(40);
+      },
       onOpenLoot: (c) => openRaidInv(c),
       onEnd: (res) => {
         mode = 'ending';
         closeRaidInv();
-        touch.show(false);
+        touch.reset();
         setTimeout(() => endRaid(res), res.result === 'extracted' ? 400 : 1600);
       },
     },
   });
   hud.setupMinimap(raid.map, profile.faction);
   hud.show(true);
-  touch.show(touch.enabled);
+  touch.reset();
+  applyHud();
   cam.distance = isTouch ? 15 : 19;
   resize();
   cam.yaw = cam.targetYaw = Math.PI / 4;
@@ -270,18 +347,17 @@ function endRaid(res) {
 }
 
 // ---------- raid inventory ----------
-function openRaidInv(container = null) {
+function openRaidInv(container = null, tab = 'inv') {
   if (!raid) return;
   raid.invOpen = true;
-  touch.show(false);
-  screen.open({ context: 'raid', profile, actor: raid.player, container, raid });
+  touch.reset();
+  screen.open({ context: 'raid', profile, actor: raid.player, container, raid, tab });
 }
 
 function closeRaidInv() {
   if (raid) raid.invOpen = false;
   if (screen.isOpen) screen.close();
   raid?.player.refreshGear();
-  if (mode === 'raid') touch.show(touch.enabled);
   input.clear();
 }
 
@@ -305,13 +381,13 @@ const aimPoint = new THREE.Vector3();
 const ndc = new THREE.Vector2();
 
 /** Light aim assist for sticks: snap toward the closest visible hostile inside a narrow cone. */
-function assist(pl, aim) {
-  let best = null, bestErr = 0.3;
+function assist(pl, aim, cone = 0.3) {
+  let best = null, bestErr = cone;
   for (const o of raid.actors) {
-    if (o === pl || !o.alive || o.faction === pl.faction) continue;
+    if (o === pl || !o.alive || o.hidden || o.faction === pl.faction) continue;
     const dx = o.pos.x - pl.pos.x, dz = o.pos.z - pl.pos.z;
     const d = Math.hypot(dx, dz);
-    if (d > 24) continue;
+    if (d > (pl.weaponDef?.range ?? 24)) continue;
     let e = Math.atan2(dx, dz) - aim;
     e = Math.atan2(Math.sin(e), Math.cos(e));
     if (Math.abs(e) < bestErr && raid.map.hasLOS(pl.pos.x, pl.pos.z, o.pos.x, o.pos.z)) {
@@ -322,14 +398,47 @@ function assist(pl, aim) {
   return best ?? aim;
 }
 
+function pauseRaid() {
+  if (mode !== 'raid') return;
+  mode = 'paused';
+  touch.reset();
+  pauseMenu({
+    resume: () => {
+      hidePause();
+      mode = 'raid';
+      input.clear();
+    },
+    settings: () => openSettings(),
+    hud: () => {
+      hidePause();
+      openHudEditor(() => pauseRaid.reopen());
+    },
+    abandon: () =>
+      confirmBox('Abandonar a incursão? Todo o equipamento levado será perdido.', () => {
+        hidePause();
+        mode = 'raid';
+        raid.abandon();
+      }, 'ABANDONAR'),
+  });
+}
+pauseRaid.reopen = () => {
+  mode = 'raid';
+  pauseRaid();
+};
+
 function raidStep(dt) {
   input.poll();
   const invOpen = screen.isOpen;
   if (invOpen) {
     if (input.pressed('inventory') || input.pressed('escape')) closeRaidInv();
-  } else if (input.pressed('inventory')) openRaidInv(null);
-  if (input.pressed('rotL')) cam.rotate(-1);
-  if (input.pressed('rotR')) cam.rotate(1);
+  } else {
+    if (input.pressed('inventory')) openRaidInv(null);
+    if (input.pressed('map')) openRaidInv(null, 'map');
+    if (input.pressed('menu') || input.pressed('escape')) return pauseRaid();
+  }
+  // camera: Q/E (hold) rotate, touch drag handled by TouchControls
+  if (input.isHeld('rotL')) cam.addYaw(dt * 2.2);
+  if (input.isHeld('rotR')) cam.addYaw(-dt * 2.2);
   for (let i = 1; i <= 6; i++) if (input.pressed(`hb${i}`)) useHotbar(i - 1);
   if (input.pressed('swap')) raid.player.switchWeapon();
 
@@ -339,23 +448,35 @@ function raidStep(dt) {
   const moveX = ax.right.x * m.x + ax.forward.x * m.y;
   const moveZ = ax.right.y * m.x + ax.forward.y * m.y;
 
+  // --- aiming model ---
+  // Mobile: AIM raises the weapon and locks the character to the camera's forward
+  // direction (rotating the camera rotates the aim line). Without aiming, the
+  // character faces where it walks; FIRE without aiming is a quick hip-fire.
+  // PC: the mouse aims; right button = precise aim with the laser.
   let aim = pl.aim;
-  const stick = input.stickAim();
-  if (stick) {
-    const wx = ax.right.x * stick.x + ax.forward.x * stick.y;
-    const wz = ax.right.y * stick.x + ax.forward.y * stick.y;
-    aim = assist(pl, Math.atan2(wx, wz));
-  } else if (touch.enabled) {
-    if (Math.hypot(moveX, moveZ) > 0.2) aim = Math.atan2(moveX, moveZ);
+  const firingHeld = input.isHeld('fire') && !invOpen;
+  let aiming = false;
+  if (touch.enabled) {
+    aiming = touch.aiming;
+    if (aiming) {
+      aim = cam.forwardAngle();
+      if (settings.aimAssist) aim = assist(pl, aim, 0.07);
+    } else {
+      if (Math.hypot(moveX, moveZ) > 0.2) aim = Math.atan2(moveX, moveZ);
+      if (firingHeld && settings.aimAssist) aim = assist(pl, aim, 0.35);
+    }
   } else {
+    aiming = input.isHeld('aim');
     const rect = canvas.getBoundingClientRect();
     ndc.set(((input.mouse.x - rect.left) / rect.width) * 2 - 1, -((input.mouse.y - rect.top) / rect.height) * 2 + 1);
     raycaster.setFromCamera(ndc, cam.camera);
     if (raycaster.ray.intersectPlane(aimPlane, aimPoint) && input.mouse.inside) aim = Math.atan2(aimPoint.x - pl.pos.x, aimPoint.z - pl.pos.z);
+    const pad = input.stickAim();
+    if (pad) aim = Math.atan2(ax.right.x * pad.x + ax.forward.x * pad.y, ax.right.y * pad.x + ax.forward.y * pad.y);
   }
 
   raid.update(dt, {
-    moveX, moveZ, aim,
+    moveX, moveZ, aim, aiming,
     sprint: input.isHeld('sprint'),
     fire: input.isHeld('fire') && !invOpen,
     firePressed: input.pressed('fire') && !invOpen,
@@ -367,9 +488,9 @@ function raidStep(dt) {
   if (!raid) return;
 
   const focus = pl.pos.clone();
-  const lookDist = touch.enabled ? 2.2 : 3.5;
-  focus.x += Math.sin(pl.aim) * lookDist * 0.5;
-  focus.z += Math.cos(pl.aim) * lookDist * 0.5;
+  const lookDist = aiming ? 2.6 : touch.enabled ? 1.0 : 1.6;
+  focus.x += Math.sin(pl.aim) * lookDist;
+  focus.z += Math.cos(pl.aim) * lookDist;
   focus.y = 0;
   cam.update(dt, focus);
   raid.lighting.follow(focus);
@@ -398,6 +519,8 @@ function menuStep(dt) {
 }
 
 function step(dt) {
+  if (mode === 'paused') return;
+  if (editor.active && mode === 'raid') return;
   if (mode === 'raid') raidStep(dt);
   else if (mode === 'ending') {
     raid?.update(dt, { moveX: 0, moveZ: 0, aim: raid.player.aim, uiOpen: true });
@@ -406,7 +529,7 @@ function step(dt) {
 }
 
 function render() {
-  const scene = (mode === 'raid' || mode === 'ending') && raid ? raid.scene : showcase?.scene ?? base?.scene;
+  const scene = (mode === 'raid' || mode === 'ending' || mode === 'paused') && raid ? raid.scene : showcase?.scene ?? base?.scene;
   if (scene) pipeline.render(scene, cam.camera);
 }
 
@@ -488,20 +611,28 @@ function showcaseStep(dt) {
 }
 
 // ---------- boot ----------
+touch.onCamera = (dx) => cam.addYaw(-dx * 0.0065 * settings.sens);
+touch.onZoom = (f) => cam.zoom(f);
+touch.onStickReset = () => applyHud();
+canvas.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  cam.zoom(1 + Math.sign(e.deltaY) * 0.08);
+}, { passive: false });
+applySettings();
 resize();
-const startBtn = $('title-start');
-startBtn.disabled = true;
-startBtn.textContent = 'CARREGANDO…';
+const playBtn = $('mm-play');
+showScreen('main-menu');
+playBtn.disabled = true;
+playBtn.textContent = 'CARREGANDO…';
 loadCharacters(`${import.meta.env.BASE_URL}models/mannequin.glb`)
   .then(() => {
     setTimeout(() => ui3d.preloadAll(), 50);
+    playBtn.disabled = false;
     if (params.has('showcase')) buildShowcase();
     else goTitle();
-    startBtn.disabled = false;
-    startBtn.textContent = 'ENTRAR';
   })
   .catch((e) => {
-    startBtn.textContent = 'ERRO AO CARREGAR';
+    playBtn.textContent = 'ERRO AO CARREGAR';
     console.error(e);
   });
 requestAnimationFrame(frame);
@@ -515,9 +646,12 @@ window.__game = {
   cam,
   touch,
   screen,
-  start: () => $('title-start').click(),
+  start: () => $('mm-play').click(),
   pickFaction: (i) => document.querySelectorAll('.faction-card')[i]?.click(),
   deploy: () => startRaid(),
   openInv: () => openRaidInv(null),
   closeInv: () => closeRaidInv(),
+  pause: () => pauseRaid(),
+  editHud: () => openHudEditor(),
+  settings: () => openSettings(),
 };

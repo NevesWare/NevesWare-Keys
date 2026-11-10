@@ -3,6 +3,8 @@ import { factionById, FACTIONS } from '../data/factions.js';
 import { slotAccepts, loadoutWeight, loadoutValue, activeWeapon, takeItem, addToStorages } from '../inventory/loadout.js';
 import { ui3d } from './icons.js';
 import { sfx } from '../audio.js';
+import { renderSettings as renderSettingsPanel } from './settings.js';
+export { loadSettings } from './settings.js';
 
 const ICONS = {
   inv: '<svg viewBox="0 0 24 24"><path d="M8 4h8l1 3h2a1 1 0 011 1v11a2 2 0 01-2 2H6a2 2 0 01-2-2V8a1 1 0 011-1h2zm1 9h6v2H9z"/></svg>',
@@ -16,22 +18,6 @@ const ICONS = {
   coin: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/></svg>',
 };
 
-const SETTINGS_KEY = 'deadsector-settings';
-export function loadSettings() {
-  try {
-    return { quality: 'auto', shadows: 'on', grass: true, fps: false, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') };
-  } catch {
-    return { quality: 'auto', shadows: 'on', grass: true, fps: false };
-  }
-}
-function saveSettings(s) {
-  try {
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
-  } catch {
-    /* ignore */
-  }
-}
-
 /**
  * Full-screen inventory in the style of modern extraction shooters.
  * context 'lobby' -> tabs: Inventário / Comerciante / Mapa / Missões / Configurações; right pane = stash
@@ -42,7 +28,6 @@ export class InventoryScreen {
     this.inv = inv;
     this.h = hooks; // { onClose, onDeploy, onReset, onChange, getMapCanvas, onSettings }
     this.root = document.getElementById('inv-screen');
-    this.settings = loadSettings();
     this.tab = 'inv';
     window.addEventListener('resize', () => this.isOpen && this.render());
   }
@@ -93,7 +78,7 @@ export class InventoryScreen {
       <div class="iv-top">
         <nav class="iv-tabs">${tabs.map(([id, label, ic]) => `<button data-tab="${id}" class="${this.tab === id ? 'on' : ''}">${ic}<span>${label}</span></button>`).join('')}</nav>
         <div class="iv-top-r">
-          ${context === 'lobby' ? `<span class="iv-faction">${f.name}</span><span class="iv-money">₢ ${profile.money.toLocaleString('pt-BR')}</span>` : `<span class="iv-time" id="iv-time"></span>`}
+          ${context === 'lobby' ? `<button class="iv-menu">☰ MENU</button><span class="iv-faction">${f.name}</span><span class="iv-money">₢ ${profile.money.toLocaleString('pt-BR')}</span>` : `<span class="iv-time" id="iv-time"></span>`}
           ${context === 'raid' ? '<button class="iv-close" aria-label="Fechar">✕</button>' : ''}
         </div>
       </div>
@@ -107,6 +92,7 @@ export class InventoryScreen {
       }),
     );
     this.root.querySelector('.iv-close')?.addEventListener('click', () => this.h.onClose?.());
+    this.root.querySelector('.iv-menu')?.addEventListener('click', () => this.h.onMenu?.());
 
     const body = this.root.querySelector('.iv-body');
     if (this.tab === 'inv') this.renderInventory(body);
@@ -390,34 +376,15 @@ export class InventoryScreen {
   }
 
   renderSettings(body) {
-    const s = this.settings;
     const p = this.pane('CONFIGURAÇÕES', ICONS.cfg, 'iv-cfg');
-    p.insertAdjacentHTML(
-      'beforeend',
-      `<label>Qualidade gráfica <select data-k="quality"><option value="auto">Automática</option><option value="baixo">Baixa</option><option value="medio">Média</option><option value="alto">Alta</option></select></label>
-       <label>Sombras <select data-k="shadows"><option value="on">Ligadas</option><option value="off">Desligadas</option></select></label>
-       <label>Grama <input type="checkbox" data-k="grass"></label>
-       <label>Mostrar FPS <input type="checkbox" data-k="fps"></label>
-       <button class="btn-s" data-act="fs">Tela cheia</button>
-       ${this.ctx.context === 'lobby' ? '<button class="btn-s danger" data-act="reset">Reiniciar perfil</button>' : ''}
-       <p class="hint">Sombras e capim são reconstruídos no próximo raid.</p>`,
-    );
-    p.querySelector('[data-k=quality]').value = s.quality ?? 'auto';
-    p.querySelector('[data-k=shadows]').value = s.shadows === 'off' ? 'off' : 'on';
-    p.querySelector('[data-k=grass]').checked = s.grass;
-    p.querySelector('[data-k=fps]').checked = s.fps;
-    p.querySelectorAll('[data-k]').forEach((el) =>
-      el.addEventListener('change', () => {
-        s[el.dataset.k] = el.type === 'checkbox' ? el.checked : el.value;
-        saveSettings(s);
-        this.h.onSettings?.(s);
-      }),
-    );
-    p.querySelector('[data-act=fs]').onclick = () => document.documentElement.requestFullscreen?.().catch(() => {});
-    p.querySelector('[data-act=reset]')?.addEventListener('click', () => {
-      if (confirm('Apagar o perfil e escolher outra facção?')) this.h.onReset?.();
-    });
+    const box = document.createElement('div');
+    box.style.height = 'calc(100% - 34px)';
+    p.appendChild(box);
     body.appendChild(p);
+    renderSettingsPanel(box, this.h.getSettings(), {
+      onChange: (st, k) => this.h.onSettings?.(st, k),
+      onAction: (a) => this.h.onAction?.(a),
+    });
   }
 }
 

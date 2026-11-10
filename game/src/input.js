@@ -11,6 +11,7 @@ const KEYMAP = {
   KeyH: 'heal',
   Digit1: 'hb1', Digit2: 'hb2', Digit3: 'hb3', Digit4: 'hb4', Digit5: 'hb5', Digit6: 'hb6',
   KeyX: 'swap',
+  KeyM: 'map',
   Tab: 'inventory', KeyI: 'inventory',
   Escape: 'escape',
 };
@@ -54,9 +55,11 @@ export class Input {
         this.held.add('fire');
         this.queued.add('fire');
       }
+      if (e.button === 2) this.held.add('aim');
     });
     window.addEventListener('pointerup', (e) => {
       if (e.button === 0) this.held.delete('fire');
+      if (e.button === 2) this.held.delete('aim');
     });
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
   }

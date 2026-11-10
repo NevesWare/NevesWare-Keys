@@ -109,19 +109,22 @@ export class Hud {
   update(raid, onHotbar, showFps) {
     const pl = raid.player;
     $('hud-time').textContent = fmtTime(raid.time);
-    $('hud-hp-fill').style.width = `${pl.health}%`;
-    $('hud-hp-fill').classList.toggle('low', pl.health < 35);
+    const hp = $('hud-hp-fill');
+    hp.style.width = `${(pl.health / pl.maxHealth) * 100}%`;
+    hp.classList.toggle('low', pl.health < 35);
     $('hud-hp-txt').textContent = Math.ceil(pl.health);
     const ar = pl.loadout.armor;
-    $('hud-armor').textContent = ar ? `${ITEMS[ar.id].name} ${Math.round(ar.dur)}` : 'Sem colete';
+    $('hud-ar-fill').style.width = ar ? `${(ar.dur / ITEMS[ar.id].armor.durability) * 100}%` : '0%';
+    $('hud-armor').textContent = ar ? Math.round(ar.dur) : '';
     const w = pl.weapon;
-    $('hud-weapon').textContent = w ? ITEMS[w.id].name : 'Desarmado';
+    $('hud-weapon').textContent = w ? ITEMS[w.id].name.toUpperCase() : 'DESARMADO';
     $('hud-ammo').innerHTML = w ? `${w.mag}<small> / ${pl.ammoReserve()}</small>` : '—';
     let status = '';
     if (pl.reloadT > 0) status = 'RECARREGANDO…';
     else if (pl.healT > 0) status = 'CURANDO…';
     $('hud-status').textContent = status;
     $('hud-prompt').textContent = raid.prompt();
+    $('hud-sub').textContent = raid.state === 'extracting' ? `EXTRAÇÃO ${Math.ceil(raid.extractT)}s` : '';
 
     const ex = raid.state === 'extracting';
     $('hud-extract').classList.toggle('hidden', !ex);
@@ -165,7 +168,7 @@ export class Hud {
     const vc = factionById(victim.faction)?.color ?? '#a8703f';
     row.innerHTML = `<span style="color:${kc}">${killer?.name ?? '?'}</span> ✕ <span style="color:${vc}">${victim.name}</span>`;
     f.prepend(row);
-    while (f.children.length > 4) f.lastChild.remove();
+    while (f.children.length > 3) f.lastChild.remove();
     setTimeout(() => row.remove(), 7000);
   }
 

@@ -1,51 +1,64 @@
 /**
- * Mobile twin-stick controls.
- * Left half: floating movement stick (push to the edge = sprint).
- * Right half: floating aim stick (push past the inner ring = fire).
- * Action buttons push edge-triggered actions into the Input queue.
+ * Mobile controls for DeadSector.
+ * - Left side: movement joystick (floats to where the thumb lands, returns to its HUD spot).
+ * - Anywhere else: drag to rotate the camera 360°, pinch to zoom.
+ * - Buttons: FIRE (hold), AIM (toggle or hold), reload, swap, heal, interact, bag, menu.
  */
-const R = 56; // stick radius in px
-const FIRE_AT = 0.55;
+const R = 58;
 
 export class TouchControls {
   constructor(input) {
     this.input = input;
-    this.root = document.getElementById('touch');
+    this.zone = document.getElementById('touch-zone');
+    this.joy = document.querySelector('[data-w=joystick]');
+    this.knob = this.joy.querySelector('.knob');
     this.move = { x: 0, y: 0 };
-    this.aim = { x: 0, y: 0 };
+    this.aim = { x: 0, y: 0 }; // kept for API compatibility (unused: aim follows the camera)
     this.firing = false;
     this.sprint = false;
-    this.sticks = {};
+    this.aiming = false;
+    this.aimMode = 'toggle';
     this.enabled = false;
+    this.onCamera = null; // (dxPixels) => void
+    this.onZoom = null; // (factor) => void
+    this.stick = null;
+    this.drags = new Map();
 
-    this.zone = this.root.querySelector('.t-zone');
     this.zone.addEventListener('pointerdown', (e) => this.down(e));
     window.addEventListener('pointermove', (e) => this.moveEv(e));
     window.addEventListener('pointerup', (e) => this.up(e));
     window.addEventListener('pointercancel', (e) => this.up(e));
 
-    for (const b of this.root.querySelectorAll('[data-act]')) {
+    for (const b of document.querySelectorAll('#hud [data-act]')) {
+      const act = b.dataset.act;
       b.addEventListener('pointerdown', (e) => {
+        if (document.body.classList.contains('hud-edit')) return;
         e.preventDefault();
         e.stopPropagation();
-        const a = b.dataset.act;
-        if (a === 'fire') {
-          this.fireBtn = e.pointerId;
+        b.classList.add('press');
+        if (act === 'fire') {
+          this.fireId = e.pointerId;
           this.firing = true;
           input.queued.add('fire');
-        } else input.queued.add(a);
-        b.classList.add('press');
+        } else if (act === 'aim') {
+          this.aiming = this.aimMode === 'hold' ? true : !this.aiming;
+          this.syncAimBtn();
+        } else input.queued.add(act);
+        if (navigator.vibrate && this.vibrate) navigator.vibrate(8);
       });
       const rel = (e) => {
         b.classList.remove('press');
-        if (b.dataset.act === 'fire' && e.pointerId === this.fireBtn) {
-          this.fireBtn = null;
-          this.firing = this.sticks.aim ? this.aimMag() > FIRE_AT : false;
+        if (act === 'fire' && e.pointerId === this.fireId) {
+          this.fireId = null;
+          this.firing = false;
+        }
+        if (act === 'aim' && this.aimMode === 'hold') {
+          this.aiming = false;
+          this.syncAimBtn();
         }
       };
       b.addEventListener('pointerup', rel);
       b.addEventListener('pointercancel', rel);
-      b.addEventListener('pointerleave', rel);
     }
 
     const coarse = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
@@ -55,83 +68,93 @@ export class TouchControls {
     });
   }
 
+  syncAimBtn() {
+    document.querySelector('[data-w=aim]')?.classList.toggle('on', this.aiming);
+  }
+
   setEnabled(on) {
     this.enabled = on;
     document.body.classList.toggle('touch', on);
   }
 
-  show(on) {
-    this.root.classList.toggle('hidden', !on);
-    if (!on) this.reset();
-  }
-
   reset() {
-    for (const k of Object.keys(this.sticks)) this.sticks[k].el.remove();
-    this.sticks = {};
-    this.move.x = this.move.y = this.aim.x = this.aim.y = 0;
+    this.endStick();
+    this.drags.clear();
+    this.move = { x: 0, y: 0 };
     this.firing = this.sprint = false;
-  }
-
-  aimMag() {
-    return Math.hypot(this.aim.x, this.aim.y);
+    this.aiming = false;
+    this.syncAimBtn();
   }
 
   down(e) {
-    if (e.pointerType === 'mouse') return;
+    if (e.pointerType === 'mouse' || document.body.classList.contains('hud-edit')) return;
     e.preventDefault();
-    const side = e.clientX < window.innerWidth * 0.45 ? 'move' : 'aim';
-    if (this.sticks[side]) return;
-    const el = document.createElement('div');
-    el.className = `t-stick ${side}`;
-    el.innerHTML = '<div class="t-knob"></div>';
-    el.style.left = `${e.clientX}px`;
-    el.style.top = `${e.clientY}px`;
-    this.root.appendChild(el);
-    this.sticks[side] = { id: e.pointerId, x: e.clientX, y: e.clientY, el, knob: el.firstChild };
+    if (!this.stick && e.clientX < window.innerWidth * 0.42 && e.clientY > window.innerHeight * 0.3) {
+      // float the joystick to the touch point
+      this.stick = { id: e.pointerId, x: e.clientX, y: e.clientY };
+      this.joy.classList.add('active');
+      this.joy.style.left = `${e.clientX}px`;
+      this.joy.style.top = `${e.clientY}px`;
+      return;
+    }
+    this.drags.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (this.drags.size === 2) {
+      const [a, b] = [...this.drags.values()];
+      this.pinch = Math.hypot(a.x - b.x, a.y - b.y);
+    }
   }
 
   moveEv(e) {
-    for (const [side, s] of Object.entries(this.sticks)) {
-      if (s.id !== e.pointerId) continue;
-      let dx = e.clientX - s.x, dy = e.clientY - s.y;
+    if (this.stick && e.pointerId === this.stick.id) {
+      let dx = e.clientX - this.stick.x, dy = e.clientY - this.stick.y;
       const d = Math.hypot(dx, dy);
       if (d > R) {
         dx = (dx / d) * R;
         dy = (dy / d) * R;
       }
-      s.knob.style.transform = `translate(${dx}px, ${dy}px)`;
-      const v = { x: dx / R, y: -dy / R };
-      if (side === 'move') {
-        this.move = v;
-        this.sprint = Math.hypot(v.x, v.y) > 0.95;
-      } else {
-        this.aim = v;
-        const m = this.aimMag();
-        s.el.classList.toggle('hot', m > FIRE_AT);
-        if (m > FIRE_AT && !this.firing) this.input.queued.add('fire');
-        this.firing = m > FIRE_AT || this.fireBtn != null;
-      }
+      this.knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+      this.move = { x: dx / R, y: -dy / R };
+      this.sprint = Math.hypot(this.move.x, this.move.y) > 0.96 && !this.aiming;
+      return;
     }
+    const d = this.drags.get(e.pointerId);
+    if (!d) return;
+    if (this.drags.size >= 2) {
+      d.x = e.clientX;
+      d.y = e.clientY;
+      const [a, b] = [...this.drags.values()];
+      const dist = Math.hypot(a.x - b.x, a.y - b.y);
+      if (this.pinch) this.onZoom?.(this.pinch / dist);
+      this.pinch = dist;
+      return;
+    }
+    const dx = e.clientX - d.x;
+    d.x = e.clientX;
+    d.y = e.clientY;
+    this.onCamera?.(dx);
+  }
+
+  endStick() {
+    this.stick = null;
+    this.move = { x: 0, y: 0 };
+    this.sprint = false;
+    this.knob.style.transform = 'translate(-50%, -50%)';
+    this.joy.classList.remove('active');
+    this.onStickReset?.();
   }
 
   up(e) {
-    for (const [side, s] of Object.entries(this.sticks)) {
-      if (s.id !== e.pointerId) continue;
-      s.el.remove();
-      delete this.sticks[side];
-      if (side === 'move') {
-        this.move = { x: 0, y: 0 };
-        this.sprint = false;
-      } else {
-        this.aim = { x: 0, y: 0 };
-        this.firing = this.fireBtn != null;
-      }
+    if (this.stick && e.pointerId === this.stick.id) {
+      this.endStick();
+      return;
     }
+    this.drags.delete(e.pointerId);
+    if (this.drags.size < 2) this.pinch = null;
   }
 
   setInteract(label) {
-    const b = this.root.querySelector('[data-act=interact]');
-    b.classList.toggle('hidden', !label);
-    if (label) b.textContent = label;
+    const b = document.querySelector('[data-w=interact]');
+    b.classList.toggle('off', !label);
+    if (label) b.querySelector('span').textContent = label;
   }
 }
