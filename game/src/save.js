@@ -2,7 +2,7 @@ import { Grid } from './inventory/grid.js';
 import { newItem, hydrate } from './data/items.js';
 import { newLoadout, SLOTS } from './inventory/loadout.js';
 
-const KEY = 'zona-rasa-save-v2';
+const KEY = 'deadsector-save-v1';
 export const STASH_W = 10;
 export const STASH_H = 16;
 
@@ -21,17 +21,23 @@ export function newProfile(factionId) {
   stash.add(newItem('bandagem'));
   stash.add(newItem('capaceteL'));
 
-  if (factionId === 'ferro') lo.armor = newItem('coleteL');
-  if (factionId === 'mare') {
+  if (factionId === 'bears') {
+    lo.armor = newItem('coleteL');
+    lo.helmet = newItem('capaceteL');
+  }
+  if (factionId === 'eagle') {
     const v = newItem('vespa');
     v.mag = 30;
     lo.primary = v;
     lo.active = 'primary';
   }
-  if (factionId === 'raiz') {
-    stash.add(newItem('medkit'));
-    stash.add(newItem('medkit'));
-    money += 20000;
+  if (factionId === 'cult') {
+    const t = newItem('trovao');
+    t.mag = 6;
+    lo.primary = t;
+    lo.active = 'primary';
+    lo.backpack.grid.add(newItem('a12', 16));
+    money += 15000;
   }
   return { faction: factionId, money, stash, loadout: lo, stats: { raids: 0, extracts: 0, deaths: 0, kills: 0 } };
 }

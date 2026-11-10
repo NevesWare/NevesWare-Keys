@@ -32,7 +32,7 @@ function valueNoise(seed) {
 }
 
 const CORNERS = {
-  NO: { x: 14, z: 14 },
+  N: { x: 64, z: 14 },
   NE: { x: MAP_SIZE - 15, z: 14 },
   SO: { x: 14, z: MAP_SIZE - 15 },
   SE: { x: MAP_SIZE - 15, z: MAP_SIZE - 15 },
@@ -253,7 +253,7 @@ export class RaidMap {
 
     // roads from center to each corner
     for (const k of Object.keys(CORNERS)) this.road(C.x, C.z, CORNERS[k].x, CORNERS[k].z);
-    this.road(C.x, C.z, 64, 6);
+    this.road(C.x, C.z, 6, 64);
     this.pendingCars = [];
     for (const k of Object.keys(CORNERS)) {
       for (const t of [0.35, 0.62]) {
@@ -265,19 +265,20 @@ export class RaidMap {
     // faction outposts
     FACTIONS.forEach((f) => this.outpost(f, CORNERS[f.corner]));
 
-    // scav town (SE)
-    this.scavTown(CORNERS.SE);
+    // scav town (NE)
+    this.scavTown(CORNERS.NE);
 
     // center ruins
     this.ruins(C);
 
-    // neutral extraction: north clearing
-    this.reserve(58, 2, 70, 12);
-    for (let x = 60; x <= 68; x++) for (let z = 3; z <= 10; z++) this.ground(x, z, 'road');
-    this.extracts.push({ name: 'Clareira Norte', x: 64.5, z: 7, r: 4, faction: null });
+    // neutral extraction: west clearing
+    this.reserve(2, 58, 12, 70);
+    for (let x = 3; x <= 10; x++) for (let z = 60; z <= 68; z++) this.ground(x, z, 'road');
+    this.prop('helipad', 0, 7, 64.5, 0);
+    this.extracts.push({ name: 'Clareira Oeste', x: 7, z: 64.5, r: 4, faction: null });
 
     // forest cabins
-    const cabins = [[38, 40], [90, 40], [40, 92], [88, 88], [64, 30], [30, 64], [98, 64]];
+    const cabins = [[38, 40], [88, 40], [40, 92], [88, 88], [70, 32], [26, 74], [98, 64]];
     for (const [x, z] of cabins) {
       this.building(x, z, 6, 5, { wall: 'plank', doors: R() < 0.5 ? 'ns' : 'ew' });
       this.crate(x + 1, z + 1, R() < 0.25 ? 'military' : 'common', 'Caixa de Cabana');

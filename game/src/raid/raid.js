@@ -1,9 +1,11 @@
 import * as THREE from 'three';
 import { RaidMap } from './map.js';
 import { Actor, ACTOR_RADIUS, MUZZLE_HEIGHT } from './actor.js';
-import { BotBrain } from './ai.js';
+import { BotBrain, ZombieBrain } from './ai.js';
 import { Helicopter } from './helicopter.js';
 import { fillContainer, botLoadout, bodyContainer } from './loot.js';
+import { newLoadout } from '../inventory/loadout.js';
+import { Grid } from '../inventory/grid.js';
 import { factionById } from '../data/factions.js';
 import { sfx } from '../audio.js';
 import { buildWorld, addLighting } from '../gfx/world.js';
@@ -67,6 +69,28 @@ export class Raid {
       a.syncMesh(0);
     }
 
+    // zombies: hordes around Ground Zero (center) plus wanderers in the woods
+    const R = Math.random;
+    const zombie = (x, z) => {
+      const p = this.map.freeSpot(x, z, 0);
+      if (Math.hypot(p.x - ins.x, p.z - ins.z) < 18) return;
+      const a = new Actor({ name: 'Zumbi', faction: 'zombie', loadout: newLoadout(), seed: Math.floor(R() * 100) });
+      a.pos.set(p.x, 0, p.z);
+      a.aim = R() * Math.PI * 2;
+      const brain = new ZombieBrain(a, this, { home: p });
+      this.actors.push(a);
+      this.bots.push(brain);
+      this.scene.add(a.mesh);
+      a.syncMesh(0);
+    };
+    for (let h = 0; h < 7; h++) {
+      const ang = R() * Math.PI * 2, rr = 6 + R() * 18;
+      const cx = 64 + Math.cos(ang) * rr, cz = 64 + Math.sin(ang) * rr;
+      const n = 3 + Math.floor(R() * 4);
+      for (let i = 0; i < n; i++) zombie(cx + (R() - 0.5) * 5, cz + (R() - 0.5) * 5);
+    }
+    for (let i = 0; i < 12; i++) zombie(12 + R() * 104, 12 + R() * 104);
+
     // insertion helicopter
     this.heli = new Helicopter(factionById(pf).color);
     this.heli.placeAt(ins.x + 4.5, ins.z, 0);
@@ -98,6 +122,17 @@ export class Raid {
       s.add(ring);
     }
     this.tracerMat = new THREE.LineBasicMaterial({ color: '#ffe8a0', transparent: true, opacity: 0.9 });
+    // aim laser (player)
+    this.laser = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3(0, 0, 1)]),
+      new THREE.LineBasicMaterial({ color: '#ff4a3a', transparent: true, opacity: 0.85, depthTest: false }),
+    );
+    this.laser.renderOrder = 20;
+    this.laser.frustumCulled = false;
+    this.laserDot = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), new THREE.MeshBasicMaterial({ color: '#ff5a44', depthTest: false }));
+    this.laserDot.renderOrder = 21;
+    this.laser.visible = this.laserDot.visible = false;
+    s.add(this.laser, this.laserDot);
   }
 
   hostileOf(a, b) {
@@ -143,9 +178,47 @@ export class Raid {
     for (const b of this.bots) {
       if (b.a === actor) continue;
       const d = Math.hypot(b.a.pos.x - actor.pos.x, b.a.pos.z - actor.pos.z);
-      if (d < 30) b.hear(actor.pos.x, actor.pos.z, actor);
+      if (d < (b instanceof ZombieBrain ? 45 : 30)) b.hear(actor.pos.x, actor.pos.z, actor);
     }
+    this.cb.onShot?.(actor);
     return true;
+  }
+
+  /** A zombie that spots prey pulls nearby zombies into the chase. */
+  alertHorde(src, target) {
+    for (const b of this.bots) {
+      if (!(b instanceof ZombieBrain) || b === src || !b.a.alive || b.state === 'combat') continue;
+      if (Math.hypot(b.a.pos.x - src.a.pos.x, b.a.pos.z - src.a.pos.z) < 12) b.engage(target);
+    }
+  }
+
+  groan(a) {
+    const d = Math.hypot(a.pos.x - this.player.pos.x, a.pos.z - this.player.pos.z);
+    if (d < 25) sfx.groan(d);
+  }
+
+  /** Where a ray from the player's muzzle along `angle` stops (wall, actor or range). */
+  aimHit(angle, range) {
+    const pl = this.player;
+    const ox = pl.pos.x + Math.sin(angle) * 0.6, oz = pl.pos.z + Math.cos(angle) * 0.6;
+    const dx = Math.sin(angle), dz = Math.cos(angle);
+    let maxT = Math.min(range, this.map.raycast(ox, oz, dx, dz, range));
+    for (const o of this.actors) {
+      if (o === pl || !o.alive || o.hidden) continue;
+      const cx = o.pos.x - ox, cz = o.pos.z - oz;
+      const t = cx * dx + cz * dz;
+      if (t < 0 || t > maxT) continue;
+      const perp2 = cx * cx + cz * cz - t * t;
+      if (perp2 < 0.16) maxT = t - Math.sqrt(0.16 - perp2);
+    }
+    return { ox, oz, x: ox + dx * maxT, z: oz + dz * maxT };
+  }
+
+  /** Give up: counts as missing in action. */
+  abandon() {
+    if (this.state === 'dead' || this.state === 'extracted') return;
+    this.state = 'dead';
+    this.cb.onEnd?.({ result: 'abandon' });
   }
 
   damage(victim, dmg, attacker) {
@@ -162,6 +235,11 @@ export class Raid {
       if (victim.isPlayer) {
         this.state = 'dead';
         this.cb.onEnd?.({ result: 'dead', killer: attacker?.name ?? 'desconhecido' });
+      } else if (victim.faction === 'zombie') {
+        if (Math.random() < 0.25) {
+          const c = { x: victim.pos.x, z: victim.pos.z, label: 'Restos', grid: new Grid(4, 3), tier: 'common', filled: false, body: true };
+          this.containers.push(c);
+        }
       } else {
         this.containers.push(bodyContainer(victim));
       }
@@ -236,8 +314,9 @@ export class Raid {
     // --- player ---
     if (this.state === 'play' || this.state === 'extracting') {
       if (!ctl.uiOpen) {
-        const sprint = ctl.sprint && !ctl.fire && pl.reloadT <= 0 && pl.healT <= 0;
-        let sp = sprint ? 6.0 : 4.0;
+        pl.aiming = !!ctl.aiming;
+        const sprint = ctl.sprint && !ctl.fire && !ctl.aiming && pl.reloadT <= 0 && pl.healT <= 0;
+        let sp = sprint ? 6.0 : ctl.aiming ? 2.3 : 4.0;
         if (pl.healT > 0) sp *= 0.5;
         pl.vel.set(ctl.moveX * sp, ctl.moveZ * sp);
         this.map.move(pl.pos, pl.vel.x, pl.vel.y, ACTOR_RADIUS, dt);
@@ -292,6 +371,18 @@ export class Raid {
     }
 
     pl.update(dt);
+
+    // aim laser
+    const showLaser = !!ctl.aiming && !!pl.weapon && pl.alive && this.state !== 'insert';
+    this.laser.visible = this.laserDot.visible = showLaser;
+    if (showLaser) {
+      const h = this.aimHit(pl.aim, pl.weaponDef.range);
+      const pos = this.laser.geometry.attributes.position;
+      pos.setXYZ(0, h.ox, MUZZLE_HEIGHT, h.oz);
+      pos.setXYZ(1, h.x, MUZZLE_HEIGHT, h.z);
+      pos.needsUpdate = true;
+      this.laserDot.position.set(h.x, MUZZLE_HEIGHT, h.z);
+    }
 
     // --- bots ---
     for (const b of this.bots) {

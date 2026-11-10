@@ -26,6 +26,8 @@ export class Actor {
     this.maxHealth = 100;
     this.alive = true;
     this.hidden = false;
+    this.aiming = false;
+    if (faction === 'zombie') this.health = this.maxHealth = 70;
     this.cooldown = 0;
     this.reloadT = 0;
     this.healT = 0;
@@ -193,6 +195,8 @@ export class Actor {
     this.rig.update(dt, {
       speed,
       sprint: speed > 5,
+      zombie: this.faction === 'zombie',
+      aiming: this.aiming || this.cooldown > 0,
       armed: !!this.weapon,
       reloading: this.reloadT > 0,
       healing: this.healT > 0,

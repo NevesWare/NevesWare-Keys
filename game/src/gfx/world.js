@@ -225,7 +225,7 @@ function wallMaterial(name) {
     : name === 'stone' ? concreteTexture()
     : name.startsWith('wall_') ? concreteTexture()
     : concreteTexture();
-  const tint = name === 'wall_ferro' ? '#b89a90' : name === 'wall_mare' ? '#9aa8b8' : name === 'wall_raiz' ? '#a8b090' : name === 'stone' ? '#8a8680' : '#ffffff';
+  const tint = name === 'wall_bears' ? '#b89a90' : name === 'wall_eagle' ? '#9aa8b8' : name === 'wall_cult' ? '#8a8680' : name === 'stone' ? '#8a8680' : '#ffffff';
   return withFade(new THREE.MeshStandardMaterial({ map: tex, color: tint, roughness: 0.9 }));
 }
 

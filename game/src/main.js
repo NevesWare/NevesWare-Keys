@@ -111,7 +111,7 @@ window.addEventListener('resize', resize);
 
 // ---------- base / lobby backdrop ----------
 function buildBase(factionId) {
-  const f = factionById(factionId) ?? factionById('ferro');
+  const f = factionById(factionId) ?? factionById('bears');
   const scene = new THREE.Scene();
   const L = new VoxelLevel();
   const props = [];
@@ -171,7 +171,7 @@ function refreshBaseHero() {
 // ---------- flow ----------
 function goTitle() {
   mode = 'title';
-  base = buildBase(profile?.faction ?? 'ferro');
+  base = buildBase(profile?.faction ?? 'bears');
   cam.distance = isTouch ? 13 : 16;
   resize();
   cam.snapTo(new THREE.Vector3(0, 0, 0));
@@ -456,8 +456,8 @@ function buildShowcase() {
   const light = addLighting(scene, renderer, { shadowSize: 4096, extent: 26 });
   light.follow(new THREE.Vector3(0, 0, 0));
   const squad = [
-    ['raiz', 0.5, 1.5, 2.5, 'k7', 'coleteP', 'capaceteP', 'mochilaT', 2.2],
-    ['raiz', -1.6, 0.4, 2.2, 'vespa', 'coleteL', 'capaceteL', 'mochilaM', 0],
+    ['eagle', 0.5, 1.5, 2.5, 'k7', 'coleteP', 'capaceteP', 'mochilaT', 2.2],
+    ['eagle', -1.6, 0.4, 2.2, 'vespa', 'coleteL', 'capaceteL', 'mochilaM', 0],
     ['scav', 4.5, -3.5, -0.8, 'trovao', null, null, null, 1.3],
   ];
   const actors = [];

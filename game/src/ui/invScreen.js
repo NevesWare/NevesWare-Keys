@@ -16,7 +16,7 @@ const ICONS = {
   coin: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/></svg>',
 };
 
-const SETTINGS_KEY = 'zona-rasa-settings';
+const SETTINGS_KEY = 'deadsector-settings';
 export function loadSettings() {
   try {
     return { quality: 'auto', shadows: 'on', grass: true, fps: false, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') };
@@ -361,7 +361,7 @@ export class InventoryScreen {
 
   // ---------------------------------------------------------------- map / quests / settings
   renderMap(body) {
-    const p = this.pane('MAPA DA ZONA', ICONS.map, 'iv-map');
+    const p = this.pane('MAPA DO SETOR', ICONS.map, 'iv-map');
     const cv = this.h.getMapCanvas?.();
     if (cv) {
       cv.classList.add('big-map');

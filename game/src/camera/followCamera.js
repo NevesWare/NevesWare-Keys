@@ -12,6 +12,8 @@ export class FollowCamera {
     this.yaw = Math.PI / 4;
     this.targetYaw = this.yaw;
     this.focus = new THREE.Vector3();
+    this.minDist = 9;
+    this.maxDist = 32;
   }
 
   setAspect(aspect) {
@@ -21,6 +23,21 @@ export class FollowCamera {
 
   rotate(dir) {
     this.targetYaw += (dir * Math.PI) / 4;
+  }
+
+  /** Free 360° rotation (radians), e.g. from a drag gesture. */
+  addYaw(d) {
+    this.targetYaw += d;
+    this.yaw += d * 0.85; // stay responsive under the finger
+  }
+
+  zoom(factor) {
+    this.distance = Math.min(this.maxDist, Math.max(this.minDist, this.distance * factor));
+  }
+
+  /** Yaw angle (game convention: 0 = +z) the camera is looking toward. */
+  forwardAngle() {
+    return Math.atan2(-Math.sin(this.yaw), -Math.cos(this.yaw));
   }
 
   groundAxes() {

@@ -162,6 +162,7 @@ export class BotBrain {
     }
 
     let v = { x: 0, z: 0 };
+    a.aiming = this.state === 'combat';
 
     if (this.state === 'combat' && this.target) {
       const t = this.target;
@@ -247,6 +248,131 @@ export class BotBrain {
     if (a.reloadT > 0 || a.healT > 0) {
       v.x *= 0.6;
       v.z *= 0.6;
+    }
+    a.vel.set(v.x, v.z);
+    this.raid.map.move(a.pos, v.x, v.z, ACTOR_RADIUS, dt);
+  }
+}
+
+/**
+ * Zombie: wanders slowly, hears gunshots from far away, sees nearby humans,
+ * chases and attacks in melee. Alerts the rest of its horde.
+ */
+export class ZombieBrain extends BotBrain {
+  constructor(actor, raid, opts) {
+    super(actor, raid, opts);
+    this.sight = 13;
+    this.attackT = 0;
+    this.hitPending = 0;
+    this.groanT = 2 + Math.random() * 8;
+  }
+
+  hostile(o) {
+    return o !== this.a && o.alive && !o.hidden && o.faction !== 'zombie';
+  }
+
+  sense() {
+    const a = this.a;
+    let best = null, bestD = Infinity;
+    for (const o of this.raid.actors) {
+      if (!this.hostile(o)) continue;
+      const d = Math.hypot(o.pos.x - a.pos.x, o.pos.z - a.pos.z);
+      if (d > this.sight || d >= bestD) continue;
+      if (d > 4 && !this.raid.map.hasLOS(a.pos.x, a.pos.z, o.pos.x, o.pos.z)) continue;
+      best = o;
+      bestD = d;
+    }
+    if (best) {
+      if (this.state !== 'combat') this.raid.alertHorde(this, best);
+      this.engage(best);
+    } else if (this.state === 'combat') {
+      this.lostT += 0.25;
+      if (this.lostT > 3) {
+        this.state = 'search';
+        this.searchT = 8;
+        this.target = null;
+        this.setGoal(this.lastSeen);
+      }
+    }
+  }
+
+  engage(t) {
+    this.target = t;
+    this.lastSeen = { x: t.pos.x, z: t.pos.z };
+    this.state = 'combat';
+    this.lostT = 0;
+  }
+
+  hear(x, z) {
+    if (this.state === 'combat' || !this.a.alive) return;
+    this.state = 'search';
+    this.searchT = 10;
+    this.lastSeen = { x, z };
+    this.setGoal({ x: x + (Math.random() - 0.5) * 6, z: z + (Math.random() - 0.5) * 6 });
+  }
+
+  hurt(attacker) {
+    if (attacker && attacker.alive) this.engage(attacker);
+  }
+
+  update(dt) {
+    const a = this.a;
+    if (!a.alive) return;
+    this.senseT -= dt;
+    if (this.senseT <= 0) {
+      this.senseT = 0.25;
+      this.sense();
+    }
+    this.attackT = Math.max(0, this.attackT - dt);
+    this.groanT -= dt;
+    if (this.groanT <= 0) {
+      this.groanT = 6 + Math.random() * 10;
+      this.raid.groan?.(a);
+    }
+
+    // resolve a swing that is in progress
+    if (this.hitPending > 0) {
+      this.hitPending -= dt;
+      if (this.hitPending <= 0 && this.target?.alive) {
+        const d = Math.hypot(this.target.pos.x - a.pos.x, this.target.pos.z - a.pos.z);
+        if (d < 1.6) this.raid.damage(this.target, 12 + Math.random() * 6, a);
+      }
+    }
+
+    let v = { x: 0, z: 0 };
+    if (this.state === 'combat' && this.target) {
+      const t = this.target;
+      if (!t.alive) {
+        this.state = 'idle';
+        this.target = null;
+      } else {
+        this.lastSeen = { x: t.pos.x, z: t.pos.z };
+        const d = Math.hypot(t.pos.x - a.pos.x, t.pos.z - a.pos.z);
+        this.turnToward(Math.atan2(t.pos.x - a.pos.x, t.pos.z - a.pos.z), 6, dt);
+        if (d > 1.1) {
+          if (!this.goal || Math.hypot(this.goal.x - t.pos.x, this.goal.z - t.pos.z) > 1.5) this.setGoal(this.lastSeen);
+          v = this.steer(2.9, dt);
+        } else if (this.attackT <= 0) {
+          this.attackT = 1.15;
+          this.hitPending = 0.32;
+          a.rig.melee();
+        }
+      }
+    } else if (this.state === 'search') {
+      this.searchT -= dt;
+      const s = this.steer(1.7, dt);
+      v = s;
+      if (s.x || s.z) this.turnToward(Math.atan2(s.x, s.z), 3, dt);
+      if ((s.arrived || s.stuck) && this.searchT <= 0) this.state = 'idle';
+    } else {
+      this.idleT -= dt;
+      if (this.idleT <= 0) {
+        this.setGoal(this.randomFreeNear(this.home.x, this.home.z, 7));
+        this.idleT = 5 + Math.random() * 8;
+      }
+      const s = this.steer(0.8, dt);
+      v = s;
+      if (s.x || s.z) this.turnToward(Math.atan2(s.x, s.z), 2, dt);
     }
     a.vel.set(v.x, v.z);
     this.raid.map.move(a.pos, v.x, v.z, ACTOR_RADIUS, dt);

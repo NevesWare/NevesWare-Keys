@@ -13,9 +13,10 @@ const UPPER_BONES = ['spine002', 'spine003', 'neck', 'head', 'shoulder', 'upper_
 const isUpper = (bone) => UPPER_BONES.some((k) => bone.includes(k));
 
 export const FACTION_LOOK = {
-  ferro: { body: '#4b4640', joints: '#2a2724', band: '#c0392b' },
-  mare: { body: '#4f5d6c', joints: '#2b3138', band: '#3f8fd8' },
-  raiz: { body: '#4c5934', joints: '#2b311f', band: '#86c34a' },
+  bears: { body: '#4c5240', joints: '#2a2d24', band: '#d0473a' },
+  eagle: { body: '#7a6e55', joints: '#3d3a30', band: '#4a90e2' },
+  cult: { body: '#26262a', joints: '#141416', band: '#e3d6b4' },
+  zombie: { body: '#6f7a5c', joints: '#4a3b34', band: null },
   scav: { body: '#7a6a52', joints: '#3a332a', band: '#a8703f' },
 };
 const SCAV_BODIES = ['#7a6a52', '#5c6670', '#6b4a3a', '#55603e', '#7d7468'];
@@ -99,9 +100,9 @@ export class CharacterRig {
       if (o.isBone) this.bones[o.name] = o;
     });
     // faction armband on the left upper arm
-    const band = new THREE.Mesh(new THREE.CylinderGeometry(0.058, 0.058, 0.07, 12, 1, true), new THREE.MeshStandardMaterial({ color: look.band, roughness: 0.6, side: THREE.DoubleSide }));
+    const band = look.band && new THREE.Mesh(new THREE.CylinderGeometry(0.058, 0.058, 0.07, 12, 1, true), new THREE.MeshStandardMaterial({ color: look.band, roughness: 0.6, side: THREE.DoubleSide }));
     band.position.set(0, 0.12, 0);
-    this.bones['DEF-upper_armL']?.add(band);
+    if (band) this.bones['DEF-upper_armL']?.add(band);
 
     this.mixer = new THREE.AnimationMixer(this.model);
     this.layers = { lower: null, upper: null };
@@ -153,6 +154,12 @@ export class CharacterRig {
     }
   }
 
+  melee() {
+    if (this.dead) return;
+    this.oneShot = 0.55;
+    this.play('upper', Math.random() < 0.5 ? 'Punch_Jab' : 'Punch_Cross', 0.08, { once: true, timeScale: 1.4 });
+  }
+
   shoot() {
     if (this.dead) return;
     this.oneShot = 0.18;
@@ -176,7 +183,7 @@ export class CharacterRig {
   }
 
   /**
-   * @param s { speed, sprint, armed, reloading, healing, backwards }
+   * @param s { speed, sprint, armed, aiming, reloading, healing, backwards, zombie }
    */
   update(dt, s) {
     if (!this.dead) {
@@ -187,13 +194,16 @@ export class CharacterRig {
         if (!this.oneShot) this.play('upper', 'Sprint_Loop', 0.2);
       } else {
         const lower = !moving ? 'Idle_Loop' : s.speed < 2.6 ? 'Walk_Loop' : 'Jog_Fwd_Loop';
-        this.play('lower', lower, 0.2, { timeScale: moving ? ts * Math.max(0.7, s.speed / (lower === 'Walk_Loop' ? 1.8 : 4)) : 1 });
+        const k = s.zombie ? 0.75 : 1;
+        this.play('lower', lower, 0.2, { timeScale: moving ? ts * k * Math.max(0.7, s.speed / (lower === 'Walk_Loop' ? 1.8 : 4)) : 1 });
         if (this.oneShot != null) {
           this.oneShot -= dt;
           if (this.oneShot <= 0) this.oneShot = null;
         } else if (s.reloading) this.play('upper', 'Pistol_Reload', 0.15);
         else if (s.healing) this.play('upper', 'Interact', 0.2);
-        else if (s.armed) this.play('upper', 'Pistol_Aim_Neutral', 0.15);
+        else if (s.zombie) this.play('upper', 'Pistol_Aim_Neutral', 0.3, { timeScale: 0.4 });
+        else if (s.armed && s.aiming) this.play('upper', 'Pistol_Aim_Neutral', 0.12);
+        else if (s.armed) this.play('upper', 'Pistol_Idle_Loop', 0.2);
         else this.play('upper', lower, 0.2);
       }
     }

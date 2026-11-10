@@ -1,6 +1,22 @@
 // Tiny synthesized SFX (no asset files). Volume falls off with distance from the listener.
 let ctx = null;
 let noiseBuf = null;
+let master = null;
+let volume = 1;
+
+export function setVolume(v) {
+  volume = v;
+  if (master) master.gain.value = v;
+}
+
+function out() {
+  if (!master) {
+    master = ctx.createGain();
+    master.gain.value = volume;
+    master.connect(ctx.destination);
+  }
+  return master;
+}
 
 function ensure() {
   if (ctx) return ctx;
@@ -33,7 +49,7 @@ function noise(dur, freq, vol, q = 1) {
   const t = c.currentTime;
   g.gain.setValueAtTime(vol, t);
   g.gain.exponentialRampToValueAtTime(0.001, t + dur);
-  src.connect(f).connect(g).connect(c.destination);
+  src.connect(f).connect(g).connect(out());
   src.start(t);
   src.stop(t + dur);
 }
@@ -48,7 +64,7 @@ function tone(freq, dur, vol, type = 'square') {
   const t = c.currentTime;
   g.gain.setValueAtTime(vol, t);
   g.gain.exponentialRampToValueAtTime(0.001, t + dur);
-  o.connect(g).connect(c.destination);
+  o.connect(g).connect(out());
   o.start(t);
   o.stop(t + dur);
 }
@@ -81,6 +97,26 @@ export const sfx = {
   coin() {
     tone(988, 0.06, 0.05, 'triangle');
     setTimeout(() => tone(1319, 0.08, 0.05, 'triangle'), 60);
+  },
+  groan(dist = 0) {
+    const c = ensure();
+    if (!c) return;
+    const v = 0.06 * Math.max(0, 1 - dist / 25);
+    const o = c.createOscillator();
+    o.type = 'sawtooth';
+    const t = c.currentTime;
+    o.frequency.setValueAtTime(90 + Math.random() * 40, t);
+    o.frequency.linearRampToValueAtTime(60 + Math.random() * 20, t + 0.7);
+    const f = c.createBiquadFilter();
+    f.type = 'lowpass';
+    f.frequency.value = 500;
+    const g = c.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(v, t + 0.15);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.8);
+    o.connect(f).connect(g).connect(out());
+    o.start(t);
+    o.stop(t + 0.85);
   },
   heli(vol = 0.08) {
     noise(0.12, 200, vol, 4);
