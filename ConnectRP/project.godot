@@ -3,13 +3,17 @@ config_version=5
 
 [application]
 
-config/name="CONEXAO RP"
-run/main_scene="res://Scenes/World/test_world.tscn"
+config/name="Connect RP"
+config/description="Roleplay mobile em mundo aberto (cidade original)."
+run/main_scene="res://Scenes/UI/main_menu.tscn"
 config/features=PackedStringArray("4.3", "GL Compatibility")
+config/icon="res://icon.svg"
 
 [autoload]
 
 InputSetup="*res://Autoload/input_setup.gd"
+GameState="*res://Autoload/game_state.gd"
+Network="*res://Autoload/network.gd"
 
 [display]
 
@@ -22,7 +26,11 @@ window/handheld/orientation=4
 [input_devices]
 
 pointing/emulate_touch_from_mouse=true
-pointing/emulate_mouse_from_touch=false
+pointing/emulate_mouse_from_touch=true
+
+[physics]
+
+common/physics_ticks_per_second=60
 
 [rendering]
 

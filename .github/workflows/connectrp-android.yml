@@ -1,0 +1,51 @@
+# Gera o APK de teste (debug) do Connect RP a cada push na pasta ConnectRP/.
+# O APK fica em: Actions -> execução -> Artifacts -> ConnectRP-debug-apk
+name: Connect RP - APK Android
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "ConnectRP/**"
+      - ".github/workflows/connectrp-android.yml"
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.3
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Preparar templates, SDK e chave de debug
+        run: |
+          mkdir -p "$HOME/.local/share/godot/export_templates"
+          if [ -d /root/.local/share/godot/export_templates/4.3.stable ] && [ "$HOME" != "/root" ]; then
+            cp -r /root/.local/share/godot/export_templates/4.3.stable "$HOME/.local/share/godot/export_templates/"
+          fi
+          SDK="${ANDROID_HOME:-/usr/lib/android-sdk}"
+          JDK="${JAVA_HOME:-/usr/lib/jvm/java-17-openjdk-amd64}"
+          keytool -genkeypair -v -keystore "$GITHUB_WORKSPACE/debug.keystore" -storepass android \
+            -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=Android Debug,O=Android,C=US"
+          echo "GODOT_ANDROID_KEYSTORE_DEBUG_PATH=$GITHUB_WORKSPACE/debug.keystore" >> "$GITHUB_ENV"
+          echo "GODOT_ANDROID_KEYSTORE_DEBUG_USER=androiddebugkey" >> "$GITHUB_ENV"
+          echo "GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD=android" >> "$GITHUB_ENV"
+          mkdir -p "$HOME/.config/godot"
+          for f in editor_settings-4.3.tres editor_settings-4.tres; do
+            printf '[gd_resource type="EditorSettings" format=3]\n\n[resource]\nexport/android/android_sdk_path = "%s"\nexport/android/java_sdk_path = "%s"\n' "$SDK" "$JDK" > "$HOME/.config/godot/$f"
+          done
+
+      - name: Importar e exportar APK
+        working-directory: ConnectRP
+        run: |
+          mkdir -p build/android
+          godot --headless --import || true
+          godot --headless --export-debug "Android" build/android/ConnectRP-debug.apk
+          ls -la build/android
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ConnectRP-debug-apk
+          path: ConnectRP/build/android/ConnectRP-debug.apk
+          if-no-files-found: error

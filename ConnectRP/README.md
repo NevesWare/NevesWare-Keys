@@ -1,49 +1,96 @@
-# CONEXÃO RP — Etapa 01 MOBILE (personagem + toque + cenário de teste)
+# Connect RP — Etapa 02 (mobile, Godot 4.3)
+
+Roleplay em mundo aberto para celular, no estilo dos servidores RP (MTA / FiveM),
+numa **cidade brasileira fictícia e original** (centro com arranha-céus, favela no
+morro, bairros residenciais, zona rural e praia).
+
+> O mapa **não** é uma cópia do San Andreas nem usa nada da Rockstar (modelos,
+> texturas, nomes, mapa). Isso seria violação de direitos autorais e faria o app
+> ser removido das lojas. O jogo segue o *gênero* (mundo aberto + RP), com mapa próprio.
 
 ## Abrir / testar
-1. Godot 4.3+ → importe `project.godot` → F5.
-2. No PC, o mouse emula o toque (arraste nos botões/joystick). Teclado de teste: WASD, Shift, Espaço, C, Z, F.
+1. Godot **4.3** → Importar → `ConnectRP/project.godot` → F5.
+2. No PC o mouse emula o toque. Teclado de teste:
+   WASD mover/dirigir · Shift correr · Espaço pular/freio de mão · C agachar · Z deitar
+   · F soco · **E usar / entrar e sair do carro** · M celular · N mapa · T chat · Esc fecha.
 
-## Controles de toque (paisagem)
-- Joystick flutuante: toque na metade esquerda da tela. Empurre pouco = andar; empurre mais = correr.
-- Arrastar em qualquer área livre (direita): gira a câmera.
-- Botões: SOCO, PULAR, CORRER (segure = sprint), AGACHAR (liga/desliga), DEITAR (liga/desliga).
-- Pular enquanto agachado/deitado: primeiro levanta. Multi-toque funciona (mover + socar + câmera).
+## O que tem na Etapa 02
+| Sistema | Como funciona |
+|---|---|
+| Menu principal | Continuar, novo personagem (nome + pele/cabelo/roupa com prévia 3D), multiplayer, gráficos |
+| Veículos | 4 modelos (Compacto, Sedã, Picape, Esportivo). Física arcade: aceleração, ré, freio de mão com derrapagem, combustível, dano no motor, faróis à noite |
+| Trânsito | Carros da IA andam na faixa da direita pela grade de ruas, freiam para carros/pessoas e são reciclados perto do jogador |
+| Pedestres | Andam pelas calçadas, caem com soco/atropelamento, levantam e fogem |
+| Economia RP | Carteira + banco (depositar/sacar), pagamentos no débito |
+| Necessidades | Fome e sede caem com o tempo; zeradas tiram vida. Desmaio → hospital (R$ 200) |
+| Marcadores | Banco ($), Lanchonete/Conveniência (L), Hospital (H), Delegacia (D: CNH e colete), Agência de Empregos (E), Depósito (P), Concessionária (C), Posto (G) e Oficina (O) — os dois últimos abrem ao parar o carro no marcador |
+| Empregos | **Entregador** (pega pacote no depósito e entrega em casas) e **Taxista** (busca e leva passageiros). Pagamento pela distância |
+| Garagem | Carros comprados ficam salvos; chame pelo celular e ele aparece na rua mais próxima |
+| HUD | Minimapa que gira com a câmera, barras de vida/colete/fome/sede, dinheiro, relógio, velocímetro, notificações |
+| Mapa + GPS | Toque no minimapa ou em MAPA; tocar no mapa marca o GPS (feixe roxo no mundo) |
+| Dia e noite | 1 dia = 24 min reais. À noite as janelas dos prédios acendem e os carros ligam os faróis |
+| Chat RP | Fala normal, `/me`, `/do`, `/ooc` |
+| Multiplayer | Wi-Fi local / hotspot: um hospeda, os outros entram pelo IP (porta 7777). Sincroniza posição, animação, roupa, carro e chat |
+| Salvamento | Automático a cada 60 s, ao sair e ao minimizar o app |
+| Gráficos | Baixa / Média / Alta (resolução 3D, sombras, distância de visão, nº de carros e pedestres) |
 
-## Animações (procedurais no rig provisório)
-idle, andar, correr, sprint, pular (subida/queda + amortecer ao pousar), agachar (parado/andando), deitar e engatinhar, soco alternado (esq/dir). Bonecos de treino reagem ao soco.
+## Controles de toque
+- **A pé:** joystick (metade esquerda, parte de baixo), arrastar à direita gira a câmera,
+  SOCO, PULAR, CORRER, AGACHAR, DEITAR e o botão contextual USAR/ENTRAR.
+- **No carro:** joystick vira o volante, ACELERAR, FREIO/RÉ, FREIO DE MÃO, SAIR.
+  A câmera volta sozinha para trás do carro quando você para de arrastar.
+- Botões no topo: CELULAR (mapa, garagem, salvar, configurações), CHAT e MAPA.
 
-## Arquivos
-- `project.godot` — paisagem, renderer GL Compatibility (leve para celulares), mouse emula toque
-- `Autoload/input_setup.gd` — ações do InputMap
-- `Scripts/UI/touch_controls.gd` — joystick, botões e câmera por toque
-- `Scripts/Player/player_controller.gd` — movimento, posturas, soco
-- `Scripts/Player/camera_rig.gd` — câmera 3ª pessoa
-- `Scripts/Player/humanoid_rig.gd` — corpo provisório + animações + suporte a modelo real
-- `Scripts/Systems/test_world.gd`, `test_dummy.gd` + `Scenes/World/test_world.tscn`, `Scenes/Player/player.tscn`
+## Gerar o APK
+**Automático (sem instalar nada):** cada push que mexe em `ConnectRP/` roda o workflow
+`.github/workflows/connectrp-android.yml`. Baixe o APK em *GitHub → Actions → execução →
+Artifacts → ConnectRP-debug-apk*. Também pode rodar manualmente (*Run workflow*).
 
-## Exportar para Android
-Editor → Manage Export Templates → instale. Instale JDK 17 + Android SDK e aponte em Editor Settings → Export → Android. Project → Export → Add → Android → Export APK. Ative USB debugging e use o botão "Remote Debug" para rodar direto no celular.
+**Manual:** Editor → Manage Export Templates (instalar) · JDK 17 + Android SDK em
+Editor Settings → Export → Android · Project → Export → **Android** (preset já incluso,
+com permissão de internet para o multiplayer) → Export APK.
+
+## Multiplayer (como testar)
+1. Todos no mesmo Wi-Fi (ou um celular roteando hotspot).
+2. Quem hospeda: MULTIPLAYER → HOSPEDAR. O IP aparece nas configurações de Wi-Fi do aparelho.
+3. Os outros: MULTIPLAYER → digite o IP → ENTRAR.
+
+## Estrutura
+```
+Autoload/   input_setup.gd · game_state.gd (dinheiro, status, relógio, save) · network.gd (ENet + chat)
+Scenes/     UI/main_menu.tscn · World/world.tscn · Player/player.tscn
+Scripts/
+  World/world.gd            mundo: spawns, marcadores, empregos, celular, rede
+  Player/                   player_controller · humanoid_rig (aparência) · camera_rig
+  Vehicles/                 car.gd (física + IA) · car_visual.gd (modelo procedural)
+  NPCs/pedestrian.gd        pedestres
+  Systems/                  city_builder · traffic_manager · day_night · interaction_point
+  UI/                       hud · minimap · rp_menu · touch_controls · main_menu
+  Multiplayer/remote_player.gd
+```
+
+## Testes automáticos (linha de comando)
+```
+godot -- --screenshot=tela.png --frames=120          # salva a tela e fecha
+godot res://Scenes/World/world.tscn -- --drive --throttle=1 --hour=21 --debug
+godot -- --autohost        |   godot -- --autojoin=127.0.0.1
+```
+Outros: `--pos=x,y,z --yaw=graus --job=taxista --license --map --phone --menu=banco`.
 
 ## Limitações honestas
-- NÃO foi executado no Godot nem em celular (não há Godot no ambiente de geração). Podem surgir erros na primeira abertura; envie e eu corrijo.
-- Personagem provisório (primitivas, juntas Node3D, sem Skeleton3D). Não é o modelo realista da referência.
-- Deitado: a colisão é uma cápsula curta (aproximação); corpo deitado é maior que ela.
-- Soco: detecção por esfera à frente (só atinge corpos com `take_damage`). Sem vida/dano em jogadores ainda.
+- Validado no **Godot 4.3** (Linux, renderer Compatibility por software): sem erros de script,
+  telas conferidas por screenshot, multiplayer testado com 2 instâncias na mesma máquina.
+  **Ainda não rodou em celular real** — o FPS precisa ser medido no aparelho (HUD mostra FPS).
+- O workflow do APK foi escrito mas não executado aqui; se falhar, mande o log.
+- Personagens e carros são provisórios (primitivas). Dá para trocar por modelos `.glb`
+  (veja `Assets/Characters/LEIA-ME.txt`).
+- Sem sons ainda.
+- Multiplayer é P2P em rede local: dinheiro/inventário ficam no aparelho de cada um
+  (um servidor RP "de verdade" precisa de servidor dedicado com banco de dados — Etapa 04).
+- Pedestres e trânsito não são sincronizados entre jogadores.
 
-## Modelo real (.glb)
-Coloque em `Assets/Characters/`, selecione `Visual` em `player.tscn` e preencha `External Model Path`. Nomes de animação esperados: idle, walk, run, jump, crouch, prone, crawl, punch. Se de costas, `External Yaw Offset Deg` = 180.
-
-
-## Mapa (original) — cidade fictícia brasileira
-Gerado por `Scripts/Systems/city_builder.gd` (sem postes e sem árvores). Grade 8x7 de quarteirões:
-- Centro: arranha-céus de vidro e escritório, banco, praça central com fonte e bancos.
-- Norte: bairros residenciais (casas com muro, gramado e telhado), prédios de apartamentos, hospital.
-- Delegacia, concessionária, oficina, posto de gasolina, lojas com toldos.
-- Leste: favela densa com becos, caixas d'água e morro em degraus (pule para subir).
-- Oeste: área rural com plantações, celeiro, casa de fazenda, cercas e fardos de feno.
-- Sul: calçadão (padrão de ondas), quiosques, posto salva-vidas, areia, mar e molhe.
-- Faixas de pedestre e sinalização de pista em todos os cruzamentos.
-NÃO foi usado nenhum asset do GTA San Andreas. O FBX enviado (mapa de Los Santos) é conteúdo da Rockstar e não entra no projeto.
-Limitação: ~600+ objetos; use o FPS do HUD para medir. Otimização (LOD, MultiMesh/mesclagem, chunks) fica para a Etapa 13.
-Para sair: o mundo tem paredes invisíveis a 300 m do centro.
+## Próximas etapas sugeridas
+3. Sons (motor, buzina, passos, ambiente) e rádio no carro · modelos `.glb` de personagem/carro.
+4. Servidor dedicado (Godot headless) com contas e economia autoritativa — base para um RP online.
+5. Polícia e procurado, mais empregos (mecânico, gari, paramédico), casas para comprar, inventário.
+6. Mapa maior em chunks (rodovia, segunda cidade, aeroporto) com LOD/MultiMesh para celulares fracos.
