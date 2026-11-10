@@ -86,6 +86,8 @@ export class RaidMap {
     this.outposts = {};
     this.botSpawns = [];
     this.props = [];
+    this.buildings = [];
+    this.fires = [];
     this.generate(seed);
   }
 
@@ -258,6 +260,7 @@ export class RaidMap {
         if (!door) this.block(x, z, 2, wall);
       }
     this.reserve(x0 - 1, z0 - 1, x1 + 1, z1 + 1);
+    this.buildings.push({ x0, z0, w, d, wall, v: this.buildings.length % 3 });
   }
 
   crate(x, z, tier, label = 'Caixa') {
@@ -401,6 +404,36 @@ export class RaidMap {
         this.prop(k < 0.45 ? 'tyre' : k < 0.8 ? 'jerry' : 'propane', 0, x, z, R() * 6.28);
       }
     }
+    // hay bales in the fields around villages and farms
+    for (const c of POIS) {
+      if (c.kind !== 'town') continue;
+      const n = c.id === 'fazenda' ? 40 : 12;
+      for (let i = 0; i < n; i++) {
+        const a = R() * Math.PI * 2, rr = 34 + R() * 40;
+        const x = c.x + Math.cos(a) * rr, z = c.z + Math.sin(a) * rr;
+        const cx = Math.floor(x), cz = Math.floor(z);
+        if (!this.inBounds(cx, cz) || this.isSolid(cx, cz) || this.reserved[this.idx(cx, cz)]) continue;
+        this.block(cx, cz, 1, 'hay');
+        this.prop('hay', 0, cx + 0.5, cz + 0.5, R() * 6.28);
+      }
+    }
+    // wild flower / weed patches
+    for (let i = 0; i < 9000; i++) {
+      const x = 4 + R() * (W - 8), z = 4 + R() * (H - 8);
+      const cx = Math.floor(x), cz = Math.floor(z);
+      if (this.isSolid(cx, cz) || this.gnd[this.idx(cx, cz)] > 2) continue;
+      this.prop('flowers', 0, x, z, R() * 6.28, 0.6 + R() * 0.8);
+    }
+    // war damage: scorch marks and burning wrecks at Ground Zero and military sites
+    for (let i = 0; i < 40; i++) {
+      const a = R() * Math.PI * 2, rr = R() * 55;
+      this.prop('scorch', 0, MID + Math.cos(a) * rr, MID + Math.sin(a) * rr, R() * 6.28, 1.5 + R() * 3);
+    }
+    for (const p of POIS) {
+      if (!['ruins', 'camp', 'airfield'].includes(p.kind)) continue;
+      for (let i = 0; i < 3; i++) this.fires.push({ x: p.x + (R() - 0.5) * 40, z: p.z + (R() - 0.5) * 40, s: 0.6 + R() * 0.8 });
+    }
+
     // fallen logs in the woods
     for (let i = 0; i < 900; i++) {
       const x = 10 + R() * (W - 20), z = 10 + R() * (H - 20);
@@ -428,7 +461,7 @@ export class RaidMap {
       const a = (i / n) * Math.PI * 2 + R() * 0.4, rr = 12 + R() * 14;
       const w = 6 + Math.floor(R() * 4), d = 5 + Math.floor(R() * 3);
       const x = Math.round(c.x + Math.cos(a) * rr - w / 2), z = Math.round(c.z + Math.sin(a) * rr - d / 2);
-      this.building(x, z, w, d, { wall: R() < 0.6 ? 'brick' : 'plank', floor: 'plank', doors: ['ns', 'ew', 'nsew'][i % 3] });
+      this.building(x, z, w, d, { wall: R() < 0.3 ? 'brick' : 'plank', floor: 'plank', doors: ['ns', 'ew', 'nsew'][i % 3] });
       this.crate(x + 1, z + 1, R() < 0.2 ? 'military' : 'common', 'Armário');
       if (R() < 0.5) this.crate(x + w - 2, z + d - 2, 'common', 'Caixa');
     }

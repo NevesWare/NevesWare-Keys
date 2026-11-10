@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { leafTexture, barkTexture } from './textures.js';
-import { pbrMaterial } from './realism.js';
 
 export const shared = {
   time: { value: 0 },
@@ -35,9 +34,10 @@ export function createGrass({ count = 40000, patch = 40, mask, mapSize, mapOrigi
   const off = new Float32Array(count * vPer * 4); // x, z, rotation, height
   const lean = new Float32Array(count * vPer);
   const idx = [];
-  const base = new THREE.Color('#3d5a22');
-  const tipA = new THREE.Color('#6f8f38');
-  const tipB = new THREE.Color('#a7a64e');
+  // muted olive / dry-grass palette (earthy military look)
+  const base = new THREE.Color('#3a4a24');
+  const tipA = new THREE.Color('#62703a');
+  const tipB = new THREE.Color('#9a9058');
   const c = new THREE.Color();
   for (let b = 0; b < count; b++) {
     const ox = (R() - 0.5) * patch, oz = (R() - 0.5) * patch;
@@ -290,7 +290,7 @@ export function instancedChunks(geo, mat, items, { castShadow = true, depth = nu
 /** Trees + bushes for a list of placements. */
 export function createForest(trees, bushes) {
   const group = new THREE.Group();
-  const bark = pbrMaterial('bark_willow', { repeat: 1, color: '#c8bca8' }) ?? new THREE.MeshLambertMaterial({ map: barkTexture(), color: '#b9a690' });
+  const bark = new THREE.MeshLambertMaterial({ map: barkTexture(), color: '#b9a690' });
   const hues = [52, 70, 40];
   for (let v = 0; v < 3; v++) {
     const list = trees.filter((t) => t.v % 3 === v);

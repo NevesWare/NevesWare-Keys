@@ -65,7 +65,7 @@ export class Hub {
     Object.assign(m, {
       W, H: W, solid: new Uint8Array(W * W), gnd: new Uint8Array(W * W), reserved: new Uint8Array(W * W), vox: new VoxelLevel(),
       rand: (() => { let a = 17; return () => ((a = (a * 16807) % 2147483647) / 2147483647); })(),
-      containers: [], extracts: [], outposts: {}, botSpawns: [], props: [],
+      containers: [], extracts: [], outposts: {}, botSpawns: [], props: [], buildings: [], fires: [],
     });
     this.map = m;
     this.actors = [];

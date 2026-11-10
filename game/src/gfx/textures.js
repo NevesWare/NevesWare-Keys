@@ -102,7 +102,7 @@ export function soilTexture() {
     seed = 21;
     const S = 512;
     const [c, g] = canvas(S);
-    g.fillStyle = '#4c5a2a';
+    g.fillStyle = '#4a5530';
     g.fillRect(0, 0, S, S);
     for (let i = 0; i < 2600; i++) {
       const x = rnd() * S, y = rnd() * S, r = 2 + rnd() * 9;

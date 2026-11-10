@@ -116,6 +116,23 @@ Ao voltar de uma incursão, o jogador desembarca no heliponto da base.
 - **Sons de arma gravados:** AK (K-7), MP5 (Vespa), pistola silenciada (P-9), AWM (sniper nova, e escopeta com tom mais grave). Rajadas tocam um disparo por tiro mais o eco no fim; tiros distantes soam abafados.
 - **Nova arma:** Sniper AWM (.338 Lapua, 5 tiros, dano 95, alcance 70 m), nível 6 no comerciante e rara no loot.
 
+## 4f. Visual 100% procedural, câmera isométrica e explosões (v0.9)
+
+Esta seção substitui a câmera e o visual da v0.8.
+
+- **Câmera:** isométrica alta, estilo Project Zomboid/Protected. Zoom com pinça ou roda do mouse; arrastar gira a tela em 360°.
+- **Mira:** volta o sistema antigo. MIRAR levanta a arma, trava o personagem para a frente da câmera e mostra a linha de laser; girar a câmera gira a mira. Sem mirar, o tiro sai na direção em que você anda.
+- **Tudo gerado por código:** nenhuma textura, modelo ou céu baixado. As texturas são pintadas em canvas a partir de ruído, com normal maps calculados de um mapa de altura: tábuas, zinco ondulado, palha, casca e relevo do solo.
+- **Estilo (referência Signalborne / Gray Zone):** cores terrosas e apagadas, luz de dia suave, desfoque de miniatura nas bordas.
+  - Barracos de tábua escura com telhado de zinco enferrujado, que some quando o jogador entra.
+  - Fardos de feno nas fazendas e vilas, flores silvestres, pneus, galões, botijões e troncos caídos.
+  - Marcas de queimado em Ground Zero.
+- **Battlefield:**
+  - Destroços queimando com colunas de fumaça em Ground Zero, na Base Kilo e no aeródromo.
+  - **Granada M67** (hotbar): é arremessada, quica e explode após 1,8 s, com raio de 6,5 m e dano de até 120. A explosão tem bola de fogo, fumaça, estilhaços, marca no chão, tremor de câmera e vibração. Operadores das facções também jogam granadas.
+  - Poeira onde as balas acertam.
+- Os sons de arma gravados enviados pelo jogador e a Sniper AWM continuam.
+
 ## 6b. Tamanhos realistas no inventário (v0.6)
 
 **1 célula ≈ 12,5 cm.** Cada item ocupa o tamanho real dele, e o tooltip mostra o tamanho em células e em cm. **[feito]**

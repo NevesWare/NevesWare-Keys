@@ -9,6 +9,8 @@ import { Grid } from '../inventory/grid.js';
 import { factionById } from '../data/factions.js';
 import { sfx } from '../audio.js';
 import { buildWorld, addLighting } from '../gfx/world.js';
+import { Fx } from '../gfx/fx.js';
+import { ITEMS } from '../data/items.js';
 import { MAP_SIZE } from './map.js';
 
 export const RAID_TIME = 40 * 60;
@@ -161,6 +163,9 @@ export class Raid {
       ring.position.set(ex.x, 0.02, ex.z);
       s.add(ring);
     }
+    this.fx = new Fx(s);
+    for (const f of this.map.fires ?? []) this.fx.addFire(f.x, f.z, f.s);
+    this.grenades = [];
     this.tracerMat = new THREE.LineBasicMaterial({ color: '#ffe8a0', transparent: true, opacity: 0.9 });
     // aim laser (player)
     // a thin glowing strip, 1 m long along +z, scaled to the hit distance each frame
@@ -208,6 +213,7 @@ export class Raid {
         }
       }
       this.addTracer(ox, oz, ox + dx * maxT, oz + dz * maxT);
+      if (!victim && maxT < w.range - 0.05 && Math.abs(ox - this.player.pos.x) + Math.abs(oz - this.player.pos.z) < 60) this.fx.impact(ox + dx * maxT, 0.9, oz + dz * maxT);
       if (victim) this.damage(victim, w.damage, actor);
     }
     const dist = Math.hypot(actor.pos.x - this.player.pos.x, actor.pos.z - this.player.pos.z);
@@ -223,6 +229,71 @@ export class Raid {
     }
     this.cb.onShot?.(actor);
     return true;
+  }
+
+  /** Throw a grenade from `actor` toward `angle` (lands ~`dist` m away). */
+  throwGrenade(actor, angle, dist = 13) {
+    const d = ITEMS.granada.throw;
+    const m = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), new THREE.MeshStandardMaterial({ color: '#3e4630', roughness: 0.6 }));
+    m.castShadow = true;
+    const sp = Math.min(14, Math.sqrt(dist * 18 * 0.9));
+    const g = {
+      mesh: m, t: d.fuse, owner: actor,
+      pos: new THREE.Vector3(actor.pos.x + Math.sin(angle) * 0.5, 1.6, actor.pos.z + Math.cos(angle) * 0.5),
+      vel: new THREE.Vector3(Math.sin(angle) * sp * 0.75, sp * 0.55, Math.cos(angle) * sp * 0.75),
+    };
+    m.position.copy(g.pos);
+    this.scene.add(m);
+    this.grenades.push(g);
+    actor.rig.shoot?.();
+    sfx.reload();
+  }
+
+  explode(x, z, owner) {
+    const d = ITEMS.granada.throw;
+    this.fx.explosion(x, z, 1);
+    const dist = Math.hypot(x - this.player.pos.x, z - this.player.pos.z);
+    sfx.boom(dist);
+    this.cb.onShake?.(Math.max(0, 1 - dist / 40));
+    for (const a of [...this.actors]) {
+      if (!a.alive || a.hidden) continue;
+      const r = Math.hypot(a.pos.x - x, a.pos.z - z);
+      if (r > d.radius || !this.map.hasLOS(x, z, a.pos.x, a.pos.z)) continue;
+      this.damage(a, d.damage * (1 - r / d.radius) ** 1.2, owner);
+    }
+    for (const b of this.bots) {
+      if (Math.hypot(b.a.pos.x - x, b.a.pos.z - z) < 60) b.hear(x, z, owner);
+    }
+  }
+
+  updateGrenades(dt) {
+    for (let i = this.grenades.length - 1; i >= 0; i--) {
+      const g = this.grenades[i];
+      g.t -= dt;
+      g.vel.y -= 18 * dt;
+      const nx = g.pos.x + g.vel.x * dt, nz = g.pos.z + g.vel.z * dt;
+      if (this.map.isSolid(Math.floor(nx), Math.floor(nz)) && g.pos.y < 2.6) {
+        g.vel.x *= -0.35;
+        g.vel.z *= -0.35;
+      } else {
+        g.pos.x = nx;
+        g.pos.z = nz;
+      }
+      g.pos.y += g.vel.y * dt;
+      if (g.pos.y < 0.07) {
+        g.pos.y = 0.07;
+        g.vel.y *= -0.3;
+        g.vel.x *= 0.6;
+        g.vel.z *= 0.6;
+      }
+      g.mesh.position.copy(g.pos);
+      if (g.t <= 0) {
+        this.scene.remove(g.mesh);
+        g.mesh.geometry.dispose();
+        this.grenades.splice(i, 1);
+        this.explode(g.pos.x, g.pos.z, g.owner);
+      }
+    }
   }
 
   /** A zombie that spots prey pulls nearby zombies into the chase. */
@@ -509,6 +580,8 @@ export class Raid {
     }
 
     // --- fx ---
+    this.updateGrenades(dt);
+    this.fx.update(dt, pl.pos);
     for (const f of this.flashes) f.intensity = Math.max(0, f.intensity - dt * 400);
     for (let i = this.tracers.length - 1; i >= 0; i--) {
       const t = this.tracers[i];

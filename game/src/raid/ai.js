@@ -193,7 +193,11 @@ export class BotBrain {
         // shooting
         this.reaction -= dt;
         if (a.weapon && a.weapon.mag <= 0) a.startReload();
-        else if (this.reaction <= 0 && err < 0.15 && d < range) {
+        else if (this.reaction <= 0 && err < 0.15 && d > 9 && d < 19 && a.faction !== 'scav' && this.raid.throwGrenade && (this.nadeCd = (this.nadeCd ?? 8) - dt) <= 0 && Math.random() < 0.02) {
+          // faction operators flush you out of cover with grenades
+          this.nadeCd = 14 + Math.random() * 10;
+          this.raid.throwGrenade(a, a.aim, d);
+        } else if (this.reaction <= 0 && err < 0.15 && d < range) {
           const w = a.weaponDef;
           if (w.auto) {
             if (this.pauseT > 0) this.pauseT -= dt;

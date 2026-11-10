@@ -36,21 +36,22 @@ const FinalShader = {
       vec4 base = texture2D(tDiffuse, vUv);
       vec3 col = base.rgb;
       // tilt-shift: blur grows toward top and bottom of the frame
-      float band = smoothstep(0.2, 0.55, abs(vUv.y - 0.47)) * uTilt;
+      float band = smoothstep(0.14, 0.46, abs(vUv.y - 0.5)) * uTilt;
       if (band > 0.01) {
         vec3 acc = vec3(0.0); float wsum = 0.0;
         for (int i = 0; i < 12; i++) {
           float a = float(i) * 2.39996;
           float r = sqrt(float(i) + 0.5) / 3.5;
-          vec2 o = vec2(cos(a), sin(a)) * r * uBlur * band * 3.0 / uRes;
+          vec2 o = vec2(cos(a), sin(a)) * r * uBlur * band * 4.2 / uRes;
           acc += texture2D(tDiffuse, vUv + o).rgb; wsum += 1.0;
         }
         col = mix(col, acc / wsum, band);
       }
-      // warm grade + gentle contrast
-      col *= vec3(1.05, 1.0, 0.92);
+      // muted earthy grade: slightly desaturated, cool shadows, warm highlights
       float l = dot(col, vec3(0.299, 0.587, 0.114));
-      col = mix(vec3(l), col, 1.08);
+      col = mix(vec3(l), col, 0.82);
+      col = mix(col * vec3(0.92, 0.98, 1.04), col * vec3(1.04, 1.0, 0.93), smoothstep(0.15, 0.7, l));
+      col = (col - 0.5) * 1.06 + 0.5;
       // vignette
       float v = smoothstep(0.95, 0.3, length((vUv - 0.5) * vec2(1.1, 1.0)));
       col *= mix(0.62, 1.0, v);
@@ -82,7 +83,7 @@ export class Pipeline {
     c.addPass(this.renderPass);
     if (t.bloom) c.addPass(new UnrealBloomPass(new THREE.Vector2(256, 256), 0.18, 0.5, 0.92));
     this.final = new ShaderPass(FinalShader);
-    this.final.uniforms.uTilt.value = t.post === 'full' ? 1 : 0;
+    this.final.uniforms.uTilt.value = t.post === 'full' ? 1 : 0.75;
     c.addPass(this.final);
     c.addPass(new OutputPass());
     this.composer = c;

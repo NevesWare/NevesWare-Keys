@@ -80,6 +80,12 @@ const BUILDERS = {
       box(0.032, 0.08, 0.035, wood(), 0, -0.035, -0.02),
     );
   },
+  granada() {
+    const body = new THREE.Mesh(new THREE.SphereGeometry(0.032, 14, 10), paint('#4a5236', 0.6, 0.15));
+    body.scale.set(1, 1.15, 1);
+    body.position.y = 0.035;
+    return group(body, cyl(0.012, 0.025, darkMetal(), 0, 0.075, 0, 'y', 8), box(0.008, 0.06, 0.012, metal(), 0.02, 0.05, 0, 0.002), new THREE.Mesh(new THREE.TorusGeometry(0.01, 0.002, 6, 12), metal()).translateY(0.09).translateX(-0.012));
+  },
   awm() {
     // bolt-action sniper: olive chassis, long fluted barrel, muzzle brake, scope, bipod
     const olive = paint('#4a5136', 0.7, 0.1);

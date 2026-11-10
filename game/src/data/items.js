@@ -39,6 +39,9 @@ export const ITEMS = {
   mochilaM: { name: 'Mochila Média', short: 'MÉDIA', cat: 'backpack', w: 4, h: 4, value: 12000, kg: 1.4, grid: [5, 6] },
   mochilaT: { name: 'Mochila Tática', short: 'TÁTICA', cat: 'backpack', w: 4, h: 5, value: 24000, kg: 2.1, grid: [6, 7] },
 
+  // --- throwables ---
+  granada: { name: 'Granada M67', short: 'GRANADA', cat: 'throw', w: 1, h: 1, value: 3200, kg: 0.4, stack: 3, throw: { damage: 120, radius: 6.5, fuse: 1.8 } },
+
   // --- meds ---
   bandagem: { name: 'Bandagem', short: 'BAND', cat: 'med', w: 1, h: 1, value: 600, kg: 0.05, med: { heal: 25, time: 2.0 } },
   medkit: { name: 'Kit Médico', short: 'MEDKIT', cat: 'med', w: 2, h: 1, value: 3500, kg: 0.6, med: { heal: 70, time: 4.0 } },
@@ -69,13 +72,14 @@ export const CATEGORY_TINT = {
   helmet: 'rgba(90,110,70,0.12)',
   backpack: 'rgba(90,110,70,0.12)',
   med: 'rgba(184,48,42,0.14)',
+  throw: 'rgba(110,120,70,0.14)',
   food: 'rgba(80,160,200,0.12)',
   loot: 'rgba(80,140,200,0.10)',
 };
 
 export const TRADER_STOCK = [
   'p9', 'vespa', 'k7', 'trovao', 'awm', 'a9', 'a762', 'a12', 'a338', 'coleteL', 'coleteP', 'capaceteL', 'capaceteP',
-  'mochilaP', 'mochilaM', 'mochilaT', 'bandagem', 'medkit', 'agua', 'racao', 'energetico',
+  'mochilaP', 'mochilaM', 'mochilaT', 'bandagem', 'medkit', 'agua', 'racao', 'energetico', 'granada',
 ];
 
 /** Barter offers at the Intendente: give items, receive an item. */
@@ -90,7 +94,7 @@ export const BARTERS = [
 ];
 
 /** Trader level requirements (unlock by gaining XP). */
-export const UNLOCK_LEVEL = { trovao: 2, mochilaM: 2, medkit: 2, k7: 3, coleteP: 4, capaceteP: 4, mochilaT: 5, awm: 6, a338: 6 };
+export const UNLOCK_LEVEL = { trovao: 2, mochilaM: 2, medkit: 2, k7: 3, coleteP: 4, capaceteP: 4, mochilaT: 5, awm: 6, a338: 6, granada: 3 };
 
 /** Level from total XP: each level needs 35% more than the previous one. */
 export function levelInfo(xp = 0) {
@@ -115,7 +119,7 @@ export const LOOT_TABLES = {
   military: [
     ['a762', 9, [20, 50]], ['a9', 6, [20, 50]], ['medkit', 5], ['bateria', 5], ['hd', 4], ['capaceteL', 3],
     ['coleteL', 3], ['vespa', 2], ['k7', 1], ['trovao', 2], ['circuito', 4], ['mochilaM', 2],
-    ['racao', 4], ['agua', 3],
+    ['racao', 4], ['agua', 3], ['granada', 3, [1, 2]],
   ],
   rare: [
     ['relogio', 5], ['pendrive', 3], ['hd', 6], ['ferramentas', 5], ['coleteP', 2], ['k7', 2], ['medkit', 4],

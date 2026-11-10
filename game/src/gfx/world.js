@@ -4,10 +4,10 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { soilTexture, dirtTexture, concreteTexture, plankTexture, brickTexture, rustTexture, helipadTexture } from './textures.js';
 import { createGrass, createForest, instancedChunks, shared } from './vegetation.js';
 import { vehicleModel } from './vehicles.js';
-import { pbrMaterial, texSet, hasTex, modelClone, modelInstanceParts, hasModel, skyTexture } from './realism.js';
+import { shackWallMaterial, roofMesh, hayBale, tyre, jerrycan, propane, logGeo, flowerPatch, scorchTexture, groundRelief } from './procgen.js';
 
 /** Map cells whose visuals are props (not wall blocks). */
-export const PROP_CELLS = new Set(['trunk', 'rock', 'crate', 'crateMil', 'crateRare', 'sandbag', 'car']);
+export const PROP_CELLS = new Set(['trunk', 'rock', 'crate', 'crateMil', 'crateRare', 'sandbag', 'car', 'hay']);
 const WALL_H = 1.3; // meters per wall layer (2 layers = 2.6 m)
 
 function rng(s) {
@@ -78,26 +78,15 @@ function buildGround(mask, x0, z0, W, H) {
   const geo = new THREE.PlaneGeometry(W + 80, H + 80);
   geo.rotateX(-Math.PI / 2);
   const mat = new THREE.MeshStandardMaterial({ roughness: 0.97, metalness: 0 });
-  const real = hasTex('sparse_grass');
-  const T = (id, fb) => (hasTex(id) ? texSet(id).map : fb());
   const u = {
     uMask: { value: mask },
     uOrigin: { value: new THREE.Vector2(x0, z0) },
     uSize: { value: new THREE.Vector2(W, H) },
-    tSoil: { value: T('sparse_grass', soilTexture) },
-    tDirt: { value: T('brown_mud_leaves_01', dirtTexture) },
-    tConc: { value: T('concrete_floor_worn_001', concreteTexture) },
-    tPlank: { value: T('weathered_planks', () => plankTexture('#7a5634')) },
-    uTile: { value: real ? 0.3 : 0.2 },
+    tSoil: { value: soilTexture() },
+    tDirt: { value: dirtTexture() },
+    tConc: { value: concreteTexture() },
+    tPlank: { value: plankTexture('#7a5634') },
   };
-  if (real) {
-    // photoscanned relief: grass normal/roughness tiled every ~3.3 m
-    const ts = texSet('sparse_grass', (W + 80) / 3.3);
-    mat.normalMap = ts.normalMap;
-    mat.normalScale.set(0.9, 0.9);
-    mat.roughnessMap = ts.armMap;
-    mat.roughness = 1;
-  }
   mat.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, u);
     sh.vertexShader = sh.vertexShader
@@ -107,16 +96,15 @@ function buildGround(mask, x0, z0, W, H) {
       .replace(
         '#include <common>',
         `#include <common>
-        varying vec3 vWP; uniform sampler2D uMask, tSoil, tDirt, tConc, tPlank; uniform vec2 uOrigin, uSize; uniform float uTile;`,
+        varying vec3 vWP; uniform sampler2D uMask, tSoil, tDirt, tConc, tPlank; uniform vec2 uOrigin, uSize;`,
       )
       .replace(
         '#include <map_fragment>',
         `vec2 cuv = (vWP.xz - uOrigin) / uSize;
         vec4 mk = texture2D(uMask, cuv);
-        // two rotated scales of the grass break up visible tiling
-        vec3 soil = mix(texture2D(tSoil, vWP.xz * uTile).rgb, texture2D(tSoil, vec2(vWP.z, -vWP.x) * uTile * 0.37).rgb, 0.35);
-        vec3 dirt = texture2D(tDirt, vWP.xz * uTile * 1.2).rgb;
-        vec3 conc = texture2D(tConc, vWP.xz * uTile).rgb;
+        vec3 soil = texture2D(tSoil, vWP.xz * 0.2).rgb;
+        vec3 dirt = texture2D(tDirt, vWP.xz * 0.28).rgb;
+        vec3 conc = texture2D(tConc, vWP.xz * 0.2).rgb;
         vec3 plk = texture2D(tPlank, vWP.xz * 0.45).rgb;
         float nz = texture2D(tSoil, vWP.xz * 0.04).g * 2.0;
         float rd = smoothstep(0.35, 0.7, mk.r + (nz - 0.35) * 0.5);
@@ -128,6 +116,12 @@ function buildGround(mask, x0, z0, W, H) {
         diffuseColor.rgb *= col;`,
       );
   };
+  // soil relief: procedural normal map tiled every ~2.5 m
+  const rel = groundRelief().clone();
+  rel.repeat.set((W + 80) / 2.5, (H + 80) / 2.5);
+  rel.needsUpdate = true;
+  mat.normalMap = rel;
+  mat.normalScale.set(0.8, 0.8);
   const mesh = new THREE.Mesh(geo, mat);
   mesh.position.set(x0 + W / 2, 0, z0 + H / 2);
   mesh.receiveShadow = true;
@@ -259,14 +253,8 @@ export function carModel(v = 0) {
   return g;
 }
 
-const REAL_WALL = { brick: 'red_brick_03', plank: 'weathered_planks', stone: 'rustic_stone_wall' };
 function wallMaterial(name) {
-  const real = REAL_WALL[name] ?? (name.startsWith('wall_') ? 'concrete_floor_worn_001' : null);
-  if (real && hasTex(real)) {
-    const tint = name === 'wall_bears' ? '#d8c4bc' : name === 'wall_eagle' ? '#c4ccd6' : name === 'wall_cult' ? '#a8a49e' : '#ffffff';
-    const m = pbrMaterial(real, { repeat: name === 'brick' ? 0.5 : 0.6, color: tint }).clone();
-    return withFade(m);
-  }
+  if (name === 'plank') return withFade(shackWallMaterial(0).clone());
   const tex = name === 'brick' ? brickTexture('#8e4a36')
     : name === 'plank' ? plankTexture('#7a5634')
     : name === 'stone' ? concreteTexture()
@@ -274,43 +262,6 @@ function wallMaterial(name) {
     : concreteTexture();
   const tint = name === 'wall_bears' ? '#b89a90' : name === 'wall_eagle' ? '#9aa8b8' : name === 'wall_cult' ? '#8a8680' : name === 'stone' ? '#8a8680' : '#ffffff';
   return withFade(new THREE.MeshStandardMaterial({ map: tex, color: tint, roughness: 0.9 }));
-}
-
-/** Real-model versions of some structure props (barriers, barrels, crate stacks). */
-function realVariant(kind, p) {
-  if (kind === 'barrier') return modelClone('concrete_road_barrier_02', { size: 2.0 });
-  if (kind === 'barrels' && hasModel('Barrel_01')) {
-    const g = new THREE.Group();
-    const n = 2 + ((p.v ?? 1) % 3);
-    for (let i = 0; i < n; i++) {
-      const b = modelClone('Barrel_01', { height: 0.9 });
-      b.position.set((i % 2) * 0.64 - 0.32, 0, Math.floor(i / 2) * 0.64 - 0.32);
-      b.rotation.y = i * 1.7;
-      if (i === 3) {
-        b.rotation.z = Math.PI / 2;
-        b.position.y = 0.3;
-      }
-      g.add(b);
-    }
-    return g;
-  }
-  if (kind === 'crates' && hasModel('old_military_crate')) {
-    const g = new THREE.Group();
-    const n = 2 + ((p.v ?? 1) % 2);
-    for (let i = 0; i < n; i++) {
-      const c = modelClone('old_military_crate', { size: 1.0 });
-      c.position.set(i === 2 ? 0.2 : i * 1.05 - 0.5, i === 2 ? 0.55 : 0, i === 2 ? 0.05 : 0);
-      c.rotation.y = (i * 0.15) % 0.3;
-      g.add(c);
-    }
-    const j = modelClone('metal_jerrycan_green', { height: 0.47 });
-    if (j) {
-      j.position.set(1.2, 0, 0.5);
-      g.add(j);
-    }
-    return g;
-  }
-  return null;
 }
 
 /**
@@ -339,51 +290,38 @@ export function buildWorld({ map, bounds, quality }) {
 
   // props
   const by = (k) => props.filter((p) => p.kind === k);
-  // instanced real model (Poly Haven) with a procedural fallback
-  const inst = (id, opts, items, fallback) => {
-    const parts = hasModel(id) && modelInstanceParts(id, opts);
-    if (parts) group.add(instancedChunks(parts.geometry, parts.material, items));
-    else if (fallback) fallback(items);
-  };
   const rockMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92 });
-  const rocks = by('rock');
-  for (let v = 0; v < 2; v++) {
-    inst(v ? 'rock_09' : 'rock_07', { size: 1.5 }, rocks.filter((p) => p.v % 2 === v).map((p) => ({ ...p, s: 0.6 + (p.s ?? 1) * 0.5, sy: 0.8 })), (items) =>
-      group.add(instancedChunks(rockGeo(v), rockMat, items)));
+  for (let v = 0; v < 3; v++) group.add(instancedChunks(rockGeo(v), rockMat, by('rock').filter((p) => p.v % 3 === v).map((p) => ({ ...p, s: 0.9 + (p.s ?? 1) * 0.3 }))));
+  group.add(instancedChunks(sandbagGeo(), new THREE.MeshStandardMaterial({ color: '#a89068', roughness: 0.95 }), by('sandbag')));
+  // procedural clutter (instanced)
+  const inst = (parts, items, opts) => items.length && group.add(instancedChunks(parts.geometry, parts.material, items, opts));
+  inst(hayBale(), by('hay'));
+  inst(tyre(), by('tyre'));
+  inst(jerrycan(), by('jerry'));
+  inst(propane(), by('propane'));
+  inst(logGeo(), by('log'));
+  inst(flowerPatch(), by('flowers'), { castShadow: false });
+  const scorch = by('scorch');
+  if (scorch.length) {
+    const sg = new THREE.PlaneGeometry(1, 1);
+    sg.rotateX(-Math.PI / 2);
+    sg.translate(0, 0.02, 0);
+    const sm = new THREE.MeshStandardMaterial({ map: scorchTexture(), transparent: true, depthWrite: false, roughness: 1, polygonOffset: true, polygonOffsetFactor: -3 });
+    group.add(instancedChunks(sg, sm, scorch.map((p) => ({ ...p, sx: 1, sz: 1 })), { castShadow: false }));
   }
-  // sandbag walls: three bags per segment (two below, one on top)
-  const bags = [];
-  for (const p of by('sandbag')) {
-    const r = p.rot ?? 0, c = Math.cos(r), sn = Math.sin(r);
-    for (const [ox, oy] of [[-0.27, 0], [0.27, 0], [0, 0.2]]) bags.push({ x: p.x + c * ox, z: p.z - sn * ox, y: oy, rot: r + Math.PI / 2 + (oy ? 0.1 : 0) });
+  // roofs over every building (hidden while the player is inside)
+  const roofs = [];
+  for (const b of map.buildings ?? []) {
+    const r = roofMesh(b.w, b.d, b.v ?? 0);
+    r.position.set(b.x0 + b.w / 2, WALL_H * 2, b.z0 + b.d / 2);
+    r.userData.rect = [b.x0 - 0.3, b.z0 - 0.3, b.x0 + b.w + 0.3, b.z0 + b.d + 0.3];
+    roofs.push(r);
+    group.add(r);
   }
-  void bags;
-  const burlap = pbrMaterial('brown_mud_leaves_01', { repeat: 0.5, color: '#d8c49c' });
-  group.add(instancedChunks(sandbagGeo(), burlap ?? new THREE.MeshStandardMaterial({ color: '#a89068', roughness: 0.95 }), by('sandbag')));
-  // scattered debris: tyres, jerrycans, gas bottles, fallen logs
-  inst('old_tyre', { size: 0.75 }, by('tyre').map((p) => ({ ...p, y: 0 })));
-  inst('metal_jerrycan_green', { height: 0.47 }, by('jerry'));
-  inst('propane_tank', { height: 0.75 }, by('propane'));
-  inst('dead_tree_trunk', { size: 5 }, by('log').map((p) => ({ ...p, s: 0.7 + (p.s ?? 1) * 0.5 })));
   group.add(instancedChunks(fenceGeo(), new THREE.MeshStandardMaterial({ map: plankTexture('#6a5038'), roughness: 0.9 }), by('fence')));
-  const realCrate = (tier) => {
-    if (tier === 'rare' && hasModel('ammo_box')) {
-      const g = new THREE.Group();
-      g.add(modelClone('old_military_crate', { size: 1.0 }) ?? new THREE.Group());
-      const a = modelClone('ammo_box', { size: 0.45 });
-      if (a) {
-        a.position.set(0.1, 0.5, 0);
-        a.rotation.y = 0.4;
-        g.add(a);
-      }
-      return g;
-    }
-    if (tier === 'common' && hasModel('medical_box') && Math.random() < 0.25) return modelClone('medical_box', { size: 0.6 });
-    return modelClone('old_military_crate', { size: tier === 'military' ? 1.0 : 0.9 });
-  };
   for (const tier of ['common', 'military', 'rare']) {
     for (const p of by('crate').filter((c) => c.v === tier)) {
-      const c = (hasModel('old_military_crate') && realCrate(tier)) || crateParts(tier).clone();
+      const c = crateParts(tier).clone();
       c.position.set(p.x, 0, p.z);
       c.rotation.y = p.rot ?? 0;
       c.traverse((o) => o.isMesh && (o.castShadow = o.receiveShadow = true));
@@ -392,14 +330,14 @@ export function buildWorld({ map, bounds, quality }) {
   }
   for (const kind of ['truck', 'humvee', 'apc', 'suv', 'tower', 'barrier', 'barrels', 'crates', 'hangar', 'stall', 'locker']) {
     for (const p of by(kind)) {
-      const m = realVariant(kind, p) ?? vehicleModel(kind === 'crates' ? 'crateStack' : kind, p.v ?? 1);
+      const m = vehicleModel(kind === 'crates' ? 'crateStack' : kind, p.v ?? 1);
       m.position.set(p.x, 0, p.z);
       m.rotation.y = p.rot ?? 0;
       group.add(m);
     }
   }
   for (const p of by('car')) {
-    const c = (p.v % 2 === 0 && modelClone('covered_car', { size: 4.4 })) || carModel(p.v);
+    const c = carModel(p.v);
     c.position.set(p.x, 0, p.z);
     c.rotation.y = p.rot ?? 0;
     group.add(c);
@@ -466,6 +404,10 @@ export function buildWorld({ map, bounds, quality }) {
       }
       grass?.update(focus);
       if (playerWorld) {
+        for (const r of roofs) {
+          const [a, b, c, d] = r.userData.rect;
+          r.visible = !(playerWorld.x > a && playerWorld.x < c && playerWorld.z > b && playerWorld.z < d);
+        }
         v.copy(playerWorld).setY(1.0).project(camera);
         shared.playerScreen.value.set(((v.x + 1) / 2) * viewport.x, ((v.y + 1) / 2) * viewport.y);
         v.copy(playerWorld).setY(1.0).applyMatrix4(camera.matrixWorldInverse);
@@ -481,11 +423,6 @@ let envTex = null;
 export function makeEnvironment(renderer) {
   if (envTex) return envTex;
   const pm = new THREE.PMREMGenerator(renderer);
-  if (skyTexture()) {
-    envTex = pm.fromEquirectangular(skyTexture()).texture;
-    pm.dispose();
-    return envTex;
-  }
   const s = new THREE.Scene();
   const sky = new THREE.Mesh(
     new THREE.SphereGeometry(10, 32, 16),
@@ -495,10 +432,10 @@ export function makeEnvironment(renderer) {
       vertexShader: 'varying vec3 vP; void main(){ vP = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
       fragmentShader: `varying vec3 vP; void main(){
         float h = normalize(vP).y;
-        vec3 top = vec3(0.32, 0.45, 0.65), hor = vec3(1.0, 0.78, 0.52), gnd = vec3(0.22, 0.2, 0.14);
+        vec3 top = vec3(0.40, 0.50, 0.62), hor = vec3(0.82, 0.82, 0.76), gnd = vec3(0.24, 0.22, 0.17);
         vec3 c = h > 0.0 ? mix(hor, top, pow(h, 0.6)) : mix(hor * 0.6, gnd, min(1.0, -h * 3.0));
         vec3 sd = normalize(vec3(-0.75, 0.42, 0.45));
-        c += vec3(6.0, 4.2, 2.4) * pow(max(dot(normalize(vP), sd), 0.0), 220.0);
+        c += vec3(5.0, 4.6, 4.0) * pow(max(dot(normalize(vP), sd), 0.0), 160.0);
         gl_FragColor = vec4(c, 1.0); }`,
     }),
   );
@@ -509,15 +446,14 @@ export function makeEnvironment(renderer) {
 }
 
 /** Golden-hour sun + sky light + haze. Returns { sun, follow(p) }. */
-export function addLighting(scene, renderer, { shadowSize = 2048, extent = 26, viewDist = 180 } = {}) {
-  const real = !!skyTexture();
-  scene.background = real ? skyTexture() : new THREE.Color('#bfb59a');
-  scene.fog = real ? new THREE.Fog('#aeb9bf', Math.min(45, viewDist * 0.35), viewDist + 10) : new THREE.Fog('#c4b896', 34, 105);
+export function addLighting(scene, renderer, { shadowSize = 2048, extent = 26, viewDist = 140 } = {}) {
+  scene.background = new THREE.Color('#b9bdb0');
+  scene.fog = new THREE.Fog('#b4b8a8', Math.min(40, viewDist * 0.3), viewDist + 10);
   scene.environment = makeEnvironment(renderer);
-  scene.environmentIntensity = real ? 0.85 : 0.7;
-  const hemi = real ? new THREE.HemisphereLight('#c4d4e4', '#4e4632', 0.55) : new THREE.HemisphereLight('#a9c0dc', '#5a4a30', 0.8);
+  scene.environmentIntensity = 0.7;
+  const hemi = new THREE.HemisphereLight('#c2ccd6', '#544a36', 1.0);
   scene.add(hemi);
-  const sun = new THREE.DirectionalLight(real ? '#fff0da' : '#ffcf8f', real ? 3.4 : 4.6);
+  const sun = new THREE.DirectionalLight('#fff0dc', 3.6);
   sun.castShadow = shadowSize > 0;
   sun.shadow.mapSize.set(shadowSize || 512, shadowSize || 512);
   const c = sun.shadow.camera;

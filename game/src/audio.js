@@ -131,6 +131,24 @@ export const sfx = {
       }, 130));
     }
   },
+  /** Explosion: low thump + debris noise, muffled with distance. */
+  boom(dist = 0) {
+    const c = ensure();
+    if (!c) return;
+    const v = 0.9 / (1 + (dist / 20) ** 1.5);
+    noise(1.4, 380 + 1800 * Math.exp(-dist / 30), v, 0.7);
+    noise(0.35, 4000 * Math.exp(-dist / 25) + 400, v * 0.5);
+    const o = c.createOscillator();
+    const g = c.createGain();
+    const t = c.currentTime;
+    o.frequency.setValueAtTime(90, t);
+    o.frequency.exponentialRampToValueAtTime(32, t + 0.7);
+    g.gain.setValueAtTime(v * 0.9, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.9);
+    o.connect(g).connect(out());
+    o.start(t);
+    o.stop(t + 0.95);
+  },
   empty() {
     tone(1400, 0.04, 0.05);
   },
