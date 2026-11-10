@@ -82,8 +82,13 @@ function onSettingsChange(s, key) {
 function onSettingsAction(a) {
   if (a === 'editHud') openHudEditor();
   else if (a === 'fullscreen') {
-    if (document.fullscreenElement) document.exitFullscreen?.();
-    else document.documentElement.requestFullscreen?.().catch(() => {});
+    if (document.fullscreenElement) {
+      wantFullscreen = false;
+      document.exitFullscreen?.();
+    } else {
+      wantFullscreen = true;
+      goImmersive();
+    }
   } else if (a === 'reset') {
     confirmBox('Apagar o perfil? Facção, stash, dinheiro e progresso serão perdidos.', () => {
       wipe();
@@ -820,18 +825,39 @@ function showcaseStep(dt) {
 }
 
 // ---------- fullscreen + landscape ----------
-/** Mobile game: go fullscreen and lock to landscape (needs a user gesture). */
+/** Go fullscreen and lock to landscape (needs a user gesture). */
+let wantFullscreen = true;
 function goImmersive() {
-  if (!isTouch) return;
   const el = document.documentElement;
-  const lock = () => window.screen.orientation?.lock?.('landscape')?.catch(() => {});
-  if (!document.fullscreenElement && el.requestFullscreen) el.requestFullscreen({ navigationUI: 'hide' }).then(lock, lock);
-  else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
-  else lock();
+  const lock = () => {
+    try {
+      window.screen.orientation?.lock?.('landscape')?.catch(() => {});
+    } catch {
+      /* not supported */
+    }
+  };
+  if (document.fullscreenElement || document.webkitFullscreenElement) return lock();
+  try {
+    if (el.requestFullscreen) el.requestFullscreen({ navigationUI: 'hide' }).then(lock, lock);
+    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+    else lock();
+  } catch {
+    lock();
+  }
 }
-window.addEventListener('pointerup', function first() {
-  window.removeEventListener('pointerup', first);
+// tap-to-start splash: the first tap anywhere enters fullscreen
+const tapStart = $('tap-start');
+const startTap = () => {
   goImmersive();
+  unlockAudio();
+  tapStart.classList.add('gone');
+  setTimeout(() => tapStart.remove(), 400);
+};
+tapStart.addEventListener('pointerup', startTap, { once: true });
+tapStart.addEventListener('pointerdown', (e) => e.stopPropagation());
+// left fullscreen (back gesture, notification…): the next tap brings it back
+window.addEventListener('pointerup', () => {
+  if (isTouch && wantFullscreen && !document.fullscreenElement && !document.webkitFullscreenElement && document.fullscreenEnabled !== false) goImmersive();
 });
 window.addEventListener('orientationchange', () => setTimeout(resize, 250));
 
