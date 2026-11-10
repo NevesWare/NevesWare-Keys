@@ -256,3 +256,4 @@ body.touch .keyhints { display: none; }
   .faction-card h3 { font-size: 21px; }
   .quests li { grid-template-columns: 1fr; }
 }
+body.touch #hud-feed { position: fixed; top: 8px; left: 50%; transform: translateX(-50%); text-align: center; font-size: 13px; }

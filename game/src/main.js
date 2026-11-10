@@ -1,6 +1,6 @@
 import './style.css';
 import * as THREE from 'three';
-import { IsoCamera } from './camera/isoCamera.js';
+import { FollowCamera } from './camera/followCamera.js';
 import { Input } from './input.js';
 import { InventoryUI } from './ui/inventoryUI.js';
 import { InventoryScreen, loadSettings } from './ui/invScreen.js';
@@ -14,7 +14,9 @@ import { RaidMap } from './raid/map.js';
 import { MUZZLE_HEIGHT, Actor } from './raid/actor.js';
 import { Helicopter } from './raid/helicopter.js';
 import { VoxelLevel } from './world/voxelLevel.js';
-import { buildWorld, addLighting } from './world/worldRender.js';
+import { buildWorld, addLighting } from './gfx/world.js';
+import { Pipeline, TIERS, resolveTier } from './gfx/post.js';
+import { loadCharacters } from './gfx/characters.js';
 import { ITEMS, newItem } from './data/items.js';
 import { factionById } from './data/factions.js';
 import { newLoadout, loadoutValue, carriedItems, clearLoadout } from './inventory/loadout.js';
@@ -29,16 +31,19 @@ const params = new URLSearchParams(location.search);
 const canvas = $('game');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
 const isTouch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, isTouch ? 1.75 : 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-const cam = new IsoCamera({ viewHeight: 14, distance: 70 });
+const pipeline = new Pipeline(renderer);
+const cam = new FollowCamera({ distance: isTouch ? 15 : 19 });
+const viewport = new THREE.Vector2();
 const input = new Input(canvas);
 const touch = new TouchControls(input);
 input.touch = touch;
 const inv = new InventoryUI();
 const hud = new Hud();
 let settings = loadSettings();
+let tierName = resolveTier(settings.quality ?? 'auto');
+pipeline.setTier(tierName);
 
 let profile = load();
 let mode = 'title'; // title | faction | lobby | raid | ending | result | showcase
@@ -60,7 +65,15 @@ const screen = new InventoryScreen(inv, {
     refreshBaseHero();
   },
   onHotbar: (i) => useHotbar(i),
-  onSettings: (s) => (settings = s),
+  onSettings: (s) => {
+    settings = s;
+    const t = resolveTier(s.quality ?? 'auto');
+    if (t !== tierName) {
+      tierName = t;
+      pipeline.setTier(t);
+      resize();
+    }
+  },
   toast: (m) => toast(m),
   getMapCanvas: () => {
     if (raid) return hud.bigMap(raid);
@@ -84,20 +97,15 @@ function toast(m) {
   toast.t = setTimeout(() => t.classList.add('hidden'), 2600);
 }
 
-const quality = () => ({
-  shadows: settings.shadows === 'off' ? 0 : settings.shadows === 'baixa' || isTouch ? 1024 : 2048,
-  grass: settings.grass ? (isTouch ? 0.45 : 0.7) : 0,
-});
-
-function viewHeight() {
-  const portraitish = window.innerHeight > window.innerWidth;
-  const base = isTouch ? 12.5 : 16;
-  return portraitish ? base * 1.4 : base;
-}
+const quality = () => {
+  const t = TIERS[tierName];
+  return { shadows: settings.shadows === 'off' ? 0 : t.shadows, grass: settings.grass === false ? 0 : t.grass, grassPatch: t.grassPatch };
+};
 
 function resize() {
-  renderer.setSize(window.innerWidth, window.innerHeight, false);
-  cam.setViewport(window.innerWidth / window.innerHeight, window.innerHeight);
+  pipeline.resize();
+  cam.setAspect(window.innerWidth / window.innerHeight);
+  renderer.getDrawingBufferSize(viewport);
 }
 window.addEventListener('resize', resize);
 
@@ -107,35 +115,41 @@ function buildBase(factionId) {
   const scene = new THREE.Scene();
   const L = new VoxelLevel();
   const props = [];
-  const S = 16;
+  const S = 20;
   for (let x = -S; x < S; x++)
     for (let z = -S; z < S; z++) {
       const edge = Math.max(Math.abs(x + 0.5), Math.abs(z + 0.5));
       const pad = Math.abs(x + 0.5) <= 3 && Math.abs(z + 0.5) <= 3;
-      L.set(x, -1, z, edge > 11 ? 'grassDark' : pad ? 'helipad' : 'concrete');
-      if (Math.floor(edge) === 11 && Math.abs(x + 0.5) > 2 && Math.abs(z + 0.5) > 2) {
+      const road = Math.abs(x + 0.5 - 1) <= 1.5 && z > 9;
+      L.set(x, -1, z, road ? 'road' : edge > 11 ? (edge > 15 ? 'grassDark' : 'grass') : pad ? 'helipad' : 'concrete');
+      if (Math.floor(edge) === 11 && !(Math.abs(x + 0.5 - 1) <= 1.5 && z > 0)) {
         L.set(x, 0, z, `wall_${f.id}`);
         L.set(x, 1, z, `wall_${f.id}`);
       }
     }
-  for (let i = -2; i <= 1; i++) for (const z of [-1, 0]) L.set(i, -1, z, 'helipadMark');
-  for (const [x, z, t] of [[-8, -8, 'military'], [-7, -8, 'common'], [-8, -7, 'common'], [7, 6, 'military'], [6, 8, 'rare']]) props.push({ kind: 'crate', v: t, x: x + 0.5, z: z + 0.5, rot: 0 });
-  for (let i = -3; i <= 3; i++) props.push({ kind: 'sandbag', v: 0, x: i + 0.5, z: 7.5, rot: 0 });
-  props.push({ kind: 'car', v: 0, x: -7, z: 5, rot: 0.3 });
-  for (const [x, z, v] of [[-14, 4, 0], [13, -13, 1], [14, 9, 0], [-13, -14, 1], [-14, 12, 1], [12, 14, 0]]) props.push({ kind: 'tree', v, x, z, rot: x, s: 1 });
-  scene.add(buildWorld(L, props, { x0: -S, z0: -S, W: S * 2, H: S * 2 }, { grass: quality().grass }));
-  const light = addLighting(scene, { shadowSize: quality().shadows, extent: 18 });
+  props.push({ kind: 'helipad', v: 0, x: 0, z: 0, rot: 0 });
+  for (const [x, z, t] of [[-8, -8, 'military'], [-6.8, -8.2, 'common'], [-8.2, -6.6, 'common'], [7, 6, 'military'], [6, 8, 'rare']]) props.push({ kind: 'crate', v: t, x: x + 0.5, z: z + 0.5, rot: x * 0.3 });
+  for (let i = -3; i <= 2; i++) props.push({ kind: 'sandbag', v: 0, x: i + 0.5, z: 7.5, rot: 0 });
+  props.push({ kind: 'car', v: 1, x: -7, z: 4.5, rot: 0.3 });
+  for (const [x, z, v] of [[-15, 4, 0], [14, -14, 1], [15, 10, 2], [-14, -15, 1], [-16, 13, 0], [13, 16, 2], [-17, -4, 2], [17, 1, 0]]) props.push({ kind: 'tree', v, x, z, rot: x, s: 0.85 });
+  for (let i = 0; i < 30; i++) props.push({ kind: 'bush', v: i % 2, x: -19 + ((i * 7.3) % 38), z: (i % 2 ? -1 : 1) * (13.5 + (i % 5)), rot: i, s: 0.8 + (i % 3) * 0.2 });
+  for (let i = 0; i < 6; i++) props.push({ kind: 'fence', v: 0, x: 4.5 + i * 2.1, z: 12.6, rot: 0 });
+  const world = buildWorld({ vox: L, props, bounds: { x0: -S, z0: -S, W: S * 2, H: S * 2 }, quality: quality() });
+  scene.add(world.group);
+  const light = addLighting(scene, renderer, { shadowSize: quality().shadows, extent: 20 });
   light.follow(new THREE.Vector3(0, 0, 0));
   const heli = new Helicopter(f.color);
-  heli.placeAt(0, 0, 0.5);
+  heli.placeAt(0, 0.2, 0.5);
   heli.land();
   scene.add(heli.mesh);
+  const crew = [];
   const mk = (fac, x, z, aim, lo, seed) => {
     const a = new Actor({ name: 'npc', faction: fac, loadout: lo, seed });
     a.pos.set(x, 0, z);
     a.aim = aim;
     a.syncMesh(0);
     scene.add(a.mesh);
+    crew.push(a);
     return a;
   };
   const guard = (x, z, aim, s) => mk(factionId, x, z, aim, botLoadout(factionId).loadout, s);
@@ -143,7 +157,7 @@ function buildBase(factionId) {
   guard(-6.5, 1.5, 1.4, 1);
   guard(7.5, -3, -1.9, 2);
   guard(5.5, 5.3, -2.2, 4);
-  return { scene, heli, hero, light };
+  return { scene, heli, hero, light, world, crew };
 }
 
 function refreshBaseHero() {
@@ -158,7 +172,7 @@ function refreshBaseHero() {
 function goTitle() {
   mode = 'title';
   base = buildBase(profile?.faction ?? 'ferro');
-  cam.viewHeight = viewHeight();
+  cam.distance = isTouch ? 13 : 16;
   resize();
   cam.snapTo(new THREE.Vector3(0, 0, 0));
   showScreen('screen-title');
@@ -187,7 +201,7 @@ function goLobby(msg) {
   touch.show(false);
   if (!base) base = buildBase(profile.faction);
   refreshBaseHero();
-  cam.viewHeight = viewHeight();
+  cam.distance = isTouch ? 13 : 16;
   resize();
   cam.snapTo(new THREE.Vector3(0, 0, 0));
   screen.open({ context: 'lobby', profile });
@@ -201,6 +215,7 @@ function startRaid() {
   raid = new Raid({
     profile,
     quality: quality(),
+    renderer,
     callbacks: {
       onToast: (m) => hud.toast(m),
       onKill: (k, v) => hud.killfeed(k, v),
@@ -217,7 +232,7 @@ function startRaid() {
   hud.setupMinimap(raid.map, profile.faction);
   hud.show(true);
   touch.show(touch.enabled);
-  cam.viewHeight = viewHeight();
+  cam.distance = isTouch ? 15 : 19;
   resize();
   cam.yaw = cam.targetYaw = Math.PI / 4;
   cam.snapTo(raid.player.pos.clone());
@@ -358,6 +373,7 @@ function raidStep(dt) {
   focus.y = 0;
   cam.update(dt, focus);
   raid.lighting.follow(focus);
+  raid.world.update(dt, cam.camera, cam.focus, pl.alive ? pl.pos : null, viewport);
   hud.update(raid, (i) => useHotbar(i), settings.fps);
   hud.drawMinimap(raid, cam.yaw);
   if (touch.enabled) {
@@ -373,21 +389,25 @@ raidStep.n = 0;
 
 function menuStep(dt) {
   if (!base) return;
-  cam.targetYaw += dt * 0.06;
-  cam.update(dt, new THREE.Vector3(1.5, 0, 1.5));
-  base.heli.update(dt, 4);
+  cam.targetYaw += dt * 0.05;
+  const f = new THREE.Vector3(1.5, 0, 1.5);
+  cam.update(dt, f);
+  base.heli.update(dt, 3);
+  base.world.update(dt, cam.camera, cam.focus, null, viewport);
+  for (const a of base.crew) a.update(dt);
 }
 
 function step(dt) {
   if (mode === 'raid') raidStep(dt);
   else if (mode === 'ending') {
     raid?.update(dt, { moveX: 0, moveZ: 0, aim: raid.player.aim, uiOpen: true });
-  } else if (mode !== 'showcase') menuStep(dt);
+  } else if (mode === 'showcase') showcaseStep(dt);
+  else menuStep(dt);
 }
 
 function render() {
   const scene = (mode === 'raid' || mode === 'ending') && raid ? raid.scene : showcase?.scene ?? base?.scene;
-  if (scene) renderer.render(scene, cam.camera);
+  if (scene) pipeline.render(scene, cam.camera);
 }
 
 let last = performance.now();
@@ -411,71 +431,79 @@ function buildShowcase() {
   const scene = new THREE.Scene();
   const L = new VoxelLevel();
   const props = [];
-  for (let x = -14; x < 14; x++)
-    for (let z = -14; z < 14; z++) {
-      const road = Math.abs(x + z * 0.35) < 2.2;
-      L.set(x, -1, z, road ? 'road' : (x * 7 + z * 13) % 5 === 0 ? 'grassDark' : 'grass');
+  const S = 30;
+  for (let x = -S; x < S; x++)
+    for (let z = -S; z < S; z++) {
+      const path = Math.abs(z + 0.5 - (Math.sin(x * 0.12) * 4 + x * 0.25)) < 1.4;
+      L.set(x, -1, z, path ? 'road' : (x * 7 + z * 13) % 5 === 0 ? 'grassDark' : 'grass');
     }
-  for (let z = -6; z <= -2; z++) {
-    L.set(-9, 0, z, 'brick');
-    L.set(-9, 1, z, 'brick');
+  const R = (() => { let a = 7; return () => ((a = (a * 16807) % 2147483647) / 2147483647); })();
+  for (let i = 0; i < 26; i++) {
+    const x = -S + R() * S * 2, z = -S + R() * S * 2;
+    if (Math.abs(z - (Math.sin(x * 0.12) * 4 + x * 0.25)) < 4 || Math.hypot(x - 1, z - 1) < 9) continue;
+    props.push({ kind: 'tree', v: i % 3, x, z, rot: R() * 6, s: 0.75 + R() * 0.25 });
   }
-  for (let x = -9; x <= -5; x++) {
-    L.set(x, 0, -6, 'brick');
-    if (x !== -7) L.set(x, 1, -6, 'brick');
-  }
-  props.push({ kind: 'car', v: 1, x: 2.2, z: -4.5, rot: 0.5 });
-  props.push({ kind: 'crate', v: 'military', x: -3.5, z: 2.5, rot: 0.2 });
-  props.push({ kind: 'crate', v: 'common', x: -4.4, z: 3.4, rot: 0 });
-  props.push({ kind: 'crate', v: 'rare', x: -7.5, z: -4.5, rot: 0 });
-  for (let i = 0; i < 4; i++) props.push({ kind: 'sandbag', v: 0, x: 4.5 + i, z: 3.5, rot: 0 });
-  for (const [x, z, v, s] of [[-10, 5, 0, 1.1], [8, -9, 1, 1], [10, 6, 0, 1.2], [-11, -11, 1, 1.1], [-5, 10, 1, 0.9], [11, -1, 0, 1]])
-    props.push({ kind: 'tree', v, x, z, rot: x * 1.3, s });
-  props.push({ kind: 'rock', v: 1, x: 6.5, z: 8.5, rot: 1 });
-  props.push({ kind: 'rock', v: 2, x: -1.5, z: 9, rot: 2 });
-  scene.add(buildWorld(L, props, { x0: -14, z0: -14, W: 28, H: 28 }, { grass: 1 }));
-  const light = addLighting(scene, { shadowSize: 4096, extent: 16 });
+  props.push({ kind: 'tree', v: 0, x: -9, z: 5, rot: 1, s: 0.9 }, { kind: 'tree', v: 2, x: 10, z: -6, rot: 2, s: 0.95 }, { kind: 'tree', v: 1, x: -11, z: -8, rot: 3, s: 1 });
+  for (let i = 0; i < 40; i++) props.push({ kind: 'bush', v: i % 2, x: -S + R() * S * 2, z: -S + R() * S * 2, rot: R() * 6, s: 0.7 + R() * 0.6 });
+  for (let i = 0; i < 7; i++) props.push({ kind: 'fence', v: 0, x: -6 + i * 2.1, z: -9.5 + i * 0.5, rot: -0.24 });
+  props.push({ kind: 'rock', v: 1, x: 5.5, z: 6.5, rot: 1, s: 1 });
+  props.push({ kind: 'rock', v: 2, x: -4.5, z: 6.5, rot: 2, s: 1 });
+  props.push({ kind: 'car', v: 0, x: 9, z: 4.5, rot: 0.9 });
+  props.push({ kind: 'crate', v: 'military', x: -2.5, z: -2.6, rot: 0.3 });
+  props.push({ kind: 'crate', v: 'common', x: -3.6, z: -1.8, rot: 0.1 });
+  const world = buildWorld({ vox: L, props, bounds: { x0: -S, z0: -S, W: S * 2, H: S * 2 }, quality: { grass: TIERS.alto.grass, grassPatch: TIERS.alto.grassPatch } });
+  scene.add(world.group);
+  const light = addLighting(scene, renderer, { shadowSize: 4096, extent: 26 });
   light.follow(new THREE.Vector3(0, 0, 0));
-  const heli = new Helicopter('#4a5560');
-  heli.placeAt(5.5, -11, -0.6);
-  heli.land();
-  heli.update(0.016, 0);
-  scene.add(heli.mesh);
   const squad = [
-    ['ferro', -0.5, 0.5, 2.2, 'k7', 'P', 'P', true],
-    ['ferro', 1.2, 1.8, 1.4, 'vespa', 'L', 'L', true],
-    ['ferro', -1.8, 2.2, 2.9, 'k7', 'P', 'L', false],
-    ['scav', 5.8, 5.6, -2.6, 'trovao', null, null, false],
-    ['scav', 7.2, 4.6, -2.3, 'p9', null, null, true],
+    ['raiz', 0.5, 1.5, 2.5, 'k7', 'coleteP', 'capaceteP', 'mochilaT', 2.2],
+    ['raiz', -1.6, 0.4, 2.2, 'vespa', 'coleteL', 'capaceteL', 'mochilaM', 0],
+    ['scav', 4.5, -3.5, -0.8, 'trovao', null, null, null, 1.3],
   ];
-  squad.forEach(([fac, x, z, aim, w, ar, hm, bp], i) => {
+  const actors = [];
+  squad.forEach(([fac, x, z, aim, w, ar, hm, bp, spd], i) => {
     const lo = newLoadout();
-    lo.primary = w === 'p9' ? null : newItem(w);
-    lo.secondary = w === 'p9' ? newItem('p9') : null;
-    lo.active = w === 'p9' ? 'secondary' : 'primary';
-    if (ar) lo.armor = newItem(ar === 'P' ? 'coleteP' : 'coleteL');
-    if (hm) lo.helmet = newItem(hm === 'P' ? 'capaceteP' : 'capaceteL');
-    if (bp) lo.backpack = newItem('mochilaM');
+    lo.primary = newItem(w);
+    if (ar) lo.armor = newItem(ar);
+    if (hm) lo.helmet = newItem(hm);
+    if (bp) lo.backpack = newItem(bp);
     const a = new Actor({ name: 'x', faction: fac, loadout: lo, seed: i * 2 + 1 });
     a.pos.set(x, 0, z);
     a.aim = aim;
-    a.vel.set(i % 2 ? 1.5 : 0, 0);
-    a.walkPhase = i;
-    a.syncMesh(0.1);
+    a.vel.set(Math.sin(aim) * spd, Math.cos(aim) * spd);
     scene.add(a.mesh);
+    actors.push(a);
   });
-  cam.viewHeight = Number(params.get('zoom') ?? 11);
+  pipeline.setTier('alto');
+  cam.distance = Number(params.get('dist') ?? 17);
   resize();
-  cam.yaw = cam.targetYaw = Math.PI / 4 + 0.25;
-  cam.snapTo(new THREE.Vector3(0.5, 0, 0));
-  showcase = { scene };
+  cam.yaw = cam.targetYaw = Math.PI / 4 + 0.35;
+  cam.snapTo(new THREE.Vector3(1, 0, 0));
+  showcase = { scene, world, actors };
+}
+
+function showcaseStep(dt) {
+  showcase.world.update(dt, cam.camera, cam.focus, null, viewport);
+  for (const a of showcase.actors) a.update(dt);
 }
 
 // ---------- boot ----------
 resize();
-setTimeout(() => ui3d.preloadAll(), 50);
-if (params.has('showcase')) buildShowcase();
-else goTitle();
+const startBtn = $('title-start');
+startBtn.disabled = true;
+startBtn.textContent = 'CARREGANDO…';
+loadCharacters(`${import.meta.env.BASE_URL}models/mannequin.glb`)
+  .then(() => {
+    setTimeout(() => ui3d.preloadAll(), 50);
+    if (params.has('showcase')) buildShowcase();
+    else goTitle();
+    startBtn.disabled = false;
+    startBtn.textContent = 'ENTRAR';
+  })
+  .catch((e) => {
+    startBtn.textContent = 'ERRO AO CARREGAR';
+    console.error(e);
+  });
 requestAnimationFrame(frame);
 
 // test/debug hook

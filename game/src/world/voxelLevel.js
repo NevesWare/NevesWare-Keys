@@ -1,28 +1,5 @@
-import * as THREE from 'three';
 
-export const MATERIALS = {
-  grass: '#8bbf4f',
-  dirt: '#a8703f',
-  stone: '#7a6f8f',
-  wood: '#6b3f2a',
-  leaves: '#4f7a3a',
-  brick: '#c9b8a0',
-  plank: '#b07a45',
-  grassDark: '#5f8f42',
-  grassLight: '#9dcc5c',
-  road: '#b08a5a',
-  concrete: '#9a93a8',
-  helipad: '#5d4a87',
-  helipadMark: '#f4e9d8',
-  rock: '#857a99',
-  crate: '#c08a4a',
-  crateMil: '#55703f',
-  crateRare: '#ffd66b',
-  sandbag: '#c9a978',
-  wall_ferro: '#9e3a4a',
-  wall_mare: '#3b5a8c',
-  wall_raiz: '#4f7a3a',
-};
+
 
 function hash2(x, z) {
   const s = Math.sin(x * 127.1 + z * 311.7) * 43758.5453;
@@ -103,35 +80,4 @@ export class VoxelLevel {
     return null;
   }
 
-  /** One InstancedMesh per material; fully hidden voxels are skipped. */
-  buildMeshes() {
-    const group = new THREE.Group();
-    const geo = new THREE.BoxGeometry(1, 1, 1);
-    const byMat = new Map();
-    const dirs = [
-      [1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1],
-    ];
-
-    for (const [k, mat] of this.voxels) {
-      const [x, y, z] = k.split(',').map(Number);
-      const exposed = dirs.some(([dx, dy, dz]) => !this.isSolid(x + dx, y + dy, z + dz));
-      if (!exposed) continue;
-      if (!byMat.has(mat)) byMat.set(mat, []);
-      byMat.get(mat).push([x, y, z]);
-    }
-
-    const m = new THREE.Matrix4();
-    for (const [mat, list] of byMat) {
-      const material = new THREE.MeshLambertMaterial({ color: MATERIALS[mat] ?? '#ff00ff' });
-      const mesh = new THREE.InstancedMesh(geo, material, list.length);
-      list.forEach(([x, y, z], i) => {
-        m.makeTranslation(x + 0.5, y + 0.5, z + 0.5);
-        mesh.setMatrixAt(i, m);
-      });
-      mesh.instanceMatrix.needsUpdate = true;
-      mesh.computeBoundingSphere();
-      group.add(mesh);
-    }
-    return group;
-  }
 }

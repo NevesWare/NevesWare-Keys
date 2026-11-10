@@ -165,7 +165,7 @@ export class RaidMap {
 
   tree(x, z) {
     this.block(x, z, 1, 'trunk');
-    this.prop('tree', Math.floor(this.rand() * 2), x + 0.5, z + 0.5, this.rand() * 6.28, 0.62 + this.rand() * 0.25);
+    this.prop('tree', Math.floor(this.rand() * 3), x + 0.5, z + 0.5, this.rand() * 6.28, 0.62 + this.rand() * 0.25);
   }
 
   rock(x, z) {
@@ -302,9 +302,9 @@ export class RaidMap {
       for (let z = 3; z < H - 3; z++) {
         if (this.reserved[this.idx(x, z)] || this.isSolid(x, z)) continue;
         const dens = noise(x + 50, z + 50, 14);
-        if (R() < (dens > 0.55 ? 0.06 : 0.01)) {
+        if (R() < (dens > 0.6 ? 0.022 : 0.003)) {
           let ok = true;
-          for (let ox = -1; ox <= 1; ox++) for (let oz = -1; oz <= 1; oz++) if (this.isSolid(x + ox, z + oz)) ok = false;
+          for (let ox = -3; ox <= 3; ox++) for (let oz = -3; oz <= 3; oz++) if (this.isSolid(x + ox, z + oz)) ok = false;
           if (ok) this.tree(x, z);
         }
       }
@@ -313,6 +313,19 @@ export class RaidMap {
     for (let i = 0; i < 10; i++) {
       const p = this.freeSpot(10 + R() * (W - 20), 10 + R() * (H - 20), 1);
       this.crate(Math.floor(p.x), Math.floor(p.z), 'common', 'Mochila Abandonada');
+    }
+
+    // bushes and roadside fences (decoration, no collision)
+    for (let i = 0; i < 520; i++) {
+      const x = 3 + R() * (W - 6), z = 3 + R() * (H - 6);
+      const cx = Math.floor(x), cz = Math.floor(z);
+      if (this.reserved[this.idx(cx, cz)] || this.isSolid(cx, cz)) continue;
+      this.prop('bush', Math.floor(R() * 2), x, z, R() * 6.28, 0.7 + R() * 0.6);
+    }
+    for (let i = 0; i < 26; i++) {
+      const p = this.freeSpot(10 + R() * (W - 20), 10 + R() * (H - 20), 0);
+      const ax = R() < 0.5;
+      for (let k = 0; k < 4; k++) this.prop('fence', 0, p.x + (ax ? k * 2.1 : 0), p.z + (ax ? 0 : k * 2.1), ax ? 0 : Math.PI / 2);
     }
 
     // wild scav spawns
@@ -347,6 +360,7 @@ export class RaidMap {
       this.sandbag(c.x + i, c.z + 5, 0);
     }
     this.outposts[f.id] = { x: c.x + 0.5, z: c.z + 0.5, faction: f.id };
+    this.prop('helipad', 0, c.x + 0.5, c.z + 0.5, 0);
     this.extracts.push({ name: `Heliponto ${f.name}`, x: c.x + 0.5, z: c.z + 0.5, r: 3.5, faction: f.id });
     for (let i = 0; i < 3; i++) this.botSpawns.push({ x: c.x + (i - 1) * 3, z: c.z + (gz === 's' ? 7 : -7), faction: f.id, guard: true });
     // patrol squad that roams toward the center

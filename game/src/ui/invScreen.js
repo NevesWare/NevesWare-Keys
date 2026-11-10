@@ -19,9 +19,9 @@ const ICONS = {
 const SETTINGS_KEY = 'zona-rasa-settings';
 export function loadSettings() {
   try {
-    return { shadows: 'alta', grass: true, fps: false, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') };
+    return { quality: 'auto', shadows: 'on', grass: true, fps: false, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') };
   } catch {
-    return { shadows: 'alta', grass: true, fps: false };
+    return { quality: 'auto', shadows: 'on', grass: true, fps: false };
   }
 }
 function saveSettings(s) {
@@ -394,14 +394,16 @@ export class InventoryScreen {
     const p = this.pane('CONFIGURAÇÕES', ICONS.cfg, 'iv-cfg');
     p.insertAdjacentHTML(
       'beforeend',
-      `<label>Sombras <select data-k="shadows"><option value="alta">Alta</option><option value="baixa">Baixa</option><option value="off">Desligadas</option></select></label>
+      `<label>Qualidade gráfica <select data-k="quality"><option value="auto">Automática</option><option value="baixo">Baixa</option><option value="medio">Média</option><option value="alto">Alta</option></select></label>
+       <label>Sombras <select data-k="shadows"><option value="on">Ligadas</option><option value="off">Desligadas</option></select></label>
        <label>Grama <input type="checkbox" data-k="grass"></label>
        <label>Mostrar FPS <input type="checkbox" data-k="fps"></label>
        <button class="btn-s" data-act="fs">Tela cheia</button>
        ${this.ctx.context === 'lobby' ? '<button class="btn-s danger" data-act="reset">Reiniciar perfil</button>' : ''}
-       <p class="hint">Qualidade gráfica é aplicada no próximo raid.</p>`,
+       <p class="hint">Sombras e capim são reconstruídos no próximo raid.</p>`,
     );
-    p.querySelector('[data-k=shadows]').value = s.shadows;
+    p.querySelector('[data-k=quality]').value = s.quality ?? 'auto';
+    p.querySelector('[data-k=shadows]').value = s.shadows === 'off' ? 'off' : 'on';
     p.querySelector('[data-k=grass]').checked = s.grass;
     p.querySelector('[data-k=fps]').checked = s.fps;
     p.querySelectorAll('[data-k]').forEach((el) =>

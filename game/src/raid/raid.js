@@ -6,7 +6,7 @@ import { Helicopter } from './helicopter.js';
 import { fillContainer, botLoadout, bodyContainer } from './loot.js';
 import { factionById } from '../data/factions.js';
 import { sfx } from '../audio.js';
-import { buildWorld, addLighting } from '../world/worldRender.js';
+import { buildWorld, addLighting } from '../gfx/world.js';
 import { MAP_SIZE } from './map.js';
 
 export const RAID_TIME = 20 * 60;
@@ -18,8 +18,9 @@ const INTERACT_RANGE = 1.9;
  * Emits events through callbacks so UI stays decoupled.
  */
 export class Raid {
-  constructor({ profile, seed = Math.floor(Math.random() * 1e9), callbacks, quality = {} }) {
+  constructor({ profile, seed = Math.floor(Math.random() * 1e9), callbacks, quality = {}, renderer }) {
     this.quality = quality;
+    this.renderer = renderer;
     this.profile = profile;
     this.cb = callbacks;
     this.scene = new THREE.Scene();
@@ -76,8 +77,9 @@ export class Raid {
 
   setupScene() {
     const s = this.scene;
-    s.add(buildWorld(this.map.vox, this.map.props, { x0: 0, z0: 0, W: MAP_SIZE, H: MAP_SIZE }, { grass: this.quality.grass ?? 0.6 }));
-    this.lighting = addLighting(s, { shadowSize: this.quality.shadows ?? 2048 });
+    this.world = buildWorld({ vox: this.map.vox, props: this.map.props, bounds: { x0: 0, z0: 0, W: MAP_SIZE, H: MAP_SIZE }, quality: this.quality });
+    s.add(this.world.group);
+    this.lighting = addLighting(s, this.renderer, { shadowSize: this.quality.shadows ?? 2048 });
     // pooled muzzle flash lights (fixed count so shaders never recompile)
     this.flashes = [];
     for (let i = 0; i < 4; i++) {
@@ -106,6 +108,7 @@ export class Raid {
   shoot(actor, angle) {
     const w = actor.fire();
     if (!w) return false;
+    actor.rig.shoot();
     const ox = actor.pos.x + Math.sin(angle) * 0.6;
     const oz = actor.pos.z + Math.cos(angle) * 0.6;
     const moving = actor.vel.length() > 0.5 ? 1.5 : 1;
@@ -293,7 +296,9 @@ export class Raid {
     // --- bots ---
     for (const b of this.bots) {
       b.update(dt);
-      b.a.update(dt);
+      const far = Math.abs(b.a.pos.x - pl.pos.x) > 34 || Math.abs(b.a.pos.z - pl.pos.z) > 34;
+      b.a.mesh.visible = !far;
+      b.a.update(dt, !far);
     }
 
     // --- fx ---

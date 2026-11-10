@@ -1,10 +1,10 @@
 import * as THREE from 'three';
 import { ITEMS, ammoIdFor } from '../data/items.js';
-import { humanoid, weaponGeo } from '../vox/models.js';
+import { CharacterRig } from '../gfx/characters.js';
 import { activeWeapon, countItem, takeItem, storages } from '../inventory/loadout.js';
 
 export const ACTOR_RADIUS = 0.32;
-export const MUZZLE_HEIGHT = 1.08;
+export const MUZZLE_HEIGHT = 1.35;
 
 let seedCounter = 0;
 
@@ -34,9 +34,17 @@ export class Actor {
     this.walkPhase = 0;
     this.kills = 0;
     this.killedBy = null;
-    this.mesh = new THREE.Group();
-    this.material = new THREE.MeshLambertMaterial({ vertexColors: true });
-    this.gearKey = '';
+    this.rig = new CharacterRig({ faction, seed: this.seed });
+    this.mesh = this.rig.root;
+    if (isPlayer) {
+      this.ring = new THREE.Mesh(
+        new THREE.RingGeometry(0.5, 0.6, 32),
+        new THREE.MeshBasicMaterial({ color: '#ffd66b', transparent: true, opacity: 0.7, depthWrite: false }),
+      );
+      this.ring.rotation.x = -Math.PI / 2;
+      this.ring.position.y = 0.03;
+      this.mesh.add(this.ring);
+    }
     this.refreshGear();
   }
 
@@ -49,55 +57,15 @@ export class Actor {
     return w ? ITEMS[w.id].weapon : null;
   }
 
-  /** (Re)build the voxel body when equipment changes. */
+  /** Sync visible equipment with the loadout. */
   refreshGear() {
     const lo = this.loadout;
-    const armor = lo.armor ? (lo.armor.id === 'coleteP' ? 'P' : 'L') : null;
-    const helmet = lo.helmet ? (lo.helmet.id === 'capaceteP' ? 'P' : 'L') : null;
-    const wid = this.weapon?.id ?? null;
-    const key = `${armor}|${helmet}|${!!lo.backpack}|${wid}`;
-    if (key === this.gearKey) return;
-    this.gearKey = key;
-
-    const m = this.mesh;
-    m.clear();
-    const h = humanoid({ faction: this.faction, armor, helmet, backpack: !!lo.backpack, seed: this.seed });
-    const mk = (geo) => {
-      const x = new THREE.Mesh(geo, this.material);
-      x.castShadow = true;
-      return x;
-    };
-    this.upper = mk(h.upper);
-    this.legL = mk(h.legL);
-    this.legR = mk(h.legR);
-    this.legL.position.set(-h.hipX, h.hipY, 0);
-    this.legR.position.set(h.hipX, h.hipY, 0);
-    m.add(this.upper, this.legL, this.legR);
-    if (wid) {
-      this.gun = mk(weaponGeo(wid));
-      this.gun.position.set(...h.gunPos);
-      this.gunY = h.gunPos[1];
-      m.add(this.gun);
-    } else this.gun = null;
-
-    if (this.isPlayer) {
-      // x-ray silhouette where something occludes the player
-      const ghost = new THREE.MeshBasicMaterial({ color: '#ffd66b', depthFunc: THREE.GreaterDepth, depthWrite: false, transparent: true, opacity: 0.55 });
-      for (const src of [this.upper, this.legL, this.legR]) {
-        const g = new THREE.Mesh(src.geometry, ghost);
-        g.renderOrder = 10;
-        src.add(g);
-      }
-      if (!this.ring) {
-        this.ring = new THREE.Mesh(
-          new THREE.RingGeometry(0.42, 0.5, 24),
-          new THREE.MeshBasicMaterial({ color: '#ffd66b', transparent: true, opacity: 0.8, depthWrite: false }),
-        );
-        this.ring.rotation.x = -Math.PI / 2;
-        this.ring.position.y = 0.02;
-      }
-      m.add(this.ring);
-    }
+    this.rig.setGear({
+      helmet: lo.helmet?.id ?? null,
+      armor: lo.armor?.id ?? null,
+      backpack: lo.backpack?.id ?? null,
+      weapon: this.weapon?.id ?? null,
+    });
   }
 
   canFire() {
@@ -187,13 +155,13 @@ export class Actor {
       this.killedBy = attacker;
       if (attacker) attacker.kills++;
       if (this.ring) this.ring.visible = false;
-      this.mesh.rotation.set(-Math.PI / 2, this.aim, 0, 'YXZ');
-      this.mesh.position.y = 0.2;
+      this.rig.die();
     }
     return dmg;
   }
 
-  update(dt) {
+  update(dt, animate = true) {
+    this.animate = animate;
     this.cooldown = Math.max(0, this.cooldown - dt);
     if (this.reloadT > 0) {
       this.reloadT -= dt;
@@ -214,18 +182,21 @@ export class Actor {
   }
 
   syncMesh(dt) {
-    if (!this.alive) return;
-    this.mesh.position.set(this.pos.x, 0, this.pos.z);
-    this.mesh.rotation.y = this.aim;
-    // legs swing relative to movement direction
+    if (this.alive) {
+      this.mesh.position.set(this.pos.x, 0, this.pos.z);
+      this.mesh.rotation.y = this.aim;
+    }
+    this.rig.flash(this.hitFlash > 0);
+    if (this.animate === false) return;
     const speed = this.vel.length();
-    this.walkPhase += speed * dt * 2.6;
-    const swing = speed > 0.2 ? Math.sin(this.walkPhase) * 0.6 : 0;
-    const fwd = speed > 0.2 ? Math.cos(Math.atan2(this.vel.x, this.vel.y) - this.aim) : 1;
-    this.legL.rotation.x = swing * fwd;
-    this.legR.rotation.x = -swing * fwd;
-    this.upper.position.y = speed > 0.2 ? Math.abs(Math.cos(this.walkPhase)) * 0.025 : 0;
-    if (this.gun) this.gun.position.y = this.upper.position.y + this.gunY;
-    this.material.emissive.set(this.hitFlash > 0 ? '#ffffff' : '#000000');
+    const backwards = speed > 0.25 && Math.cos(Math.atan2(this.vel.x, this.vel.y) - this.aim) < -0.3;
+    this.rig.update(dt, {
+      speed,
+      sprint: speed > 5,
+      armed: !!this.weapon,
+      reloading: this.reloadT > 0,
+      healing: this.healT > 0,
+      backwards,
+    });
   }
 }

@@ -1,8 +1,10 @@
 # Zona Rasa
 
-Extraction shooter isométrico em **micro-voxels** (personagens e veículos com cubos de 5 cm, armas e itens com cubos de 2,5 cm), com sombras em tempo real. Feito em Three.js e pensado **mobile-first**; roda no navegador do celular e do PC.
+Extraction shooter com câmera de cima em perspectiva e visual **realista estilizado**: luz de fim de tarde, capim denso balançando ao vento (gerado na GPU), árvores com folhagem, névoa, bloom e desfoque tilt-shift. Personagens animados (andar, correr, mirar, recarregar, morrer) com capacete, colete, mochila e armas. Feito em Three.js, **mobile-first**, com níveis de qualidade automáticos (Baixo / Médio / Alto).
 
-Para ver a cena de vitrine (imagem do estilo): `npm run dev` e abra `/?showcase` (use `&zoom=6` para aproximar).
+Cena de vitrine: `npm run dev` e abra `/?showcase` (use `&dist=10` para aproximar).
+
+Créditos: manequim animado da Universal Animation Library de Quaternius (CC0) — ver `public/models/CREDITS.md`. O resto é procedural.
 
 ## Como rodar
 
@@ -54,9 +56,9 @@ Também funciona com gamepad (analógicos para mover e mirar, RT atira).
 ```
 src/
   main.js            fluxo: título → facção → lobby → raid → resultado
-  vox/               construtor de modelos micro-voxel (AO por vértice) + modelos procedurais
-  camera/            câmera isométrica ortográfica com pixel snapping
-  world/             chão texturizado, blocos e props instanciados por chunk, iluminação/sombras
+  gfx/               renderização: personagens animados, capim/árvores, terreno, props, itens 3D, pós-processamento
+  camera/            câmera de cima em perspectiva
+  world/voxelLevel.js grade de células do mapa (dados de chão/paredes)
   raid/              mapa (geração, colisão, LOS, A*), atores, IA, loot, helicóptero, raid
   inventory/grid.js  grade estilo Tarkov
   ui/                tela de inventário (abas, personagem 3D, mochila, bolsos, saque/stash), comerciante, HUD, controles touch, ícones 3D

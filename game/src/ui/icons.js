@@ -1,13 +1,13 @@
 import * as THREE from 'three';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { ITEMS } from '../data/items.js';
-import { itemGeo } from '../vox/models.js';
-import { VOX_MATERIAL } from '../vox/voxModel.js';
-import { Actor } from '../raid/actor.js';
+import { itemModel } from '../gfx/items.js';
+import { CharacterRig, charactersReady } from '../gfx/characters.js';
 
-const PX = 72; // icon pixels per grid cell
+const PX = 80; // icon pixels per grid cell
 
 /**
- * Small offscreen renderer used for UI: item icons (rendered from the voxel models)
+ * Offscreen renderer for UI: item icons rendered from the 3D item models,
  * and the character preview in the inventory.
  */
 class UiRenderer {
@@ -15,24 +15,27 @@ class UiRenderer {
     this.renderer = null;
     this.icons = new Map();
     this.scene = new THREE.Scene();
-    this.scene.add(new THREE.HemisphereLight('#ffffff', '#5a5450', 2.4));
-    const key = new THREE.DirectionalLight('#fff4e0', 3.2);
+    const key = new THREE.DirectionalLight('#fff2e0', 2.2);
     key.position.set(3, 5, 4);
-    const rim = new THREE.DirectionalLight('#9fc0ff', 1.6);
+    const rim = new THREE.DirectionalLight('#a8c4ff', 1.2);
     rim.position.set(-4, 2, -3);
-    this.scene.add(key, rim);
+    this.scene.add(key, rim, new THREE.HemisphereLight('#ffffff', '#40382e', 0.6));
     this.cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.01, 100);
   }
 
   ensure() {
     if (this.renderer) return this.renderer;
-    this.renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
-    this.renderer.setPixelRatio(1);
-    this.renderer.setClearColor(0x000000, 0);
-    return this.renderer;
+    const r = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
+    r.setPixelRatio(1);
+    r.setClearColor(0x000000, 0);
+    r.toneMapping = THREE.ACESFilmicToneMapping;
+    const pm = new THREE.PMREMGenerator(r);
+    this.scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture;
+    this.scene.environmentIntensity = 0.8;
+    this.renderer = r;
+    return r;
   }
 
-  /** Fit an ortho camera around `obj` looking from `dir`, matching aspect w/h. */
   fit(obj, dir, w, h, pad = 1.12) {
     const box = new THREE.Box3().setFromObject(obj);
     const center = box.getCenter(new THREE.Vector3());
@@ -69,18 +72,15 @@ class UiRenderer {
     const r = this.ensure();
     const w = d.w * PX, h = d.h * PX;
     r.setSize(w, h, false);
-    const mesh = new THREE.Mesh(itemGeo(id), VOX_MATERIAL);
+    const obj = itemModel(id);
     const isGun = d.cat === 'weapon';
-    if (isGun) mesh.rotation.y = Math.PI / 2; // barrel to the right
-    const tall = d.h > d.w && !isGun;
-    if (tall) mesh.rotation.y = -0.5;
-    else if (!isGun) mesh.rotation.y = -0.6;
-    this.scene.add(mesh);
-    const dir = isGun ? new THREE.Vector3(0.05, 0.12, 1) : new THREE.Vector3(0.25, 0.65, 1);
-    this.fit(mesh, dir, w, h, isGun ? 1.06 : 1.25);
+    obj.rotation.y = isGun ? Math.PI / 2 : -0.6;
+    this.scene.add(obj);
+    const dir = isGun ? new THREE.Vector3(0.04, 0.1, 1) : new THREE.Vector3(0.25, 0.7, 1);
+    this.fit(obj, dir, w, h, isGun ? 1.06 : 1.28);
     r.render(this.scene, this.cam);
     const url = r.domElement.toDataURL('image/png');
-    this.scene.remove(mesh);
+    this.scene.remove(obj);
     this.icons.set(id, url);
     return url;
   }
@@ -89,18 +89,28 @@ class UiRenderer {
     for (const id of Object.keys(ITEMS)) this.icon(id);
   }
 
-  /** Render a character with the given loadout into a 2D canvas. */
+  /** Render the character with its gear into a 2D canvas. */
   drawCharacter(canvas, faction, loadout, seed = 0) {
+    if (!charactersReady()) return;
     const r = this.ensure();
     const w = canvas.width, h = canvas.height;
     if (!w || !h) return;
     r.setSize(w, h, false);
-    const a = new Actor({ name: 'preview', faction, loadout, seed });
-    a.mesh.rotation.y = 0.55;
-    this.scene.add(a.mesh);
-    this.fit(a.mesh, new THREE.Vector3(0.1, 0.15, 1), w, h, 1.08);
+    if (!this.preview || this.previewFaction !== faction) {
+      if (this.preview) this.scene.remove(this.preview.root);
+      this.preview = new CharacterRig({ faction, seed });
+      this.previewFaction = faction;
+      this.scene.add(this.preview.root);
+    }
+    const weapon = loadout[loadout.active] ?? loadout.primary ?? loadout.secondary;
+    this.preview.setGear({ helmet: loadout.helmet?.id, armor: loadout.armor?.id, backpack: loadout.backpack?.id, weapon: weapon?.id });
+    this.preview.root.visible = true;
+    this.preview.root.rotation.y = 0.5;
+    this.preview.update(0.016, { speed: 0, armed: !!weapon });
+    this.preview.update(0.5, { speed: 0, armed: !!weapon });
+    this.fit(this.preview.root, new THREE.Vector3(0.15, 0.12, 1), w, h, 1.1);
     r.render(this.scene, this.cam);
-    this.scene.remove(a.mesh);
+    this.preview.root.visible = false;
     const g = canvas.getContext('2d');
     g.clearRect(0, 0, w, h);
     g.drawImage(r.domElement, 0, 0);
