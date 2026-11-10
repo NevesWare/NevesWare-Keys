@@ -1,0 +1,240 @@
+<title>Connect RP</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap">
+<style>
+/* Layout: o jogo ocupa a tela inteira; por cima, uma tela de carregamento no
+   mesmo visual do HUD (preto translúcido, branco, sem cores). Tema único escuro. */
+:root {
+  --bg: #08090b;
+  --panel: #0f1114;
+  --fg: #f2f3f5;
+  --dim: #8b9099;
+  --faint: #3a3f47;
+  --danger: #eb4740;
+  --font: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font);
+  overflow: hidden;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+#canvas {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  background: var(--bg);
+}
+#canvas:focus { outline: none; }
+
+#boot {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 28px;
+  padding-block: max(24px, env(safe-area-inset-top, 0px)) max(24px, env(safe-area-inset-bottom, 0px));
+  padding-left: max(32px, env(safe-area-inset-left, 0px));
+  padding-right: max(32px, env(safe-area-inset-right, 0px));
+  background:
+    radial-gradient(120% 90% at 100% 100%, #1b1712 0%, transparent 60%),
+    linear-gradient(90deg, var(--bg) 0%, #0c0d10 100%);
+  z-index: 2;
+  transition: opacity .5s ease;
+}
+#boot.done { opacity: 0; pointer-events: none; }
+
+.brand { display: flex; flex-direction: column; gap: 10px; }
+.wordmark {
+  margin: 0;
+  font-weight: 800;
+  font-size: clamp(40px, 9vw, 76px);
+  letter-spacing: -0.02em;
+  line-height: 1;
+  text-wrap: balance;
+}
+.wordmark span { font-weight: 400; color: var(--dim); }
+.tagline {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.rule { width: 36px; height: 2px; background: var(--fg); opacity: .55; }
+
+.load { display: flex; flex-direction: column; gap: 10px; width: min(420px, 100%); }
+.bar { height: 3px; background: var(--faint); border-radius: 2px; overflow: hidden; }
+.bar i {
+  display: block;
+  height: 100%;
+  width: 0%;
+  background: var(--fg);
+  transition: width .2s linear;
+}
+.bar.indeterminate i { width: 30%; animation: slide 1.2s ease-in-out infinite; }
+@keyframes slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(340%); } }
+.meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--dim);
+  font-variant-numeric: tabular-nums;
+}
+.meta b { color: var(--fg); font-weight: 600; }
+
+.tips {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--dim);
+  max-width: 62ch;
+}
+.tips kbd {
+  font-family: var(--font);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--fg);
+  border: 1px solid var(--faint);
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+
+.notice {
+  max-width: 62ch;
+  padding: 14px 16px;
+  border: 1px solid var(--danger);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--fg);
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: pre-line;
+}
+.notice strong { color: var(--danger); }
+
+@media (prefers-reduced-motion: reduce) {
+  .bar.indeterminate i { animation: none; width: 100%; opacity: .4; }
+  #boot { transition: none; }
+}
+</style>
+
+<canvas id="canvas" tabindex="0">Seu navegador não suporta canvas.</canvas>
+
+<div id="boot" role="status" aria-live="polite">
+  <div class="brand">
+    <h1 class="wordmark">CONNECT <span>RP</span></h1>
+    <div class="tagline">Roleplay · Mundo aberto · Mobile</div>
+    <div class="rule"></div>
+  </div>
+  <div class="load">
+    <div class="bar indeterminate" id="bar"><i></i></div>
+    <div class="meta"><span id="stage">Baixando o jogo</span><b id="pct"></b></div>
+  </div>
+  <div class="tips" id="tips">
+    <div>Celular: joystick à esquerda, arraste à direita para girar a câmera, botões de ação à direita.</div>
+    <div>PC: <kbd>W A S D</kbd> mover · <kbd>Shift</kbd> correr · <kbd>Espaço</kbd> pular · <kbd>E</kbd> usar / entrar no carro · <kbd>F</kbd> soco · <kbd>M</kbd> celular · <kbd>N</kbd> mapa · <kbd>H</kbd> buzina</div>
+    <div>O primeiro carregamento leva mais tempo (cerca de 11 MB). O progresso fica salvo neste navegador.</div>
+  </div>
+  <div class="notice" id="notice" hidden></div>
+</div>
+
+<script>
+// O motor (index.wasm, 35 MB) é publicado comprimido (engine.gz.wasm, 8 MB) e
+// descomprimido aqui, no navegador. Os dados do jogo (index.pck) vão como
+// data.pck.wasm só porque a hospedagem aceita poucas extensões.
+(function () {
+  var nativeFetch = window.fetch.bind(window);
+  window.fetch = function (input, init) {
+    var url = typeof input === 'string' ? input : (input && input.url) || '';
+    if (/(^|\/)index\.wasm(\?|$)/.test(url)) {
+      return nativeFetch('engine.gz.wasm').then(function (r) {
+        if (!r.ok) { throw new Error('Não foi possível baixar o motor do jogo (erro ' + r.status + ').'); }
+        if (typeof DecompressionStream === 'undefined') {
+          throw new Error('Este navegador é antigo demais para o jogo. Atualize o Chrome, Edge, Firefox ou Safari.');
+        }
+        var body = r.body.pipeThrough(new DecompressionStream('gzip'));
+        return new Response(body, { status: 200, headers: { 'Content-Type': 'application/wasm' } });
+      });
+    }
+    if (/(^|\/)index\.pck(\?|$)/.test(url)) {
+      return nativeFetch('data.pck.wasm').then(function (r) {
+        if (!r.ok) { throw new Error('Não foi possível baixar os dados do jogo (erro ' + r.status + ').'); }
+        return new Response(r.body, { status: 200, headers: { 'Content-Type': 'application/octet-stream' } });
+      });
+    }
+    return nativeFetch(input, init);
+  };
+})();
+</script>
+<script src="index.js"></script>
+<script>
+var GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":true,"fileSizes":{"index.pck":2598512,"index.wasm":35376909},"focusCanvas":true,"gdextensionLibs":[]};
+var GODOT_THREADS_ENABLED = false;
+
+(function () {
+  var boot = document.getElementById('boot');
+  var bar = document.getElementById('bar');
+  var fill = bar.querySelector('i');
+  var pct = document.getElementById('pct');
+  var stage = document.getElementById('stage');
+  var notice = document.getElementById('notice');
+  var tips = document.getElementById('tips');
+
+  function fail(err) {
+    console.error(err);
+    var msg = (err && err.message) ? err.message : String(err || 'Erro desconhecido.');
+    bar.hidden = true;
+    pct.textContent = '';
+    stage.textContent = 'Não foi possível iniciar';
+    tips.hidden = true;
+    notice.innerHTML = '<strong>O jogo não abriu.</strong>\n';
+    notice.appendChild(document.createTextNode(msg + '\n\nSe estiver no app do Claude, tente abrir o link num navegador (Chrome, Edge, Firefox ou Safari atualizado).'));
+    notice.hidden = false;
+  }
+
+  if (typeof Engine === 'undefined') {
+    fail(new Error('O carregador do jogo (index.js) não foi baixado.'));
+    return;
+  }
+  var missing = Engine.getMissingFeatures({ threads: GODOT_THREADS_ENABLED });
+  if (missing.length !== 0) {
+    fail(new Error('Faltam recursos no navegador:\n' + missing.join('\n')));
+    return;
+  }
+
+  var engine = new Engine(GODOT_CONFIG);
+  engine.startGame({
+    onProgress: function (current, total) {
+      if (current > 0 && total > 0) {
+        bar.classList.remove('indeterminate');
+        var p = Math.min(100, Math.round(current / total * 100));
+        fill.style.width = p + '%';
+        pct.textContent = p + '%';
+        stage.textContent = p < 100 ? 'Baixando o jogo' : 'Montando a cidade';
+      } else {
+        bar.classList.add('indeterminate');
+      }
+    }
+  }).then(function () {
+    stage.textContent = 'Montando a cidade';
+    bar.classList.add('indeterminate');
+    pct.textContent = '';
+    // a cidade é construída nos primeiros quadros; some com a tela de carregamento logo depois
+    setTimeout(function () { boot.classList.add('done'); }, 2500);
+    setTimeout(function () { boot.hidden = true; }, 3100);
+    document.getElementById('canvas').focus();
+  }, fail);
+})();
+</script>

@@ -28,6 +28,7 @@ var _facade_mats: Array[ShaderMaterial] = []
 var _night: float = -1.0
 var _shop_mat: ShaderMaterial
 var _ground_mats: Array[StandardMaterial3D] = []
+var _roots: Array[Node3D] = []
 var _body: StaticBody3D
 
 var _favela_colors: Array[Color] = [
@@ -56,6 +57,8 @@ func build(seed_value: int = 1990) -> void:
 	_build_beach()
 	_build_hill()
 	_build_boundaries()
+	for r in _roots:
+		_merge_meshes(r)
 
 
 # ============================================================ texturas
@@ -336,7 +339,7 @@ func _tmat(tex_key: String, tint: Color, scale: float, rough: float = 0.9) -> St
 const FACADE_SHADER := preload("res://Shaders/facade.gdshader")
 
 
-func _facade_mat(kind: String, tint: Color) -> ShaderMaterial:
+func _facade_mat(kind: String, tint: Color) -> Material:
 	var key := "f|%s|%s" % [kind, tint.to_html()]
 	if _mats.has(key):
 		return _mats[key] as ShaderMaterial
@@ -375,6 +378,7 @@ func _begin(pos: Vector3) -> void:
 	_cur = Node3D.new()
 	_cur.position = pos
 	add_child(_cur)
+	_roots.append(_cur)
 	_body = StaticBody3D.new()
 	_cur.add_child(_body)
 
@@ -552,10 +556,13 @@ func _building(base: Vector3, w: float, d: float, floors: int, kind: String, tin
 	return h
 
 
-func _shopfront_mat() -> ShaderMaterial:
+func _shopfront_mat() -> Material:
 	if _mats.has("shopfront"):
 		return _mats["shopfront"]
-	var m := _facade_mat("shop", Color.WHITE).duplicate() as ShaderMaterial
+	var base := _facade_mat("shop", Color.WHITE)
+	if not base is ShaderMaterial:
+		return base
+	var m := base.duplicate() as ShaderMaterial
 	_facade_mats.erase(m)
 	m.set_shader_parameter("world_uv", true)
 	m.set_shader_parameter("base_emission", 0.08)
@@ -737,6 +744,15 @@ func _build_block(ix: int, iz: int) -> void:
 		"dealer": _fill_dealer()
 		"plaza": _fill_plaza()
 		"field": _fill_field()
+
+
+## Junta todas as malhas de um quarteirão que usam o mesmo material numa só.
+## Milhares de objetos viram poucas dezenas: muito menos draw calls no celular,
+## e evita o limite de objetos do WebGL (a cidade sumia no navegador).
+func _merge_meshes(root: Node3D) -> void:
+	var merged := MeshMerge.merge_children(root)
+	if merged != null:
+		merged.visibility_range_end = VIS_RANGE * 1.3 if VIS_RANGE > 0.0 else 0.0
 
 
 ## Mobiliário urbano na calçada: lixeiras e frades (balizadores) — sem postes.

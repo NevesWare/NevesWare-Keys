@@ -7,6 +7,7 @@ extends RefCounted
 const EXTENT := 310.0
 const VERSION := 5
 const CACHE := "user://minimap_v%d_%d.png"
+const BUNDLED := "res://Assets/Map/minimap.png"
 
 static var texture: Texture2D = null
 
@@ -17,6 +18,12 @@ static func world_rect() -> Rect2:
 
 ## Chamar logo depois de city.build(), antes de colocar carros/pessoas.
 static func capture(host: Node3D, city: Node3D, size: int) -> void:
+	# 1) imagem pronta que vem no jogo (a cidade é sempre a mesma: seed fixa)
+	if ResourceLoader.exists(BUNDLED) and not OS.has_environment("CONNECTRP_REMAP"):
+		texture = load(BUNDLED)
+		return
+	# 2) cache no aparelho / 3) gera agora (para atualizar a imagem pronta:
+	#    rode no PC com CONNECTRP_REMAP=1 e copie o PNG do user:// para BUNDLED)
 	var path := CACHE % [VERSION, size]
 	if FileAccess.file_exists(path):
 		var cached := Image.load_from_file(path)

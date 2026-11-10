@@ -87,7 +87,8 @@ func _take_screenshot(path: String, frames: int) -> void:
 
 
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_WM_CLOSE_REQUEST or what == NOTIFICATION_APPLICATION_PAUSED:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST or what == NOTIFICATION_APPLICATION_PAUSED \
+			or what == NOTIFICATION_APPLICATION_FOCUS_OUT:
 		if playing:
 			save_game()
 

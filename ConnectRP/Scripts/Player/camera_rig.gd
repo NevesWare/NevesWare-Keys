@@ -1,8 +1,11 @@
 class_name CameraRig
 extends Node3D
 ## Câmera em terceira pessoa para toque: recebe movimento de arrastar (rotate_look),
-## tem suavização e colisão com paredes (SpringArm3D). Pode seguir outro alvo
-## (carro) com distância/altura próprias e se alinhar sozinha atrás do veículo.
+## tem suavização e colisão com paredes (esfera lançada do pivô até a câmera).
+## Pode seguir outro alvo (carro) com distância/altura próprias e se alinhar
+## sozinha atrás do veículo.
+## Obs.: não usa SpringArm3D — no export Web do Godot 4.3 a câmera filha do
+## SpringArm ficava "presa" na origem e nada era desenhado.
 
 @export var height_offset: float = 1.55
 @export var distance: float = 4.0
@@ -18,8 +21,12 @@ var sensitivity_scale: float = 1.0
 
 var _owner_body: Node3D
 var _target: Node3D
-var _arm: SpringArm3D
 var _camera: Camera3D
+var _arm_length: float = 4.0
+var _cur_length: float = 4.0
+var _shoulder: float = 0.4
+var _probe := SphereShape3D.new()
+var _query := PhysicsShapeQueryParameters3D.new()
 var _idle_look: float = 10.0
 var _vehicle_mode: bool = false
 
@@ -29,22 +36,28 @@ func _ready() -> void:
 	_target = _owner_body
 	top_level = true
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	_arm = $SpringArm3D
-	_camera = $SpringArm3D/Camera3D
-
-	var shape := SphereShape3D.new()
-	shape.radius = 0.25
-	_arm.shape = shape
-	_arm.margin = 0.2
-	_arm.spring_length = distance
-	_arm.collision_mask = 1
-	if _owner_body is CollisionObject3D:
-		_arm.add_excluded_object((_owner_body as CollisionObject3D).get_rid())
-
-	_camera.h_offset = shoulder_offset
+	# troca a câmera da cena (dentro do SpringArm3D) por uma câmera livre
+	if has_node("SpringArm3D"):
+		var arm := $SpringArm3D
+		remove_child(arm)
+		arm.queue_free()
+	_camera = Camera3D.new()
+	_camera.name = "Camera3D"
+	add_child(_camera)
+	_camera.top_level = true
 	_camera.far = 350.0
 	_camera.current = true
+
+	_probe.radius = 0.25
+	_query.shape = _probe
+	_query.collision_mask = 1
+	if _owner_body is CollisionObject3D:
+		_query.exclude = [(_owner_body as CollisionObject3D).get_rid()]
+	_arm_length = distance
+	_cur_length = distance
+	_shoulder = shoulder_offset
 	global_position = _target.global_position + Vector3(0.0, height_offset, 0.0)
+	_update_camera(1.0)
 
 
 func get_camera() -> Camera3D:
@@ -60,8 +73,8 @@ func set_far(v: float) -> void:
 func follow_vehicle(target: Node3D) -> void:
 	_vehicle_mode = target != null
 	_target = target if target != null else _owner_body
-	_arm.spring_length = 7.5 if _vehicle_mode else distance
-	_camera.h_offset = 0.0 if _vehicle_mode else shoulder_offset
+	_arm_length = 7.5 if _vehicle_mode else distance
+	_shoulder = 0.0 if _vehicle_mode else shoulder_offset
 	height_offset = 2.1 if _vehicle_mode else 1.55
 	if _vehicle_mode:
 		pitch = -0.28
@@ -90,4 +103,24 @@ func _process(delta: float) -> void:
 			yaw = lerp_angle(yaw, behind, 1.0 - exp(-2.5 * delta))
 			pitch = lerpf(pitch, -0.22, 1.0 - exp(-1.5 * delta))
 	rotation.y = yaw
-	_arm.rotation.x = pitch
+	_update_camera(delta)
+
+
+## Posiciona a câmera atrás do pivô; se houver parede no caminho, aproxima.
+func _update_camera(delta: float) -> void:
+	var rot := Basis.from_euler(Vector3(pitch, yaw, 0.0))
+	var pivot := global_position
+	var offset := rot * Vector3(_shoulder, 0.0, _arm_length)
+	var length := _arm_length
+	if is_inside_tree():
+		var space := get_world_3d().direct_space_state
+		_query.transform = Transform3D(Basis.IDENTITY, pivot)
+		_query.motion = offset
+		var res := space.cast_motion(_query)
+		if res.size() == 2 and res[0] < 1.0:
+			length = maxf(0.3, _arm_length * res[0] - 0.2)
+	# aproxima rápido (parede) e afasta suave
+	var k := 1.0 if length < _cur_length else 1.0 - exp(-6.0 * delta)
+	_cur_length = lerpf(_cur_length, length, k)
+	var pos := pivot + offset.normalized() * _cur_length
+	_camera.global_transform = Transform3D(rot, pos)

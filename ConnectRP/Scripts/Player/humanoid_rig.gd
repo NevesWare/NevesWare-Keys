@@ -61,6 +61,7 @@ func _ready() -> void:
 	_proc_root.name = "ProceduralBody"
 	add_child(_proc_root)
 	_build_body()
+	_merge_body()
 	_try_load_external()
 
 
@@ -76,6 +77,7 @@ func apply_look(look: Dictionary) -> void:
 		_proc_root.remove_child(c)
 		c.queue_free()
 	_build_body()
+	_merge_body()
 
 
 # ---------------------------------------------------------------- construção
@@ -154,6 +156,19 @@ func _build_body() -> void:
 			thigh_r = thigh
 			knee_r = knee
 			ankle_r = ankle
+
+
+## Junta as peças presas a cada articulação (≈40 objetos viram 13).
+func _merge_body() -> void:
+	var joints: Array[Node3D] = [_proc_root]
+	var i := 0
+	while i < joints.size():
+		for c in joints[i].get_children():
+			if c is Node3D and not (c is MeshInstance3D):
+				joints.append(c)
+		i += 1
+	for j in joints:
+		MeshMerge.merge_children(j, 2)
 
 
 func _joint(parent: Node3D, joint_name: String, pos: Vector3) -> Node3D:

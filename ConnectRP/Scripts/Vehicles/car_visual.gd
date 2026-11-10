@@ -169,6 +169,11 @@ func build(p_model: String, color: Color, taxi: bool = false, with_spot: bool = 
 			if wz < 0.0:
 				_front_pivots.append(pivot)
 
+	# junta as peças: carroceria inteira = 1 objeto, cada roda = 1 objeto
+	MeshMerge.merge_children(self)
+	for s in _spinners:
+		MeshMerge.merge_children(s)
+
 	if with_spot:
 		_spot = SpotLight3D.new()
 		_spot.position = Vector3(0, hood_y, -L * 0.5 - 0.1)

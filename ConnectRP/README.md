@@ -59,6 +59,18 @@ morro, bairros residenciais, zona rural e praia).
   A câmera volta sozinha para trás do carro quando você para de arrastar.
 - Ícones no canto superior direito: celular (mapa, garagem, salvar, configurações, volume), chat e mapa.
 
+## Jogar no navegador
+Preset **Web** incluso (sem threads, roda em qualquer hospedagem). Veja `Web/LEIA-ME.md`.
+No navegador não há multiplayer por IP; o resto funciona igual (toque no celular, teclado no PC).
+
+Otimizações feitas para a versão web (e que deixam o celular mais leve também):
+- as peças de cada quarteirão, carro e personagem são juntadas num único objeto
+  (`Scripts/Systems/mesh_merge.gd`): de ~4.200 para ~380 objetos na cena. Com mais de
+  ~1.000 objetos o renderizador web deixava de desenhar a cena;
+- a foto aérea do radar vem pronta em `Assets/Map/minimap.png` (não precisa ser gerada
+  na primeira abertura). Se mudar a cidade, gere de novo no PC com `CONNECTRP_REMAP=1`
+  e copie o PNG do `user://` para lá.
+
 ## Gerar o APK
 **Automático (sem instalar nada):** cada push que mexe em `ConnectRP/` roda o workflow
 `.github/workflows/connectrp-android.yml`. Baixe o APK em *GitHub → Actions → execução →

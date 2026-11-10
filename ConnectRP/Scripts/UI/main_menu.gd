@@ -161,7 +161,8 @@ func _build_main() -> void:
 	_btn(v, "Novo personagem", func() -> void: _show("create"), not GameState.has_save)
 	_btn(v, "Multiplayer", func() -> void: _show("multiplayer"))
 	_btn(v, "Configurações", func() -> void: _show("settings"))
-	_btn(v, "Sair", func() -> void: get_tree().quit())
+	if not OS.has_feature("web"):
+		_btn(v, "Sair", func() -> void: get_tree().quit())
 
 
 func _build_create() -> void:
@@ -273,6 +274,8 @@ func _build_multiplayer() -> void:
 	var v := _page("multiplayer")
 	var info := Ui.label("Usa o personagem salvo (ou crie um antes).\nTodos na mesma rede Wi-Fi ou hotspot.", 15, 400, Ui.TEXT_DIM)
 	v.add_child(info)
+	if OS.has_feature("web"):
+		info.text = "O multiplayer por IP não funciona no navegador.\nUse o app Android para jogar com amigos."
 	_caption(v, "IP do servidor")
 	_ip_edit = Ui.line_edit("192.168.0.10", "127.0.0.1")
 	v.add_child(_ip_edit)
@@ -337,6 +340,9 @@ func _ensure_character() -> void:
 
 
 func _host() -> void:
+	if OS.has_feature("web"):
+		_status.text = "Multiplayer indisponível na versão de navegador"
+		return
 	_ensure_character()
 	var err := Network.host(int(_port_edit.text))
 	if err != OK:
@@ -346,6 +352,9 @@ func _host() -> void:
 
 
 func _join() -> void:
+	if OS.has_feature("web"):
+		_status.text = "Multiplayer indisponível na versão de navegador"
+		return
 	_ensure_character()
 	var err := Network.join(_ip_edit.text.strip_edges(), int(_port_edit.text))
 	if err != OK:

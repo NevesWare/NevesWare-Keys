@@ -67,11 +67,15 @@ func _ready() -> void:
 
 	_spawn_player()
 	_build_points()
-	_spawn_parked_cars()
+	if not "parked" in String(GameState.cli.get("skip", "")).split(","):
+		_spawn_parked_cars()
 	traffic = TrafficManager.new()
 	add_child(traffic)
-	traffic.spawn(int(_profile["traffic"]), player)
-	_spawn_pedestrians(int(_profile["peds"]))
+	var skip := String(GameState.cli.get("skip", "")).split(",")   # teste: --skip=traffic,peds,parked
+	if not "traffic" in skip:
+		traffic.spawn(int(_profile["traffic"]), player)
+	if not "peds" in skip:
+		_spawn_pedestrians(int(_profile["peds"]))
 	_job_beam = _make_beam(Color(1.0, 0.92, 0.7, 0.28))
 	_gps_beam = _make_beam(Color(1.0, 1.0, 1.0, 0.18))
 
@@ -102,7 +106,6 @@ func _ready() -> void:
 		_welcome()
 	_capture_map()
 	_dev_cli()
-
 
 func _exit_tree() -> void:
 	GameState.playing = false
