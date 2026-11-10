@@ -1,0 +1,1 @@
+Pasta para colocar modelos reais (.glb) do personagem. Veja README.md.
