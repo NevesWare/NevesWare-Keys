@@ -72,12 +72,23 @@
       <button data-w="heal" data-act="heal" class="t-btn t-sm touch-only" aria-label="Curar">
         <svg viewBox="0 0 24 24"><path d="M10 3h4v7h7v4h-7v7h-4v-7H3v-4h7z"/></svg>
       </button>
+      <button data-w="crouch" data-act="crouch" class="t-btn t-sm touch-only" aria-label="Agachar">
+        <svg viewBox="0 0 24 24"><circle cx="13" cy="4.5" r="2.3"/><path d="M11 8h4l1.5 5H20v2.5h-5.2L13.6 12l-1.4 3.2 3 2.3V22h-2.4v-3.3l-3.4-2.4 1.8-4.6-2.2 1.2V16H6.6v-4.4z"/></svg>
+      </button>
+      <button data-w="roll" data-act="roll" class="t-btn t-sm touch-only" aria-label="Rolar">
+        <svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 019 9h-2.2A6.8 6.8 0 1012 18.8V21a9 9 0 010-18zm7.5 11.5L22.6 18H16.4z"/><circle cx="12" cy="12" r="2.6"/></svg>
+      </button>
       <button data-w="interact" data-act="interact" class="t-pill off"><span>SAQUEAR</span></button>
 
       <div id="hud-toast" class="hidden"></div>
       <div id="hud-prompt"></div>
       <div id="hud-extract" class="hidden"><div id="hud-extract-fill"></div></div>
       <div id="hud-fps"></div>
+    </div>
+
+    <div id="cine" class="hidden"><div class="cb t"></div><div class="cb b"></div>
+      <div class="cine-info"><small id="cine-kind">INSERÇÃO</small><b id="cine-dest"></b><span id="cine-eta"></span></div>
+      <button id="cine-skip">PULAR ▸▸</button>
     </div>
 
     <div id="hud-editor" class="hidden"></div>
@@ -99,7 +110,7 @@
           <button id="mm-hud" class="mm-btn">EDITAR HUD</button>
           <button id="mm-credits" class="mm-btn">CRÉDITOS</button>
         </nav>
-        <div class="mm-foot">v0.6 · protótipo</div>
+        <div class="mm-foot">v0.7 · protótipo</div>
       </div>
     </div>
 

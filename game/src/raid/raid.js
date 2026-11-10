@@ -1,8 +1,8 @@
 import * as THREE from 'three';
-import { RaidMap } from './map.js';
+import { worldMap } from './map.js';
 import { Actor, ACTOR_RADIUS, MUZZLE_HEIGHT } from './actor.js';
 import { BotBrain, ZombieBrain } from './ai.js';
-import { Helicopter } from './helicopter.js';
+import { Helicopter, CRUISE_ALT } from './helicopter.js';
 import { fillContainer, botLoadout, bodyContainer } from './loot.js';
 import { newLoadout } from '../inventory/loadout.js';
 import { Grid } from '../inventory/grid.js';
@@ -11,7 +11,16 @@ import { sfx } from '../audio.js';
 import { buildWorld, addLighting } from '../gfx/world.js';
 import { MAP_SIZE } from './map.js';
 
-export const RAID_TIME = 20 * 60;
+export const RAID_TIME = 40 * 60;
+export const HELI_SPEED = 42; // m/s cruise
+const SPAWN_R = 110, SLEEP_R = 140;
+
+let worldVisual = null; // { key, world } built once per quality tier
+
+/** Flight time (s) from a faction base to a landing zone, including descent. */
+export function flightTime(from, to) {
+  return Math.hypot(to.x - from.x, to.z - from.z) / (HELI_SPEED * 0.82) + 6;
+}
 const EXTRACT_TIME = 10;
 const INTERACT_RANGE = 1.9;
 
@@ -20,92 +29,122 @@ const INTERACT_RANGE = 1.9;
  * Emits events through callbacks so UI stays decoupled.
  */
 export class Raid {
-  constructor({ profile, seed = Math.floor(Math.random() * 1e9), callbacks, quality = {}, renderer, lz = 'centro' }) {
+  constructor({ profile, callbacks, quality = {}, renderer, lz = null }) {
     this.quality = quality;
     this.renderer = renderer;
     this.profile = profile;
     this.cb = callbacks;
     this.scene = new THREE.Scene();
-    this.map = new RaidMap(seed);
+    this.map = worldMap();
+    this.map.resetLoot();
     this.time = RAID_TIME;
-    this.state = 'insert';
+    this.state = 'flight';
     this.actors = [];
     this.bots = [];
     this.tracers = [];
     this.containers = [...this.map.containers];
     this.extractT = 0;
     this.extractZone = null;
-    this.insertT = 0;
+    this.stateT = 0;
     this.stats = { kills: 0, looted: 0, xp: 0 };
 
     this.setupScene();
 
-    // player
+    // player (hidden inside the helicopter until disembark)
     const pf = profile.faction;
     this.player = new Actor({ name: 'Você', faction: pf, loadout: profile.loadout, isPlayer: true });
     this.player.refreshGear();
-    const LZ = { norte: [64, 34], sul: [64, 98], leste: [98, 64], oeste: [30, 58] };
-    const ang = Math.random() * Math.PI * 2;
-    const rr = 26 + Math.random() * 4;
-    const [lx, lz2] = LZ[lz] ?? [64 + Math.cos(ang) * rr, 64 + Math.sin(ang) * rr];
-    const ins = this.map.freeSpot(lx + (Math.random() - 0.5) * 6, lz2 + (Math.random() - 0.5) * 6, 2);
-    this.player.pos.set(ins.x, 0, ins.z);
+    const lzs = this.map.lzs;
+    this.lz = lzs.find((l) => l.id === lz) ?? lzs[Math.floor(Math.random() * lzs.length)];
+    this.player.pos.set(this.lz.x - 2.2, 0, this.lz.z);
     this.player.mesh.visible = false;
     this.player.hidden = true;
     this.actors.push(this.player);
     this.scene.add(this.player.mesh);
 
-    // bots
-    for (const s of this.map.botSpawns) {
-      const { name, loadout } = botLoadout(s.faction);
-      const a = new Actor({ name, faction: s.faction, loadout });
-      const p = this.map.freeSpot(s.x, s.z, 0);
-      if (Math.hypot(p.x - ins.x, p.z - ins.z) < 20) continue; // no spawn-camping the insertion
-      a.pos.set(p.x, 0, p.z);
-      a.aim = Math.random() * Math.PI * 2;
-      a.refreshGear();
-      const brain = new BotBrain(a, this, { guard: s.guard, patrol: s.patrol, home: p });
-      this.actors.push(a);
-      this.bots.push(brain);
-      this.scene.add(a.mesh);
-      a.syncMesh(0);
-    }
-
-    // zombies: hordes around Ground Zero (center) plus wanderers in the woods
+    // spawns are created lazily when the player gets close (the sector is 1 km wide)
     const R = Math.random;
-    const zombie = (x, z) => {
-      const p = this.map.freeSpot(x, z, 0);
-      if (Math.hypot(p.x - ins.x, p.z - ins.z) < 18) return;
-      const a = new Actor({ name: 'Zumbi', faction: 'zombie', loadout: newLoadout(), seed: Math.floor(R() * 100) });
-      a.pos.set(p.x, 0, p.z);
-      a.aim = R() * Math.PI * 2;
-      const brain = new ZombieBrain(a, this, { home: p });
-      this.actors.push(a);
-      this.bots.push(brain);
-      this.scene.add(a.mesh);
-      a.syncMesh(0);
-    };
-    for (let h = 0; h < 7; h++) {
-      const ang = R() * Math.PI * 2, rr = 6 + R() * 18;
-      const cx = 64 + Math.cos(ang) * rr, cz = 64 + Math.sin(ang) * rr;
-      const n = 3 + Math.floor(R() * 4);
-      for (let i = 0; i < n; i++) zombie(cx + (R() - 0.5) * 5, cz + (R() - 0.5) * 5);
+    this.spawnQueue = [];
+    for (const s of this.map.botSpawns) if (R() < 0.85) this.spawnQueue.push({ ...s, kind: 'bot' });
+    for (const zs of this.map.zombieSpawns) {
+      for (let i = 0; i < zs.n; i++) this.spawnQueue.push({ x: zs.x + (R() - 0.5) * 6, z: zs.z + (R() - 0.5) * 6, kind: 'zombie' });
     }
-    for (let i = 0; i < 12; i++) zombie(12 + R() * 104, 12 + R() * 104);
+    this.spawnT = 0;
 
-    // insertion helicopter
+    // insertion: fly from the faction base to the landing zone
+    const base = this.map.outposts[pf] ?? { x: 512, z: 80 };
+    this.base = base;
     this.heli = new Helicopter(factionById(pf).color);
-    this.heli.placeAt(ins.x + 4.5, ins.z, 0);
-    this.heli.descend(3);
+    this.heli.y = CRUISE_ALT;
+    this.heli.placeAt(base.x, base.z, 0);
+    this.heli.flyTo(this.lz.x, this.lz.z, HELI_SPEED);
+    this.heli.spin = 24;
     this.scene.add(this.heli.mesh);
+    this.flightTotal = flightTime(base, this.lz);
     sfx.heli(0.15);
+  }
+
+  /** Seconds until touchdown during the insertion flight. */
+  eta() {
+    if (this.state === 'flight') return this.heli.eta() + 5;
+    if (this.state === 'landing') return Math.max(0, 5 - this.stateT);
+    return 0;
+  }
+
+  /** Skip the cinematic flight (tap). */
+  skipFlight() {
+    if (this.state !== 'flight') return;
+    this.heli.mode = 'hover';
+    this.heli.fly = null;
+    this.heli.placeAt(this.lz.x, this.lz.z, this.heli.mesh.rotation.y);
+  }
+
+  /** Where the camera looks: the helicopter during insertion, else the player. */
+  focusPoint(out) {
+    if (this.state === 'flight' || this.state === 'landing') return out.copy(this.heli.mesh.position).setY(0);
+    return out.copy(this.player.pos);
+  }
+
+  spawnNear() {
+    const p = this.player.pos;
+    for (let i = this.spawnQueue.length - 1; i >= 0; i--) {
+      const s = this.spawnQueue[i];
+      const d = Math.hypot(s.x - p.x, s.z - p.z);
+      if (d > SPAWN_R) continue;
+      this.spawnQueue.splice(i, 1);
+      if (d < (s.kind === 'zombie' ? 16 : 22)) continue; // nothing pops in right next to you
+      const pos = this.map.freeSpot(s.x, s.z, 0);
+      if (s.kind === 'zombie') {
+        const a = new Actor({ name: 'Zumbi', faction: 'zombie', loadout: newLoadout(), seed: Math.floor(Math.random() * 100) });
+        a.pos.set(pos.x, 0, pos.z);
+        a.aim = Math.random() * Math.PI * 2;
+        this.addBot(a, new ZombieBrain(a, this, { home: pos }));
+      } else {
+        const { name, loadout } = botLoadout(s.faction);
+        const a = new Actor({ name, faction: s.faction, loadout });
+        a.pos.set(pos.x, 0, pos.z);
+        a.aim = Math.random() * Math.PI * 2;
+        a.refreshGear();
+        this.addBot(a, new BotBrain(a, this, { guard: s.guard, patrol: s.patrol, home: pos }));
+      }
+    }
+  }
+
+  addBot(a, brain) {
+    this.actors.push(a);
+    this.bots.push(brain);
+    this.scene.add(a.mesh);
+    a.syncMesh(0);
   }
 
   setupScene() {
     const s = this.scene;
-    this.world = buildWorld({ vox: this.map.vox, props: this.map.props, bounds: { x0: 0, z0: 0, W: MAP_SIZE, H: MAP_SIZE }, quality: this.quality });
+    const key = `${this.quality.grass}/${this.quality.grassPatch}`;
+    if (worldVisual?.key !== key) worldVisual = { key, world: buildWorld({ map: this.map, bounds: { x0: 0, z0: 0, W: MAP_SIZE, H: MAP_SIZE }, quality: this.quality }) };
+    this.world = worldVisual.world;
     s.add(this.world.group);
     this.lighting = addLighting(s, this.renderer, { shadowSize: this.quality.shadows ?? 2048 });
+    s.fog.far = 150;
     // pooled muzzle flash lights (fixed count so shaders never recompile)
     this.flashes = [];
     for (let i = 0; i < 4; i++) {
@@ -307,19 +346,62 @@ export class Raid {
     if (this.state === 'dead' || this.state === 'extracted') return;
     const pl = this.player;
 
-    // --- insertion ---
-    if (this.state === 'insert') {
-      this.insertT += dt;
-      this.heli.update(dt);
+    // --- insertion: flight, landing, disembark ---
+    this.stateT += dt;
+    this.heli.update(dt);
+    if (this.state === 'flight') {
+      if (this.heli.mode !== 'fly') {
+        this.state = 'landing';
+        this.stateT = 0;
+        this.heli.descend(5, this.heli.y);
+        this.spawnNear();
+      }
+      if (Math.random() < dt * 6) sfx.heli(0.12);
+      return; // raid clock starts on touchdown
+    }
+    if (this.state === 'landing') {
+      if (Math.random() < dt * 6) sfx.heli(0.1);
       if (this.heli.mode === 'landed') {
+        this.state = 'disembark';
+        this.stateT = 0;
+        const d = this.heli.doorPos(new THREE.Vector3(), 1.0);
+        pl.pos.set(d.x, 0, d.z);
+        this.disembarkTo = this.heli.doorPos(new THREE.Vector3(), 3.6);
+        pl.aim = Math.atan2(this.disembarkTo.x - d.x, this.disembarkTo.z - d.z);
         pl.mesh.visible = true;
+      }
+      return;
+    }
+    if (this.state === 'disembark') {
+      const t = this.disembarkTo;
+      const dx = t.x - pl.pos.x, dz = t.z - pl.pos.z, d = Math.hypot(dx, dz);
+      if (d > 0.12 && this.stateT < 2.5) {
+        pl.vel.set((dx / d) * 2.4, (dz / d) * 2.4);
+        pl.pos.x += pl.vel.x * dt;
+        pl.pos.z += pl.vel.y * dt;
+      } else {
+        pl.vel.set(0, 0);
         pl.hidden = false;
         this.state = 'play';
-        this.heli.ascend(3);
-        this.cb.onToast?.('Inserção concluída. Boa sorte.');
+        this.heli.ascend(4, 26);
+        this.cb.onToast?.(`Inserção em ${this.lz.name}. Boa sorte.`);
       }
-    } else {
-      this.heli.update(dt);
+      pl.update(dt);
+      return;
+    }
+
+    // --- leaving on the extraction helicopter ---
+    if (this.state === 'boarding') {
+      if (this.stateT > 3.2) {
+        this.state = 'extracted';
+        this.cb.onEnd?.({ result: 'extracted', zone: this.extractZone.name, cost: this.extractZone.cost ?? 0 });
+      }
+      return;
+    }
+
+    if ((this.spawnT -= dt) <= 0) {
+      this.spawnT = 0.5;
+      this.spawnNear();
     }
 
     this.time -= dt;
@@ -332,19 +414,24 @@ export class Raid {
     // --- player ---
     if (this.state === 'play' || this.state === 'extracting') {
       if (!ctl.uiOpen) {
-        pl.aiming = !!ctl.aiming;
-        const sprint = ctl.sprint && !ctl.fire && !ctl.aiming && pl.reloadT <= 0 && pl.healT <= 0 && pl.stamina > 4 && (ctl.moveX || ctl.moveZ);
-        let sp = sprint ? 6.0 : ctl.aiming ? 2.3 : 4.0;
-        if (pl.healT > 0) sp *= 0.5;
-        pl.vel.set(ctl.moveX * sp, ctl.moveZ * sp);
+        const rolling = pl.stance(ctl, dt);
+        pl.aiming = !!ctl.aiming && !rolling;
+        const sprint = !rolling && ctl.sprint && !ctl.fire && !ctl.aiming && pl.reloadT <= 0 && pl.healT <= 0 && pl.stamina > 4 && (ctl.moveX || ctl.moveZ);
+        if (sprint) pl.crouch = false;
+        if (!rolling) {
+          let sp = sprint ? 6.0 : ctl.aiming ? 2.3 : 4.0;
+          if (pl.crouch) sp *= sprint ? 1 : 0.5;
+          if (pl.healT > 0) sp *= 0.5;
+          pl.vel.set(ctl.moveX * sp, ctl.moveZ * sp);
+          pl.aim = ctl.aim;
+        }
         this.survival(pl, dt, sprint);
         this.map.move(pl.pos, pl.vel.x, pl.vel.y, ACTOR_RADIUS, dt);
-        pl.aim = ctl.aim;
 
         if (ctl.reload && pl.startReload()) sfx.reload();
         if (ctl.heal && !pl.startHeal()) this.cb.onToast?.('Sem remédios ou vida cheia.');
         const w = pl.weaponDef;
-        if (w && !sprint) {
+        if (w && !sprint && !rolling) {
           const wants = w.auto ? ctl.fire : ctl.firePressed;
           if (wants && pl.canFire()) {
             if (pl.weapon.mag > 0) this.shoot(pl, pl.aim);
@@ -376,15 +463,21 @@ export class Raid {
         if (this.heli.mesh.visible) this.heli.ascend(2);
       } else {
         this.extractT -= dt;
-        if (this.extractT < 4 && this.heli.mode === 'idle') {
-          this.heli.placeAt(this.extractZone.x + 4.5, this.extractZone.z, 0);
-          this.heli.descend(3.8);
+        if (this.extractT < 5 && this.heli.mode === 'idle') {
+          this.heli.placeAt(this.extractZone.x + 3.2, this.extractZone.z, 0);
+          this.heli.descend(4.6);
         }
         if (Math.random() < dt * 8) sfx.heli(0.05 + 0.1 * (1 - this.extractT / EXTRACT_TIME));
-        if (this.extractT <= 0) {
-          this.state = 'extracted';
+        if (this.extractT <= 0 && this.heli.mode === 'landed') {
+          // board and lift off
+          this.state = 'boarding';
+          this.stateT = 0;
           pl.mesh.visible = false;
-          this.cb.onEnd?.({ result: 'extracted', zone: this.extractZone.name, cost: this.extractZone.cost ?? 0 });
+          pl.hidden = true;
+          this.laser.visible = this.laserDot.visible = false;
+          this.heli.ascend(3.4, 30, false);
+          sfx.heli(0.2);
+          return;
         }
       }
     }
@@ -392,7 +485,7 @@ export class Raid {
     pl.update(dt);
 
     // aim laser
-    const showLaser = !!ctl.aiming && !!pl.weapon && pl.alive && this.state !== 'insert';
+    const showLaser = !!ctl.aiming && !!pl.weapon && pl.alive;
     this.laser.visible = this.laserDot.visible = showLaser;
     if (showLaser) {
       const h = this.aimHit(pl.aim, pl.weaponDef.range);
@@ -404,8 +497,14 @@ export class Raid {
 
     // --- bots ---
     for (const b of this.bots) {
+      const dx = Math.abs(b.a.pos.x - pl.pos.x), dz = Math.abs(b.a.pos.z - pl.pos.z);
+      if (dx > SLEEP_R || dz > SLEEP_R) {
+        // asleep: far from the player, frozen and hidden
+        b.a.mesh.visible = false;
+        continue;
+      }
       b.update(dt);
-      const far = Math.abs(b.a.pos.x - pl.pos.x) > 34 || Math.abs(b.a.pos.z - pl.pos.z) > 34;
+      const far = dx > 48 || dz > 48;
       b.a.mesh.visible = !far;
       b.a.update(dt, !far);
     }
@@ -471,6 +570,7 @@ export class Raid {
   }
 
   dispose() {
+    this.scene.remove(this.world.group); // the world is cached for the next raid
     this.scene.traverse((o) => {
       if (o.geometry && o.geometry.type !== 'BoxGeometry') o.geometry.dispose();
     });

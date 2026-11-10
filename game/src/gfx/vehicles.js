@@ -9,7 +9,7 @@ import { concreteTexture, plankTexture } from './textures.js';
 const cache = {};
 function paintTex(base) {
   if (cache[`p${base}`]) return cache[`p${base}`];
-  const S = 256;
+  const S = 512;
   const c = document.createElement('canvas');
   c.width = c.height = S;
   const g = c.getContext('2d');
@@ -17,21 +17,65 @@ function paintTex(base) {
   g.fillRect(0, 0, S, S);
   let s = 11;
   const r = () => ((s = (s * 16807) % 2147483647) / 2147483647);
-  for (let i = 0; i < 900; i++) {
-    const x = r() * S, y = r() * S, rr = 1 + r() * 10;
-    g.fillStyle = r() < 0.6 ? `rgba(40,32,20,${0.05 + r() * 0.12})` : `rgba(200,190,160,${0.03 + r() * 0.06})`;
+  // fine matte paint grain
+  const img = g.getImageData(0, 0, S, S);
+  for (let i = 0; i < img.data.length; i += 4) {
+    const n = (r() - 0.5) * 14;
+    img.data[i] += n;
+    img.data[i + 1] += n;
+    img.data[i + 2] += n;
+  }
+  g.putImageData(img, 0, 0);
+  // soft tonal variation (faded patches)
+  for (let i = 0; i < 40; i++) {
+    const x = r() * S, y = r() * S, rr = 30 + r() * 90;
+    const gr = g.createRadialGradient(x, y, 0, x, y, rr);
+    const light = r() < 0.5;
+    gr.addColorStop(0, light ? 'rgba(210,200,170,0.07)' : 'rgba(20,18,12,0.07)');
+    gr.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = gr;
+    g.fillRect(x - rr, y - rr, rr * 2, rr * 2);
+  }
+  // dust and mud toward the bottom of each panel
+  const dust = g.createLinearGradient(0, S * 0.55, 0, S);
+  dust.addColorStop(0, 'rgba(120,98,66,0)');
+  dust.addColorStop(1, 'rgba(120,98,66,0.42)');
+  g.fillStyle = dust;
+  g.fillRect(0, 0, S, S);
+  for (let i = 0; i < 260; i++) {
+    g.fillStyle = `rgba(96,76,50,${0.08 + r() * 0.2})`;
     g.beginPath();
-    g.arc(x, y, rr, 0, 7);
+    g.arc(r() * S, S * (0.75 + r() * 0.25), 1 + r() * 4, 0, 7);
     g.fill();
   }
-  // grime streaks from top
-  for (let i = 0; i < 60; i++) {
-    g.fillStyle = `rgba(30,25,18,${0.05 + r() * 0.08})`;
-    g.fillRect(r() * S, 0, 1 + r() * 3, r() * S);
+  // rain streaks
+  for (let i = 0; i < 50; i++) {
+    g.fillStyle = `rgba(28,24,16,${0.04 + r() * 0.06})`;
+    g.fillRect(r() * S, r() * S * 0.4, 1 + r() * 2, 40 + r() * 160);
+  }
+  // panel seams, rivets, chipped edges
+  g.strokeStyle = 'rgba(16,14,10,0.45)';
+  g.lineWidth = 2;
+  g.strokeRect(6, 6, S - 12, S - 12);
+  g.beginPath();
+  g.moveTo(S * 0.5 + 0.5, 6);
+  g.lineTo(S * 0.5 + 0.5, S - 6);
+  g.stroke();
+  g.fillStyle = 'rgba(220,214,196,0.22)';
+  for (let x = 16; x < S; x += 26) {
+    g.fillRect(x, 14, 2, 2);
+    g.fillRect(x, S - 16, 2, 2);
+  }
+  for (let i = 0; i < 70; i++) {
+    const e = Math.floor(r() * 4), t = r() * S;
+    const [x, y] = e === 0 ? [t, 6 + r() * 5] : e === 1 ? [t, S - 10 - r() * 5] : e === 2 ? [6 + r() * 5, t] : [S - 10 - r() * 5, t];
+    g.fillStyle = `rgba(150,140,120,${0.25 + r() * 0.3})`;
+    g.fillRect(x, y, 1 + r() * 4, 1 + r() * 3);
   }
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.anisotropy = 4;
   return (cache[`p${base}`] = t);
 }
 
@@ -43,9 +87,27 @@ const olive = (c = '#4b5236') => M(`ol${c}`, () => new THREE.MeshStandardMateria
 const canvasMat = () => M('canvas', () => new THREE.MeshStandardMaterial({ map: paintTex('#4e5338'), roughness: 0.95 }));
 const tire = () => M('tire', () => new THREE.MeshStandardMaterial({ color: '#161616', roughness: 0.9 }));
 const rim = () => M('rim', () => new THREE.MeshStandardMaterial({ color: '#2e3128', roughness: 0.6, metalness: 0.5 }));
-const glass = () => M('glass', () => new THREE.MeshStandardMaterial({ color: '#141c22', roughness: 0.05, metalness: 0.6 }));
+const glass = () => M('glass', () => new THREE.MeshPhysicalMaterial({ color: '#18242a', roughness: 0.04, metalness: 0.1, clearcoat: 1, clearcoatRoughness: 0.03, envMapIntensity: 1.6 }));
 const steel = () => M('steel', () => new THREE.MeshStandardMaterial({ color: '#2b2d2f', roughness: 0.5, metalness: 0.7 }));
-const lamp = () => M('lamp', () => new THREE.MeshStandardMaterial({ color: '#f2e6b8', emissive: '#3a3218', roughness: 0.2 }));
+const lamp = () => M('lamp', () => new THREE.MeshPhysicalMaterial({ color: '#f6eed0', emissive: '#6a5a30', roughness: 0.1, clearcoat: 1 }));
+const redLamp = () => M('redlamp', () => new THREE.MeshStandardMaterial({ color: '#7a1410', emissive: '#3a0604', roughness: 0.25 }));
+const rubber = () => M('rubber', () => new THREE.MeshStandardMaterial({ color: '#1e1f1c', roughness: 0.85 }));
+
+/** Common bolt-ons: mirrors, jerrycans, antenna, exhaust. */
+function kit(g, { w, cabZ, cabY, P, rear = -2, antennaZ = -1 }) {
+  for (const s of [-1, 1]) {
+    g.add(box(0.04, 0.04, 0.35, steel(), s * (w / 2 + 0.18), cabY, cabZ, 0));
+    g.add(box(0.06, 0.32, 0.2, steel(), s * (w / 2 + 0.34), cabY + 0.05, cabZ + 0.1, 0.02));
+    g.add(box(0.012, 0.26, 0.16, glass(), s * (w / 2 + 0.375), cabY + 0.05, cabZ + 0.1, 0));
+  }
+  const can = M('jerry', () => new THREE.MeshStandardMaterial({ map: paintTex('#3e4a2a'), roughness: 0.6, metalness: 0.3 }));
+  for (const s of [-0.3, 0.3]) g.add(box(0.16, 0.48, 0.36, can, s, cabY - 0.3, rear, 0.03));
+  const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.015, 2.4, 5), rubber());
+  ant.position.set(w / 2 - 0.15, cabY + 1.6, antennaZ);
+  ant.rotation.x = -0.12;
+  g.add(ant);
+  void P;
+}
 
 function box(w, h, d, m, x, y, z, r = 0.06) {
   const mesh = new THREE.Mesh(r ? new RoundedBoxGeometry(w, h, d, 2, Math.min(r, w / 2.1, h / 2.1, d / 2.1)) : new THREE.BoxGeometry(w, h, d), m);
@@ -101,6 +163,18 @@ export function truck() {
   for (let i = 0; i < 5; i++) g.add(box(2.56, 0.06, 0.06, canvasMat(), 0, 2.72, -3.2 + i * 1.0, 0.02));
   for (const z of [3.2, -0.6, -2.4]) for (const x of [-1.12, 1.12]) g.add(wheel(0.58, 0.42, x, 0.58, z));
   g.add(box(0.5, 0.5, 0.9, steel(), 1.15, 1.05, 1.3, 0.05)); // fuel tank
+  // fenders, exhaust stack, spare wheel, tail lights, cab roof
+  for (const x of [-1.12, 1.12]) g.add(box(0.5, 0.08, 1.4, P, x, 1.3, 3.2, 0.03));
+  const ex = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 1.6, 10), steel());
+  ex.position.set(-1.25, 2.3, 1.75);
+  g.add(ex);
+  const spare = wheel(0.55, 0.36, 0, 0, 0);
+  spare.rotation.y = Math.PI / 2;
+  spare.position.set(1.2, 1.35, -0.1);
+  g.add(spare);
+  for (const x of [-1.05, 1.05]) g.add(box(0.2, 0.12, 0.04, redLamp(), x, 1.2, -3.48, 0.02));
+  g.add(box(2.3, 0.12, 1.8, P, 0, 2.7, 2.6, 0.05));
+  kit(g, { w: 2.4, cabZ: 3.3, cabY: 2.25, P, rear: 1.55, antennaZ: 2.0 });
   return finish(g);
 }
 
@@ -124,6 +198,12 @@ export function humvee() {
   g.add(gun, box(0.22, 0.2, 0.45, steel(), 0, 2.6, -0.2, 0.03));
   for (const z of [1.45, -1.45]) for (const x of [-1.0, 1.0]) g.add(wheel(0.48, 0.38, x, 0.48, z));
   g.add(box(1.0, 0.5, 0.4, P, 0, 1.25, -2.45, 0.05)); // rear rack
+  // flared fenders, bull bar, tail lights, door seams
+  for (const z of [1.45, -1.45]) for (const x of [-1.02, 1.02]) g.add(box(0.36, 0.1, 1.15, P, x, 1.02, z, 0.04));
+  g.add(box(1.9, 0.08, 0.08, steel(), 0, 0.85, 2.5, 0.02), box(0.08, 0.5, 0.08, steel(), -0.7, 1.05, 2.5, 0.02), box(0.08, 0.5, 0.08, steel(), 0.7, 1.05, 2.5, 0.02));
+  for (const x of [-0.9, 0.9]) g.add(box(0.16, 0.1, 0.04, redLamp(), x, 1.3, -2.36, 0.02));
+  for (const z of [-0.2, -1.1]) for (const x of [-1.1, 1.1]) g.add(box(0.02, 0.6, 0.02, rubber(), x, 1.35, z + 0.42, 0));
+  kit(g, { w: 2.2, cabZ: 0.5, cabY: 1.85, P, rear: -2.75, antennaZ: -1.6 });
   return finish(g);
 }
 

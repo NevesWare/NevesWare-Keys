@@ -48,12 +48,13 @@ export function withFade(mat) {
 }
 
 // ------------------------------------------------------------------ ground
-function buildMask(vox, x0, z0, W, H) {
+function buildMask(map, x0, z0, W, H) {
+  const vox = map.vox;
   const data = new Uint8Array(W * H * 4);
   for (let z = 0; z < H; z++)
     for (let x = 0; x < W; x++) {
-      const g = vox.get(x0 + x, -1, z0 + z) ?? 'grass';
-      const b = vox.get(x0 + x, 0, z0 + z);
+      const g = map.groundAt(x0 + x, z0 + z);
+      const b = map.isSolid(x0 + x, z0 + z) ? vox.get(x0 + x, 0, z0 + z) : null;
       const i = (z * W + x) * 4;
       let r = 0, gg = 0, bl = 0, a = 255;
       if (g === 'road' || g === 'dirt') r = 255;
@@ -193,24 +194,49 @@ function crateParts(tier) {
 }
 
 export function carModel(v = 0) {
+  // abandoned civilian sedan: body, sloped hood/trunk, glass cabin with pillars
   const paints = ['#6a3326', '#3d4f63', '#6b7058', '#8a8478'];
-  const body = new THREE.MeshStandardMaterial({ map: rustTexture(paints[v % 4]), roughness: 0.7, metalness: 0.35 });
-  const dark = new THREE.MeshStandardMaterial({ color: '#1a1a1a', roughness: 0.8 });
-  const glass = new THREE.MeshStandardMaterial({ color: '#1c262c', roughness: 0.08, metalness: 0.4 });
-  const chrome = new THREE.MeshStandardMaterial({ color: '#9a9a96', roughness: 0.35, metalness: 0.9 });
+  const body = new THREE.MeshPhysicalMaterial({ map: rustTexture(paints[v % 4]), roughness: 0.62, metalness: 0.3, clearcoat: 0.35, clearcoatRoughness: 0.5 });
+  const dark = new THREE.MeshStandardMaterial({ color: '#161616', roughness: 0.85 });
+  const glass = new THREE.MeshPhysicalMaterial({ color: '#1c262c', roughness: 0.05, metalness: 0.1, clearcoat: 1, clearcoatRoughness: 0.04, envMapIntensity: 1.5 });
+  const chrome = new THREE.MeshStandardMaterial({ color: '#a9a9a4', roughness: 0.28, metalness: 0.95 });
+  const rimM = new THREE.MeshStandardMaterial({ color: '#7d7f80', roughness: 0.35, metalness: 0.85 });
+  const red = new THREE.MeshStandardMaterial({ color: '#7a1612', emissive: '#2a0402', roughness: 0.3 });
+  const head = new THREE.MeshPhysicalMaterial({ color: '#eae4cc', roughness: 0.1, clearcoat: 1 });
   const g = new THREE.Group();
-  g.add(new THREE.Mesh(new RoundedBoxGeometry(1.8, 0.7, 4.3, 3, 0.15), body).translateY(0.62));
-  g.add(new THREE.Mesh(new RoundedBoxGeometry(1.62, 0.62, 2.2, 3, 0.18), glass).translateY(1.22).translateZ(-0.25));
-  g.add(new THREE.Mesh(new RoundedBoxGeometry(1.66, 0.08, 2.0, 2, 0.04), body).translateY(1.53).translateZ(-0.3));
-  for (const [x, z] of [[-0.86, 1.35], [0.86, 1.35], [-0.86, -1.35], [0.86, -1.35]]) {
-    const w = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.36, 0.26, 18), dark);
-    w.rotation.z = Math.PI / 2;
-    w.position.set(x, 0.36, z);
-    g.add(w);
+  const add = (m, x, y, z, rx = 0) => {
+    m.position.set(x, y, z);
+    m.rotation.x = rx;
+    g.add(m);
+    return m;
+  };
+  add(new THREE.Mesh(new RoundedBoxGeometry(1.8, 0.55, 4.4, 4, 0.2), body), 0, 0.62, 0);
+  add(new THREE.Mesh(new RoundedBoxGeometry(1.76, 0.16, 1.25, 3, 0.07), body), 0, 0.92, 1.45, 0.07); // hood
+  add(new THREE.Mesh(new RoundedBoxGeometry(1.76, 0.16, 0.95, 3, 0.07), body), 0, 0.94, -1.65, -0.05); // trunk
+  // cabin: glass box + roof + pillars
+  add(new THREE.Mesh(new RoundedBoxGeometry(1.6, 0.56, 2.05, 3, 0.16), glass), 0, 1.18, -0.2);
+  add(new THREE.Mesh(new RoundedBoxGeometry(1.64, 0.07, 1.55, 2, 0.03), body), 0, 1.47, -0.25);
+  for (const x of [-0.79, 0.79]) {
+    add(new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.6, 0.08), body), x, 1.18, 0.78, -0.55);
+    add(new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.55, 0.08), body), x, 1.18, -0.2);
+    add(new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.6, 0.08), body), x, 1.18, -1.15, 0.5);
+    add(new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.16), body), x * 1.12, 1.02, 0.62); // mirror
+    add(new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.02, 1.9), dark), x * 1.14, 0.7, -0.1); // door line / trim
   }
-  g.add(new THREE.Mesh(new THREE.BoxGeometry(1.84, 0.16, 0.14), chrome).translateY(0.42).translateZ(2.17));
-  g.add(new THREE.Mesh(new THREE.BoxGeometry(1.84, 0.16, 0.14), chrome).translateY(0.42).translateZ(-2.17));
-  for (const x of [-0.6, 0.6]) g.add(new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.12, 0.04), new THREE.MeshStandardMaterial({ color: '#e8e0b0', emissive: '#000000', roughness: 0.2 })).translateX(x).translateY(0.72).translateZ(2.16));
+  for (const [x, z] of [[-0.86, 1.35], [0.86, 1.35], [-0.86, -1.35], [0.86, -1.35]]) {
+    const w = add(new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.24, 22), dark), x, 0.34, z);
+    w.rotation.z = Math.PI / 2;
+    const r = add(new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.25, 14), rimM), x, 0.34, z);
+    r.rotation.z = Math.PI / 2;
+  }
+  add(new THREE.Mesh(new RoundedBoxGeometry(1.84, 0.16, 0.14, 2, 0.05), chrome), 0, 0.42, 2.2);
+  add(new THREE.Mesh(new RoundedBoxGeometry(1.84, 0.16, 0.14, 2, 0.05), chrome), 0, 0.42, -2.2);
+  add(new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.18, 0.04), dark), 0, 0.68, 2.2); // grille
+  add(new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.12, 0.04), new THREE.MeshStandardMaterial({ color: '#d8d4c4', roughness: 0.5 })), 0, 0.55, -2.22); // plate
+  for (const x of [-0.62, 0.62]) {
+    add(new THREE.Mesh(new RoundedBoxGeometry(0.34, 0.13, 0.05, 2, 0.02), head), x, 0.74, 2.2);
+    add(new THREE.Mesh(new RoundedBoxGeometry(0.3, 0.12, 0.05, 2, 0.02), red), x, 0.76, -2.2);
+  }
   g.traverse((o) => {
     if (o.isMesh) {
       o.castShadow = true;
@@ -234,11 +260,13 @@ function wallMaterial(name) {
  * Builds the visual world from map data.
  * @returns { group, mask, update(dt, camera, focus, playerWorld) }
  */
-export function buildWorld({ vox, props, bounds, quality }) {
+export function buildWorld({ map, bounds, quality }) {
+  const { vox, props } = map;
   const { x0, z0, W, H } = bounds;
-  const group = new THREE.Group();
-  const mask = buildMask(vox, x0, z0, W, H);
-  group.add(buildGround(mask, x0, z0, W, H));
+  const root = new THREE.Group();
+  const group = new THREE.Group(); // everything that is split into streaming regions
+  const mask = buildMask(map, x0, z0, W, H);
+  root.add(buildGround(mask, x0, z0, W, H));
 
   // walls: textured instanced boxes per material
   const walls = new Map();
@@ -295,14 +323,52 @@ export function buildWorld({ vox, props, bounds, quality }) {
   const grass = quality.grass > 0
     ? createGrass({ count: Math.round(quality.grass), patch: quality.grassPatch, mask, mapSize: new THREE.Vector2(W, H), mapOrigin: new THREE.Vector2(x0, z0) })
     : null;
-  if (grass) group.add(grass.mesh);
+  if (grass) root.add(grass.mesh);
+
+  // split props into square regions; only regions near the focus are drawn
+  const RS = 64, RN = Math.ceil(Math.max(W, H) / RS);
+  const regions = [];
+  const regionOf = (x, z) => {
+    const i = Math.min(RN - 1, Math.max(0, Math.floor((x - x0) / RS))), j = Math.min(RN - 1, Math.max(0, Math.floor((z - z0) / RS)));
+    const k = j * RN + i;
+    if (!regions[k]) {
+      const g = new THREE.Group();
+      g.userData.cx = x0 + (i + 0.5) * RS;
+      g.userData.cz = z0 + (j + 0.5) * RS;
+      regions[k] = g;
+      root.add(g);
+    }
+    return regions[k];
+  };
+  const pending = [];
+  group.traverse((o) => {
+    if (o === group) return;
+    if (o.isInstancedMesh) {
+      if (!o.boundingSphere) o.computeBoundingSphere();
+      pending.push([o, o.boundingSphere.center.x, o.boundingSphere.center.z]);
+    } else if (o.parent === group) {
+      let inst = false;
+      o.traverse((c) => (inst ||= !!c.isInstancedMesh));
+      if (!inst) pending.push([o, o.position.x, o.position.z]);
+    }
+  });
+  for (const [o, x, z] of pending) regionOf(x, z).add(o);
+  const regionList = regions.filter(Boolean);
+  let cullT = 0;
+  const VIS = Math.max(110, (quality.viewDist ?? 140));
 
   const v = new THREE.Vector3();
   return {
-    group,
+    group: root,
     mask,
+    regions: regionList,
     update(dt, camera, focus, playerWorld, viewport) {
       shared.time.value += dt;
+      if ((cullT -= dt) <= 0) {
+        cullT = 0.25;
+        const h = RS * 0.71 + VIS;
+        for (const r of regionList) r.visible = Math.hypot(r.userData.cx - focus.x, r.userData.cz - focus.z) < h;
+      }
       grass?.update(focus);
       if (playerWorld) {
         v.copy(playerWorld).setY(1.0).project(camera);

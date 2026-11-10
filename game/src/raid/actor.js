@@ -3,6 +3,7 @@ import { ITEMS, ammoIdFor } from '../data/items.js';
 import { CharacterRig } from '../gfx/characters.js';
 import { activeWeapon, countItem, takeItem, storages } from '../inventory/loadout.js';
 
+export const ROLL_TIME = 0.72;
 export const ACTOR_RADIUS = 0.32;
 export const MUZZLE_HEIGHT = 1.35;
 
@@ -33,6 +34,10 @@ export class Actor {
     this.stamina = 100;
     this.bleeding = false;
     this.boostT = 0;
+    this.crouch = false;
+    this.rollT = 0;
+    this.rollCd = 0;
+    this.rollDir = 0;
     if (faction === 'zombie') this.health = this.maxHealth = 70;
     this.cooldown = 0;
     this.reloadT = 0;
@@ -206,6 +211,28 @@ export class Actor {
     this.syncMesh(dt);
   }
 
+  /** Crouch toggle + dodge roll. Returns true while rolling (movement is overridden). */
+  stance(ctl, dt) {
+    if (ctl.crouchPressed && this.rollT <= 0) this.crouch = !this.crouch;
+    this.rollCd = Math.max(0, this.rollCd - dt);
+    if (ctl.rollPressed && this.rollT <= 0 && this.rollCd <= 0 && this.stamina >= 15 && this.reloadT <= 0 && this.healT <= 0) {
+      const mv = Math.hypot(ctl.moveX ?? 0, ctl.moveZ ?? 0);
+      this.rollDir = mv > 0.2 ? Math.atan2(ctl.moveX, ctl.moveZ) : this.aim;
+      this.rollT = ROLL_TIME;
+      this.rollCd = 0.9;
+      this.stamina -= 15;
+      this.crouch = false;
+    }
+    if (this.rollT > 0) {
+      this.rollT = Math.max(0, this.rollT - dt);
+      const v = 6.4 * (0.35 + 0.65 * Math.min(1, this.rollT / 0.3));
+      this.vel.set(Math.sin(this.rollDir) * v, Math.cos(this.rollDir) * v);
+      this.aim = this.rollDir;
+      return true;
+    }
+    return false;
+  }
+
   syncMesh(dt) {
     if (this.alive) {
       this.mesh.position.set(this.pos.x, 0, this.pos.z);
@@ -224,6 +251,8 @@ export class Actor {
       reloading: this.reloadT > 0,
       healing: this.healT > 0,
       backwards,
+      crouch: this.crouch,
+      rolling: this.rollT > 0,
     });
   }
 }

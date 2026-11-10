@@ -94,7 +94,17 @@ function computeGearOffsets() {
       ['DEF-shinR', 'knee', new THREE.Vector3(0, 0.0, 0.07)],
       ['DEF-thighR', 'holster', new THREE.Vector3(0.11, -0.12, 0.0)],
       ['DEF-spine001', 'belt', new THREE.Vector3(0, 0.02, 0)],
-    ].map(([bone, kind, off]) => {
+      ['DEF-head', 'earcup', new THREE.Vector3(0.112, 0.08, 0.0)],
+      ['DEF-head', 'earcup', new THREE.Vector3(-0.112, 0.08, 0.0)],
+      ['DEF-head', 'band', new THREE.Vector3(0, 0.2, 0.0)],
+      ['DEF-upper_armL', 'patch', new THREE.Vector3(0.062, -0.09, 0.0)],
+      ['DEF-upper_armR', 'patch', new THREE.Vector3(-0.062, -0.09, 0.0)],
+      ['DEF-forearmL', 'elbow', new THREE.Vector3(0, 0.0, -0.045)],
+      ['DEF-forearmR', 'elbow', new THREE.Vector3(0, 0.0, -0.045)],
+      ['DEF-spine001', 'dump', new THREE.Vector3(0.06, -0.03, -0.14)],
+      ['DEF-thighL', 'thighbag', new THREE.Vector3(0.1, -0.16, 0.0)],
+      ['DEF-spine001', 'radio', new THREE.Vector3(-0.15, 0.02, -0.07)],
+    ].filter(([bone]) => idle(bone)).map(([bone, kind, off]) => {
       const b = idle(bone);
       return { bone, kind, m: local(b, wp(b).add(off), 0, 1) };
     }),
@@ -113,11 +123,18 @@ function wearMesh(kind, mats) {
       case 'holster': return new RoundedBoxGeometry(0.06, 0.2, 0.13, 2, 0.02);
       case 'belt': return new THREE.CylinderGeometry(0.17, 0.17, 0.06, 18).scale(1, 1, 0.78);
       case 'cap': return new THREE.SphereGeometry(0.125, 18, 10, 0, Math.PI * 2, 0, Math.PI * 0.5);
+      case 'earcup': return new THREE.CylinderGeometry(0.045, 0.048, 0.035, 16).rotateZ(Math.PI / 2);
+      case 'band': return new THREE.TorusGeometry(0.112, 0.008, 6, 20, Math.PI).rotateY(Math.PI / 2);
+      case 'patch': return new RoundedBoxGeometry(0.012, 0.07, 0.06, 1, 0.004);
+      case 'elbow': return new RoundedBoxGeometry(0.09, 0.09, 0.045, 2, 0.02);
+      case 'dump': return new RoundedBoxGeometry(0.15, 0.13, 0.08, 2, 0.03);
+      case 'thighbag': return new RoundedBoxGeometry(0.05, 0.16, 0.13, 2, 0.02);
+      case 'radio': return new RoundedBoxGeometry(0.06, 0.14, 0.07, 2, 0.015);
       case 'brim': return new RoundedBoxGeometry(0.18, 0.015, 0.09, 1, 0.006);
       default: return new THREE.BoxGeometry(0.05, 0.05, 0.05);
     }
   })());
-  const m = new THREE.Mesh(g, kind === 'goggles' ? mats.glass : kind === 'boot' ? mats.boot : mats.kit);
+  const m = new THREE.Mesh(g, kind === 'goggles' ? mats.glass : kind === 'boot' ? mats.boot : kind === 'patch' ? mats.patch : kind === 'earcup' || kind === 'band' || kind === 'radio' ? mats.hard : mats.kit);
   m.castShadow = true;
   return m;
 }
@@ -196,7 +213,9 @@ export class CharacterRig {
       const mats = {
         kit: new THREE.MeshStandardMaterial({ color: dark, roughness: 0.9 }),
         boot: new THREE.MeshStandardMaterial({ color: '#1a1714', roughness: 0.7 }),
-        glass: new THREE.MeshStandardMaterial({ color: '#0e1418', roughness: 0.08, metalness: 0.6 }),
+        glass: new THREE.MeshPhysicalMaterial({ color: '#0e1418', roughness: 0.04, metalness: 0.2, clearcoat: 1 }),
+        hard: new THREE.MeshStandardMaterial({ color: '#232522', roughness: 0.45, metalness: 0.2 }),
+        patch: new THREE.MeshStandardMaterial({ color: { bears: '#b8402f', eagle: '#3f7ec8', cult: '#d8cba6', scav: '#6a5a40' }[faction] ?? '#555', roughness: 0.8 }),
       };
       this.wear = [];
       for (const w of assets.offsets.wear) {
@@ -352,7 +371,24 @@ export class CharacterRig {
     if (!this.dead) {
       const moving = s.speed > 0.25;
       const ts = s.backwards ? -1 : 1;
-      if (s.sprint && moving) {
+      if (s.rolling) {
+        if (this.names.lower !== 'Roll' && assets.clips.Roll) {
+          const k = assets.clips.Roll.full.duration / 0.72;
+          this.play('lower', 'Roll', 0.06, { once: true, timeScale: k });
+          this.play('upper', 'Roll', 0.06, { once: true, timeScale: k });
+          this.oneShot = null;
+        }
+      } else if (s.crouch) {
+        this.play('lower', moving ? 'Crouch_Fwd_Loop' : 'Crouch_Idle_Loop', 0.2, { timeScale: moving ? ts * Math.max(0.7, s.speed / 1.6) : 1 });
+        if (this.oneShot != null) {
+          this.oneShot -= dt;
+          if (this.oneShot <= 0) this.oneShot = null;
+        } else if (s.reloading) this.play('upper', 'Pistol_Reload', 0.15);
+        else if (s.healing) this.play('upper', 'Interact', 0.2);
+        else if (s.armed && s.aiming) this.play('upper', 'Pistol_Aim_Neutral', 0.12);
+        else if (s.armed) this.play('upper', 'Pistol_Idle_Loop', 0.2);
+        else this.play('upper', moving ? 'Crouch_Fwd_Loop' : 'Crouch_Idle_Loop', 0.2);
+      } else if (s.sprint && moving) {
         this.play('lower', 'Sprint_Loop', 0.2, { timeScale: ts });
         if (!this.oneShot) this.play('upper', 'Sprint_Loop', 0.2);
       } else {

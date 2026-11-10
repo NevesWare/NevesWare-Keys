@@ -1,5 +1,6 @@
 import { FACTIONS, factionById } from '../data/factions.js';
 import { sfx } from '../audio.js';
+import { toApp, rectToApp } from './viewport.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -137,4 +138,72 @@ export function lzPicker(profile, onPick) {
     onPick(b.dataset.lz);
   }));
   c.querySelector('[data-n]').onclick = () => c.classList.add('hidden');
+}
+
+/**
+ * Helipad insertion map: the whole sector with rival main bases, common bases
+ * (landing zones) and places. Pick a landing zone, see flight time, board.
+ * opts: { map, faction, drawMap(selected) -> canvas, flightTime(lz) -> s, onPick(lz), onCancel() }
+ */
+export function insertionMap({ map, faction, drawMap, flightTime, onPick, onCancel }) {
+  const el = document.getElementById('insert-map') ?? document.createElement('div');
+  el.id = 'insert-map';
+  el.className = 'screen glass-screen';
+  document.getElementById('app').appendChild(el);
+  const f = factionById(faction);
+  const risk = (r) => (r === 'ALTO' ? 'hi' : r === 'BAIXO' ? 'lo' : 'md');
+  const fmt = (t) => `${Math.floor(t / 60)}:${String(Math.round(t % 60)).padStart(2, '0')}`;
+  let sel = map.lzs[0];
+  el.innerHTML = `<div class="im-wrap">
+    <div class="im-map"><div class="im-canvas"></div>
+      <div class="im-legend"><span><i class="lg-own" style="background:${f.color}"></i>Sua base</span><span><i class="lg-rival"></i>Base rival</span><span><i class="lg-lz">H</i>Base comum / pouso</span></div>
+    </div>
+    <div class="im-side">
+      <div class="im-head"><small>HELIPONTO · ${f.name.toUpperCase()}</small><h2>MAPA DE INSERÇÃO</h2></div>
+      <div class="im-list">${map.lzs.map((l) => `<button class="im-opt" data-lz="${l.id}"><b>${l.name}</b><em class="risk-${risk(l.risk)}">${l.risk}</em><span>${fmt(flightTime(l))}</span></button>`).join('')}</div>
+      <div class="im-sel"><div><small>DESTINO</small><b id="im-dest"></b></div><div><small>TEMPO DE VOO</small><b id="im-eta"></b></div></div>
+      <div class="im-btns"><button class="mm-btn" data-n>CANCELAR</button><button class="mm-btn primary" data-y>EMBARCAR</button></div>
+    </div></div>`;
+  const holder = el.querySelector('.im-canvas');
+  const draw = () => {
+    holder.innerHTML = '';
+    const c = drawMap(sel);
+    holder.appendChild(c);
+    c.onclick = (e) => {
+      const r = rectToApp(c.getBoundingClientRect());
+      const p = toApp(e.clientX, e.clientY);
+      const x = ((p.x - r.left) / r.width) * map.W, z = ((p.y - r.top) / r.height) * map.H;
+      let best = null, bd = 90;
+      for (const l of map.lzs) {
+        const d = Math.hypot(l.x - x, l.z - z);
+        if (d < bd) {
+          bd = d;
+          best = l;
+        }
+      }
+      if (best) select(best);
+    };
+    el.querySelectorAll('.im-opt').forEach((b) => b.classList.toggle('on', b.dataset.lz === sel.id));
+    el.querySelector('#im-dest').textContent = sel.name;
+    el.querySelector('#im-eta').textContent = fmt(flightTime(sel));
+  };
+  const select = (l) => {
+    sel = l;
+    sfx.click?.();
+    draw();
+    el.querySelector(`.im-opt[data-lz="${l.id}"]`)?.scrollIntoView({ block: 'nearest' });
+  };
+  el.querySelectorAll('.im-opt').forEach((b) => (b.onclick = () => select(map.lzs.find((l) => l.id === b.dataset.lz))));
+  const close = () => el.classList.add('hidden');
+  el.querySelector('[data-n]').onclick = () => {
+    close();
+    onCancel?.();
+  };
+  el.querySelector('[data-y]').onclick = () => {
+    sfx.coin();
+    close();
+    onPick(sel);
+  };
+  draw();
+  el.classList.remove('hidden');
 }

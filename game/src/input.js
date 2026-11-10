@@ -11,12 +11,14 @@ const KEYMAP = {
   KeyH: 'heal',
   Digit1: 'hb1', Digit2: 'hb2', Digit3: 'hb3', Digit4: 'hb4', Digit5: 'hb5', Digit6: 'hb6',
   KeyX: 'swap',
+  KeyC: 'crouch', ControlLeft: 'crouch',
+  Space: 'roll',
   KeyM: 'map',
   Tab: 'inventory', KeyI: 'inventory',
   Escape: 'escape',
 };
 
-const PAD_BUTTONS = { 0: 'interact', 2: 'reload', 3: 'heal', 4: 'rotL', 5: 'rotR', 8: 'inventory', 7: 'fire', 10: 'sprint' };
+const PAD_BUTTONS = { 1: 'roll', 11: 'crouch', 0: 'interact', 2: 'reload', 3: 'heal', 4: 'rotL', 5: 'rotR', 8: 'inventory', 7: 'fire', 10: 'sprint' };
 
 export class Input {
   constructor(canvas) {

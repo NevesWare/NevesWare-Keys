@@ -20,12 +20,14 @@ export const DEFAULT_LAYOUT = {
   swap: { x: 78, y: 58, s: 1, o: 1 },
   heal: { x: 66.5, y: 87, s: 1, o: 1 },
   interact: { x: 64, y: 66, s: 1, o: 1 },
+  crouch: { x: 67, y: 52, s: 1, o: 1 },
+  roll: { x: 79.5, y: 44, s: 1, o: 1 },
 };
 
 const LABELS = {
   menu: 'Menu', status: 'Vida e proteção', timer: 'Tempo', feed: 'Abates', minimap: 'Minimapa', bag: 'Mochila',
   hotbar: 'Hotbar', ammo: 'Munição', joystick: 'Joystick', fire: 'Atirar', aim: 'Mirar', reload: 'Recarregar',
-  swap: 'Trocar arma', heal: 'Curar', interact: 'Interagir',
+  swap: 'Trocar arma', heal: 'Curar', interact: 'Interagir', crouch: 'Agachar', roll: 'Rolar',
 };
 
 export function loadLayout() {

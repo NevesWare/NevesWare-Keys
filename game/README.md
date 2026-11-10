@@ -17,12 +17,12 @@ npm run build    # gera dist/ (estático, pode hospedar em qualquer lugar)
 
 ## O loop
 
-1. **Escolha uma facção:** Vanguarda de Ferro (NO), Coletivo Maré (NE) ou Ordem da Raiz (SO). Os scavs dominam o canto SE.
-2. **Base (safe zone):** equipe arma, colete e mochila; mexa no **stash global** em grade; compre e venda no **comerciante**.
-3. **Chame o helicóptero:** a inserção é perto do centro do mapa.
-4. **Raid:** lootear caixas e corpos, enfrentar scavs e operadores das facções rivais (que também lutam entre si).
-5. **Extração:** vá ao heliponto da sua facção ou à Clareira Norte, aperte **F** e segure a zona por 10 s.
-6. Se extrair, tudo o que está com você vai para o stash. Se morrer ou o tempo (20 min) acabar, perde o que levou.
+1. **Escolha uma facção:** Red Bears (N), Eagle Force (SO) ou Death Cult (SE).
+2. **Base (safe zone jogável):** ande até os comerciantes, o comandante (missões) e o armário (stash). Dá para agachar, rolar e mirar; só atirar é proibido.
+3. **Heliponto:** abre o mapa do setor de 1 km com as bases rivais e as bases comuns. Escolha a LZ, veja o tempo de voo e embarque. Vem um voo cinemático até a LZ (dá para pular), o pouso e o desembarque.
+4. **Raid (40 min):** lootear caixas e corpos, enfrentar scavs, zumbis e operadores rivais.
+5. **Extração:** no heliponto da sua base, numa base comum (₢ 3.000) ou na Clareira Oeste (₢ 4.000). Aperte **F**, segure a zona e embarque.
+6. Se extrair, tudo o que está com você vai para o stash. Se morrer ou o tempo acabar, perde o que levou.
 
 ## Controles (celular)
 
@@ -30,6 +30,7 @@ npm run build    # gera dist/ (estático, pode hospedar em qualquer lugar)
 - **Arrastar no resto da tela:** girar a câmera em 360°. Pinça: zoom.
 - **MIRAR:** levanta a arma, trava o personagem para a frente da câmera e mostra a linha de mira. Girar a câmera gira a mira, e dá para andar mirando. Pode ser "alternar" ou "segurar" (Configurações › Controles).
 - **ATIRAR:** dispara. Sem mirar, é tiro rápido na direção em que você anda.
+- **Agachar** e **rolar** (botões próprios). Ao mirar, a câmera desce para trás do ombro e olha à frente.
 - Recarregar, curar, trocar arma, SAQUEAR/EXTRAIR (contextual), mochila, minimapa (abre o mapa), ☰ pausa.
 - **Editor de HUD:** menu principal, pausa ou Configurações › Interface. Arraste os botões e ajuste tamanho e opacidade.
 
@@ -38,6 +39,8 @@ npm run build    # gera dist/ (estático, pode hospedar em qualquer lugar)
 | Ação | Tecla |
 | --- | --- |
 | Mover | WASD |
+| Agachar | C |
+| Rolar | Espaço |
 | Mirar / atirar | Mouse / botão esquerdo |
 | Correr | Shift |
 | Recarregar | R |

@@ -54,12 +54,16 @@ export class Hub {
   constructor({ profile, renderer, quality, faction }) {
     this.profile = profile;
     this.faction = faction;
+    this.time = 0;
+    this.state = 'hub';
+    this.extractT = 0;
+    this.boarding = null;
     const f = factionById(faction);
     this.scene = new THREE.Scene();
     // grid map (reuses the raid map helpers without generating a raid)
     const m = Object.create(RaidMap.prototype);
     Object.assign(m, {
-      W, H: W, solid: new Uint8Array(W * W), reserved: new Uint8Array(W * W), vox: new VoxelLevel(),
+      W, H: W, solid: new Uint8Array(W * W), gnd: new Uint8Array(W * W), reserved: new Uint8Array(W * W), vox: new VoxelLevel(),
       rand: (() => { let a = 17; return () => ((a = (a * 16807) % 2147483647) / 2147483647); })(),
       containers: [], extracts: [], outposts: {}, botSpawns: [], props: [],
     });
@@ -69,7 +73,7 @@ export class Hub {
     this.points = [];
     this.build(f);
 
-    this.world = buildWorld({ vox: m.vox, props: m.props, bounds: { x0: 0, z0: 0, W, H: W }, quality });
+    this.world = buildWorld({ map: m, bounds: { x0: 0, z0: 0, W, H: W }, quality });
     this.scene.add(this.world.group);
     this.lighting = addLighting(this.scene, renderer, { shadowSize: quality.shadows, extent: 24 });
     this.lighting.follow(new THREE.Vector3(28, 0, 28));
@@ -184,6 +188,52 @@ export class Hub {
     }
   }
 
+  /** Walk to the helicopter door, climb in and lift off. `done` fires once airborne. */
+  board(done) {
+    const pl = this.player;
+    pl.crouch = false;
+    pl.aiming = false;
+    this.boarding = { t: 0, phase: 'walk', done, door: this.heli.doorPos(new THREE.Vector3(), 1.6) };
+  }
+
+  updateBoarding(dt) {
+    const B = this.boarding, pl = this.player;
+    B.t += dt;
+    if (B.phase === 'walk') {
+      const dx = B.door.x - pl.pos.x, dz = B.door.z - pl.pos.z, d = Math.hypot(dx, dz);
+      if (d > 0.15 && B.t < 6) {
+        pl.vel.set((dx / d) * 3.2, (dz / d) * 3.2);
+        pl.aim = Math.atan2(dx, dz);
+        pl.pos.x += pl.vel.x * dt;
+        pl.pos.z += pl.vel.y * dt;
+      } else {
+        pl.vel.set(0, 0);
+        pl.mesh.visible = false;
+        B.phase = 'lift';
+        B.t = 0;
+        this.heli.ascend(5, 34, false);
+      }
+    } else if (B.phase === 'lift' && B.t > 4.2 && !B.fired) {
+      B.fired = true;
+      B.done?.();
+    }
+    pl.update(dt);
+    this.heli.update(dt, B.phase === 'lift' ? 26 : 10);
+    for (const b of this.bots) {
+      b.update(dt);
+      b.a.update(dt);
+    }
+  }
+
+  /** Reset after returning from a raid. */
+  resetHeli() {
+    this.boarding = null;
+    this.heli.placeAt(this.heliPos.x, this.heliPos.z, Math.PI / 2);
+    this.heli.land();
+    this.heli.body.rotation.set(0, 0, 0);
+    this.player.mesh.visible = true;
+  }
+
   // BotBrain expects these from its "raid"
   shoot() {}
   hostileOf() {
@@ -191,6 +241,8 @@ export class Hub {
   }
 
   spawnPlayer(where) {
+    this.player.crouch = false;
+    this.player.rollT = 0;
     const p = where === 'heli' ? { x: 27.5, z: 22.5 } : { x: 27.5, z: 43 };
     this.player.pos.set(p.x, 0, p.z);
     this.player.aim = Math.PI;
@@ -219,13 +271,22 @@ export class Hub {
 
   update(dt, ctl) {
     const pl = this.player;
+    if (this.boarding) return this.updateBoarding(dt);
     if (!ctl.uiOpen) {
-      const sp = ctl.sprint ? 5.2 : 3.4;
-      pl.vel.set(ctl.moveX * sp, ctl.moveZ * sp);
+      const rolling = pl.stance(ctl, dt);
+      if (!rolling) {
+        const sprint = ctl.sprint && (ctl.moveX || ctl.moveZ);
+        if (sprint) pl.crouch = false;
+        const sp = sprint ? 5.6 : pl.crouch ? 1.9 : ctl.aiming ? 2.3 : 3.8;
+        pl.vel.set(ctl.moveX * sp, ctl.moveZ * sp);
+        if (ctl.aiming) pl.aim = ctl.aim;
+        else if (Math.hypot(ctl.moveX, ctl.moveZ) > 0.15) pl.aim = Math.atan2(ctl.moveX, ctl.moveZ);
+      }
       this.map.move(pl.pos, pl.vel.x, pl.vel.y, ACTOR_RADIUS, dt);
-      if (Math.hypot(ctl.moveX, ctl.moveZ) > 0.15) pl.aim = Math.atan2(ctl.moveX, ctl.moveZ);
+      pl.stamina = Math.min(100, pl.stamina + dt * 14);
     } else pl.vel.set(0, 0);
-    pl.aiming = false;
+    // safe zone: weapon can be raised but never fired
+    pl.aiming = !!ctl.aiming && pl.rollT <= 0 && !ctl.uiOpen;
     pl.update(dt);
     for (const b of this.bots) {
       b.update(dt);

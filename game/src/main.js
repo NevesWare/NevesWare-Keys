@@ -4,17 +4,17 @@ import { FollowCamera } from './camera/followCamera.js';
 import { Input } from './input.js';
 import { InventoryUI } from './ui/inventoryUI.js';
 import { InventoryScreen, loadSettings } from './ui/invScreen.js';
-import { Hud, mapImage } from './ui/hud.js';
+import { Hud, mapImage, worldMapCanvas } from './ui/hud.js';
 import { TouchControls } from './ui/touch.js';
 import { ui3d } from './ui/icons.js';
-import { showScreen, hideScreens, factionSelect, resultScreen, mainMenu, pauseMenu, hidePause, confirmBox, lzPicker } from './ui/screens.js';
+import { showScreen, hideScreens, factionSelect, resultScreen, mainMenu, pauseMenu, hidePause, confirmBox, insertionMap } from './ui/screens.js';
 import { openSettingsModal } from './ui/settings.js';
 import { loadLayout, applyLayout, HudEditor } from './ui/hudLayout.js';
 import { view, updateView } from './ui/viewport.js';
 import { load, save, newProfile, wipe } from './save.js';
-import { Raid } from './raid/raid.js';
+import { Raid, flightTime } from './raid/raid.js';
 import { Hub, HUB_POINTS } from './hub/hub.js';
-import { RaidMap } from './raid/map.js';
+import { worldMap } from './raid/map.js';
 import { MUZZLE_HEIGHT, Actor } from './raid/actor.js';
 import { Helicopter } from './raid/helicopter.js';
 import { VoxelLevel } from './world/voxelLevel.js';
@@ -117,11 +117,14 @@ function openHudEditor(onDone) {
 let profile = load();
 let mode = 'title'; // title | faction | lobby | raid | ending | result | showcase
 let raid = null;
-let lobbyMap = null;
+const mapBases = {};
+function worldMapBase(f) {
+  return (mapBases[f] ??= mapImage(worldMap(), f));
+}
 
 const screen = new InventoryScreen(inv, {
   onClose: () => (raid ? closeRaidInv() : closeHubScreen()),
-  onDeploy: () => lzPicker(profile, (lz) => startRaid(lz)),
+  onDeploy: () => openDeployMap(),
   onReset: () => {
     wipe();
     profile = null;
@@ -143,15 +146,7 @@ const screen = new InventoryScreen(inv, {
   toast: (m) => toast(m),
   getMapCanvas: () => {
     if (raid) return hud.bigMap(raid);
-    lobbyMap = lobbyMap ?? new RaidMap(1337);
-    const img = mapImage(lobbyMap, profile.faction);
-    const c = document.createElement('canvas');
-    c.width = img.width * 3;
-    c.height = img.height * 3;
-    const g = c.getContext('2d');
-    g.imageSmoothingEnabled = false;
-    g.drawImage(img, 0, 0, c.width, c.height);
-    return c;
+    return worldMapCanvas(worldMap(), profile.faction, { base: worldMapBase(profile.faction) });
   },
 });
 
@@ -231,7 +226,12 @@ function goHub(msg, where = 'gate') {
   hub.player.alive = true;
   hub.player.health = hub.player.maxHealth;
   hub.player.mesh.visible = true;
+  hub.resetHeli();
   hub.spawnPlayer(where);
+  cineHide();
+  cam.cine = cam.cineTarget = 0;
+  cam.aim = cam.aimTarget = 0;
+  hud.setupMinimap(hub.map, profile.faction);
   const f = factionById(profile.faction);
   document.body.classList.add('in-hub');
   document.body.style.setProperty('--fc', f.color);
@@ -239,7 +239,6 @@ function goHub(msg, where = 'gate') {
   applyHud();
   $('hud-time').textContent = f.name.toUpperCase();
   $('hud-sub').textContent = 'SAFE ZONE';
-  $('hud-hotbar').innerHTML = '';
   cam.distance = isTouch ? 17 : 20;
   resize();
   cam.snapTo(hub.player.pos.clone());
@@ -250,10 +249,7 @@ function goHub(msg, where = 'gate') {
 function openHubScreen(id = 'armario') {
   const meta = HUB_POINTS[id];
   if (meta.tab === 'deploy') {
-    lzPicker(profile, (lz) => {
-      document.body.classList.remove('in-hub');
-      startRaid(lz);
-    });
+    openDeployMap();
     return;
   }
   touch.reset();
@@ -261,6 +257,69 @@ function openHubScreen(id = 'armario') {
     context: 'lobby', profile, fromHub: true, tab: meta.tab,
     traderFilter: meta.filter, traderName: meta.label, barter: !!meta.barter,
   });
+}
+
+/** Helipad: full sector map with rival bases and common bases; pick a landing zone. */
+function openDeployMap() {
+  if (screen.isOpen) screen.close();
+  touch.reset();
+  const map = worldMap();
+  const base = map.outposts[profile.faction];
+  mode = 'hubmenu'; // freeze the base while the map is open
+  insertionMap({
+    map,
+    faction: profile.faction,
+    drawMap: (sel) => worldMapCanvas(map, profile.faction, { selected: sel, base: worldMapBase(profile.faction) }),
+    flightTime: (l) => flightTime(base, l),
+    onPick: (lz) => {
+      mode = 'hub';
+      boardHeli(lz);
+    },
+    onCancel: () => {
+      mode = 'hub';
+      input.clear();
+    },
+  });
+}
+
+function boardHeli(lz) {
+  unlockAudio();
+  touch.reset();
+  cineShow('EMBARQUE', lz.name, 'Decolando da base…', false);
+  hub.board(() => {
+    document.body.classList.remove('in-hub');
+    startRaid(lz.id);
+  });
+}
+
+// ---------- cinematic overlay ----------
+function cineShow(kind, dest, eta, canSkip = true) {
+  $('cine').classList.remove('hidden');
+  $('cine-kind').textContent = kind;
+  $('cine-dest').textContent = dest;
+  $('cine-eta').textContent = eta;
+  $('cine-skip').style.display = canSkip ? '' : 'none';
+  document.body.classList.add('cine');
+}
+function cineHide() {
+  if ($('cine').classList.contains('hidden')) return;
+  $('cine').classList.add('hidden');
+  document.body.classList.remove('cine');
+}
+$('cine-skip').addEventListener('click', () => raid?.skipFlight());
+const wrapA = (a) => Math.atan2(Math.sin(a), Math.cos(a));
+/** Orbit the camera behind a heading (cinematic chase). */
+function chaseYaw(heading, swing = 0.5) {
+  cam.targetYaw = cam.yaw + wrapA(heading + Math.PI + swing - cam.yaw);
+}
+
+/** Mouse aim angle on the ground plane (desktop). */
+function mouseAim(pos) {
+  const rect = canvas.getBoundingClientRect();
+  ndc.set(((input.mouse.x - rect.left) / rect.width) * 2 - 1, -((input.mouse.y - rect.top) / rect.height) * 2 + 1);
+  raycaster.setFromCamera(ndc, cam.camera);
+  if (raycaster.ray.intersectPlane(aimPlane, aimPoint) && input.mouse.inside) return Math.atan2(aimPoint.x - pos.x, aimPoint.z - pos.z);
+  return null;
 }
 
 function closeHubScreen() {
@@ -294,8 +353,20 @@ function hubMenu() {
   });
 }
 
+let lockToastT = 0;
 function hubStep(dt) {
   input.poll();
+  if (hub.boarding) {
+    hub.update(dt, {});
+    const h = hub.heli.mesh.position;
+    cam.cineTarget = hub.boarding.phase === 'lift' ? 1 : 0.35;
+    cam.aimTarget = 0;
+    if (hub.boarding.phase === 'lift') chaseYaw(hub.heli.mesh.rotation.y, 0.9);
+    cam.update(dt, new THREE.Vector3(h.x, hub.heli.y * 0.85, h.z));
+    hub.lighting.follow(cam.focus);
+    hub.world.update(dt, cam.camera, cam.focus, null, viewport);
+    return;
+  }
   const invOpen = screen.isOpen;
   if (invOpen) {
     if (input.pressed('inventory') || input.pressed('escape')) closeHubScreen();
@@ -305,27 +376,46 @@ function hubStep(dt) {
   }
   if (input.isHeld('rotL')) cam.addYaw(dt * 2.2);
   if (input.isHeld('rotR')) cam.addYaw(-dt * 2.2);
+  for (let i = 1; i <= 6; i++) if (input.pressed(`hb${i}`)) useHotbar(i - 1);
+  if (input.pressed('swap')) hub.player.switchWeapon();
+  if (input.pressed('reload')) hub.player.startReload();
   const m = input.move();
   const ax = cam.groundAxes();
+  const pl = hub.player;
+  const aiming = !invOpen && !!pl.weapon && (touch.enabled ? touch.aiming : input.isHeld('aim'));
+  const aim = touch.enabled ? cam.forwardAngle() : mouseAim(pl.pos) ?? pl.aim;
   hub.update(dt, {
     moveX: ax.right.x * m.x + ax.forward.x * m.y,
     moveZ: ax.right.y * m.x + ax.forward.y * m.y,
     sprint: input.isHeld('sprint'),
+    aiming,
+    aim,
+    crouchPressed: input.pressed('crouch'),
+    rollPressed: input.pressed('roll'),
     uiOpen: invOpen || editor.active,
   });
   const near = hub.nearest();
   if (!invOpen && near && input.pressed('interact')) openHubScreen(near.id);
-  input.pressed('fire');
-  const pl = hub.player;
-  cam.update(dt, pl.pos.clone().setY(0));
+  lockToastT -= dt;
+  if (input.pressed('fire') && !invOpen && lockToastT <= 0) {
+    lockToastT = 2.5;
+    hud.toast('Armas travadas: proibido atirar na safe zone.', 2);
+  }
+  cam.cineTarget = 0;
+  cam.aimTarget = aiming ? 1 : 0;
+  const focus = pl.pos.clone().setY(0);
+  if (aiming) {
+    focus.x += Math.sin(pl.aim) * 1.4;
+    focus.z += Math.cos(pl.aim) * 1.4;
+  }
+  cam.update(dt, focus);
   hub.lighting.follow(cam.focus);
   hub.world.update(dt, cam.camera, cam.focus, pl.pos, viewport);
-  // light HUD
-  $('hud-hp-fill').style.width = `${pl.health}%`;
-  $('hud-hp-txt').textContent = Math.ceil(pl.health);
-  const ar = pl.loadout.armor;
-  $('hud-ar-fill').style.width = ar ? `${(ar.dur / ITEMS[ar.id].armor.durability) * 100}%` : '0%';
-  $('hud-armor').textContent = ar ? Math.round(ar.dur) : '';
+  // full HUD (same as in the raid)
+  hud.update(hub, (i) => useHotbar(i), settings.fps);
+  hud.drawMinimap(hub, cam.yaw);
+  $('hud-time').textContent = factionById(profile.faction).name.toUpperCase();
+  $('hud-sub').textContent = 'SAFE ZONE';
   touch.setInteract(near ? HUB_POINTS[near.id].label : '');
   $('hud-prompt').textContent = near ? `[F] ${HUB_POINTS[near.id].label} — ${HUB_POINTS[near.id].role}` : '';
 }
@@ -334,7 +424,7 @@ function questToast(done) {
   for (const t of done) hud.toast(`Missão concluída: ${t}. Resgate na base.`, 4);
 }
 
-function startRaid(lz = 'centro') {
+function startRaid(lz = null) {
   unlockAudio();
   screen.close();
   mode = 'raid';
@@ -364,14 +454,20 @@ function startRaid(lz = 'centro') {
       },
     },
   });
-  hud.setupMinimap(raid.map, profile.faction);
+  hud.setupMinimap(raid.map, profile.faction, worldMapBase(profile.faction));
   hud.show(true);
   touch.reset();
   applyHud();
   cam.distance = isTouch ? 15 : 19;
   resize();
-  cam.yaw = cam.targetYaw = Math.PI / 4;
-  cam.snapTo(raid.player.pos.clone());
+  cam.yaw = cam.targetYaw = raid.heli.mesh.rotation.y + Math.PI + 0.5;
+  cam.cine = cam.cineTarget = 1;
+  cam.aim = cam.aimTarget = 0;
+  cam.snapTo(raid.heli.mesh.position.clone().setY(raid.heli.y * 0.92));
+  cineShow('INSERÇÃO', raid.lz.name, '');
+  $('hud-time').textContent = '40:00';
+  $('hud-sub').textContent = '';
+  touch.setInteract('');
   input.clear();
 }
 
@@ -431,8 +527,8 @@ function closeRaidInv() {
 }
 
 function useHotbar(i) {
-  if (!raid) return;
-  const pl = raid.player;
+  const pl = raid?.player ?? hub?.player;
+  if (!pl) return;
   if (i === 0) pl.switchWeapon('primary');
   else if (i === 1) pl.switchWeapon('secondary');
   else {
@@ -500,8 +596,41 @@ pauseRaid.reopen = () => {
   pauseRaid();
 };
 
+const CINE_STATES = new Set(['flight', 'landing', 'disembark', 'boarding']);
+const tmpV = new THREE.Vector3();
+function raidCinematic(dt) {
+  const st = raid.state;
+  if ((input.pressed('interact') || input.pressed('escape')) && st === 'flight') raid.skipFlight();
+  input.pressed('fire');
+  raid.update(dt, { moveX: 0, moveZ: 0, aim: raid.player.aim, uiOpen: true });
+  if (!raid) return;
+  const heliView = st === 'flight' || st === 'landing' || st === 'boarding';
+  const fp = heliView ? tmpV.copy(raid.heli.mesh.position).setY(raid.heli.y * 0.92) : tmpV.copy(raid.player.pos);
+  cam.cineTarget = st === 'disembark' ? 0 : st === 'landing' ? 0.6 : 1;
+  cam.aimTarget = 0;
+  if (st === 'flight') chaseYaw(raid.heli.mesh.rotation.y, 0.5);
+  cam.update(dt, fp);
+  raid.scene.fog.near = 34 + 50 * cam.cine;
+  raid.scene.fog.far = 150 + 90 * cam.cine;
+  raid.lighting.follow(cam.focus.clone().setY(0));
+  raid.world.update(dt, cam.camera, cam.focus.clone().setY(0), null, viewport);
+  const eta = Math.ceil(raid.eta());
+  if (st === 'flight' || st === 'landing') {
+    $('cine-eta').textContent = st === 'landing' ? 'Pousando…' : `Chegada em ${Math.floor(eta / 60)}:${String(eta % 60).padStart(2, '0')}`;
+    $('cine-skip').style.display = st === 'flight' ? '' : 'none';
+  } else if (st === 'disembark') cineHide();
+  else if (st === 'boarding' && $('cine').classList.contains('hidden')) cineShow('EXTRAÇÃO', raid.extractZone.name, 'Decolando…', false);
+}
+
 function raidStep(dt) {
   input.poll();
+  if (CINE_STATES.has(raid.state)) return raidCinematic(dt);
+  cineHide();
+  cam.cineTarget = 0;
+  if (raid.scene.fog.near !== 34) {
+    raid.scene.fog.near = 34;
+    raid.scene.fog.far = 150;
+  }
   const invOpen = screen.isOpen;
   if (invOpen) {
     if (input.pressed('inventory') || input.pressed('escape')) closeRaidInv();
@@ -541,10 +670,7 @@ function raidStep(dt) {
     }
   } else {
     aiming = input.isHeld('aim');
-    const rect = canvas.getBoundingClientRect();
-    ndc.set(((input.mouse.x - rect.left) / rect.width) * 2 - 1, -((input.mouse.y - rect.top) / rect.height) * 2 + 1);
-    raycaster.setFromCamera(ndc, cam.camera);
-    if (raycaster.ray.intersectPlane(aimPlane, aimPoint) && input.mouse.inside) aim = Math.atan2(aimPoint.x - pl.pos.x, aimPoint.z - pl.pos.z);
+    aim = mouseAim(pl.pos) ?? aim;
     const pad = input.stickAim();
     if (pad) aim = Math.atan2(ax.right.x * pad.x + ax.forward.x * pad.y, ax.right.y * pad.x + ax.forward.y * pad.y);
   }
@@ -557,12 +683,16 @@ function raidStep(dt) {
     reload: input.pressed('reload'),
     heal: input.pressed('heal'),
     interact: !invOpen && input.pressed('interact'),
+    crouchPressed: !invOpen && input.pressed('crouch'),
+    rollPressed: !invOpen && input.pressed('roll'),
     uiOpen: invOpen,
   });
   if (!raid) return;
+  if (CINE_STATES.has(raid.state)) return;
+  cam.aimTarget = aiming && pl.alive ? 1 : 0;
 
   const focus = pl.pos.clone();
-  const lookDist = aiming ? 2.6 : touch.enabled ? 1.0 : 1.6;
+  const lookDist = aiming ? 1.4 : touch.enabled ? 1.0 : 1.6;
   focus.x += Math.sin(pl.aim) * lookDist;
   focus.z += Math.cos(pl.aim) * lookDist;
   focus.y = 0;
@@ -601,6 +731,7 @@ function step(dt) {
   if (editor.active && mode === 'raid') return;
   if (mode === 'raid') raidStep(dt);
   else if (mode === 'ending') {
+    if (raid && CINE_STATES.has(raid.state)) return raidCinematic(dt);
     raid?.update(dt, { moveX: 0, moveZ: 0, aim: raid.player.aim, uiOpen: true });
   } else if (mode === 'showcase') showcaseStep(dt);
   else menuStep(dt);
@@ -652,7 +783,7 @@ function buildShowcase() {
   props.push({ kind: 'car', v: 0, x: 9, z: 4.5, rot: 0.9 });
   props.push({ kind: 'crate', v: 'military', x: -2.5, z: -2.6, rot: 0.3 });
   props.push({ kind: 'crate', v: 'common', x: -3.6, z: -1.8, rot: 0.1 });
-  const world = buildWorld({ vox: L, props, bounds: { x0: -S, z0: -S, W: S * 2, H: S * 2 }, quality: { grass: TIERS.alto.grass, grassPatch: TIERS.alto.grassPatch } });
+  const world = buildWorld({ map: { vox: L, props, groundAt: (x, z) => L.get(x, -1, z) ?? 'grass', isSolid: () => false }, bounds: { x0: -S, z0: -S, W: S * 2, H: S * 2 }, quality: { grass: TIERS.alto.grass, grassPatch: TIERS.alto.grassPatch } });
   scene.add(world.group);
   const light = addLighting(scene, renderer, { shadowSize: 4096, extent: 26 });
   light.follow(new THREE.Vector3(0, 0, 0));

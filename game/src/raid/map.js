@@ -2,7 +2,12 @@ import { VoxelLevel } from '../world/voxelLevel.js';
 import { Grid } from '../inventory/grid.js';
 import { FACTIONS } from '../data/factions.js';
 
-export const MAP_SIZE = 128;
+export const MAP_SIZE = 1024;
+const MID = MAP_SIZE / 2;
+const K = MAP_SIZE / 128; // layout scale vs. the original 128 m map
+
+export const GROUND_TYPES = ['grass', 'grassDark', 'grassLight', 'road', 'dirt', 'concrete', 'helipad', 'helipadMark', 'plank'];
+const GROUND_ID = Object.fromEntries(GROUND_TYPES.map((g, i) => [g, i]));
 
 export function mulberry32(seed) {
   let a = seed >>> 0;
@@ -17,7 +22,7 @@ export function mulberry32(seed) {
 
 function valueNoise(seed) {
   const r = mulberry32(seed);
-  const N = 17;
+  const N = 129;
   const g = Array.from({ length: N * N }, () => r());
   return (x, z, scale) => {
     const fx = (x / scale) % (N - 1), fz = (z / scale) % (N - 1);
@@ -32,11 +37,33 @@ function valueNoise(seed) {
 }
 
 const CORNERS = {
-  N: { x: 64, z: 14 },
-  NE: { x: MAP_SIZE - 15, z: 14 },
-  SO: { x: 14, z: MAP_SIZE - 15 },
-  SE: { x: MAP_SIZE - 15, z: MAP_SIZE - 15 },
+  N: { x: MID, z: 70 },
+  NE: { x: MAP_SIZE - 90, z: 90 },
+  SO: { x: 90, z: MAP_SIZE - 84 },
+  SE: { x: MAP_SIZE - 90, z: MAP_SIZE - 84 },
 };
+
+/** Named places ("bases comuns" with helipads are landing zones). */
+export const POIS = [
+  { id: 'gz', name: 'Ground Zero', x: MID, z: MID, kind: 'ruins', risk: 'ALTO', lz: true },
+  { id: 'aero', name: 'Aeródromo Pha', x: 735, z: 300, kind: 'airfield', risk: 'ALTO', lz: true },
+  { id: 'kilo', name: 'Base Militar Kilo', x: 290, z: 290, kind: 'camp', risk: 'ALTO', lz: true },
+  { id: 'vnorte', name: 'Vila Norte', x: 380, z: 175, kind: 'town', risk: 'MÉDIO', lz: true },
+  { id: 'serraria', name: 'Serraria', x: 165, z: 560, kind: 'town', risk: 'MÉDIO', lz: true },
+  { id: 'hosp', name: 'Hospital São Lucas', x: 640, z: 430, kind: 'town', risk: 'MÉDIO', lz: false },
+  { id: 'fazenda', name: 'Fazenda Velha', x: 690, z: 650, kind: 'town', risk: 'BAIXO', lz: true },
+  { id: 'florestal', name: 'Posto Florestal', x: 330, z: 760, kind: 'town', risk: 'BAIXO', lz: true },
+  { id: 'porto', name: 'Porto Sul', x: MID, z: 925, kind: 'town', risk: 'MÉDIO', lz: true },
+  { id: 'vleste', name: 'Vila Leste', x: 900, z: 520, kind: 'scav', risk: 'MÉDIO', lz: true },
+  { id: 'voeste', name: 'Acampamento Oeste', x: 80, z: 300, kind: 'scav', risk: 'MÉDIO', lz: false },
+];
+
+/** The sector is one fixed, persistent world (like DayZ): only loot and spawns change per raid. */
+export const WORLD_SEED = 73001;
+let worldCache = null;
+export function worldMap() {
+  return (worldCache ??= new RaidMap(WORLD_SEED));
+}
 
 /**
  * Raid world. Ground is a flat voxel layer at y=-1 (stand at y=0).
@@ -47,6 +74,10 @@ export class RaidMap {
     this.W = MAP_SIZE;
     this.H = MAP_SIZE;
     this.solid = new Uint8Array(this.W * this.H);
+    this.gnd = new Uint8Array(this.W * this.H);
+    this.lzs = [];
+    this.zombieSpawns = [];
+    this.pois = POIS;
     this.reserved = new Uint8Array(this.W * this.H);
     this.vox = new VoxelLevel();
     this.rand = mulberry32(seed);
@@ -143,8 +174,22 @@ export class RaidMap {
       for (let z = Math.max(0, z0); z <= Math.min(this.H - 1, z1); z++) this.reserved[this.idx(x, z)] = 1;
   }
 
+  /** Fresh loot for a new raid on the persistent world. */
+  resetLoot() {
+    this.containers = this.containers.filter((c) => !c.body);
+    for (const c of this.containers) {
+      c.grid = new Grid(c.grid.w, c.grid.h);
+      c.filled = false;
+      c.looted = false;
+    }
+  }
+
   ground(x, z, mat) {
-    if (this.inBounds(x, z)) this.vox.set(x, -1, z, mat);
+    if (this.inBounds(x, z)) this.gnd[z * this.W + x] = GROUND_ID[mat] ?? 0;
+  }
+
+  groundAt(x, z) {
+    return this.inBounds(x, z) ? GROUND_TYPES[this.gnd[z * this.W + x]] : 'grass';
   }
 
   block(x, z, h, mat, solid = true) {
@@ -245,10 +290,10 @@ export class RaidMap {
     const W = this.W, H = this.H;
 
     // ground
-    for (let x = 0; x < W; x++)
-      for (let z = 0; z < H; z++) {
+    for (let z = 0; z < H; z++)
+      for (let x = 0; x < W; x++) {
         const n = noise(x, z, 9);
-        this.ground(x, z, n > 0.62 ? 'grassDark' : n < 0.3 ? 'grassLight' : 'grass');
+        this.gnd[z * W + x] = n > 0.62 ? 1 : n < 0.3 ? 2 : 0;
       }
 
     // border cliffs
@@ -257,37 +302,46 @@ export class RaidMap {
       for (const [x, z] of [[i, 1], [i, H - 2], [1, i], [W - 2, i]]) if (R() < 0.5) this.block(x, z, 2, 'stone');
     }
 
-    const C = { x: 64, z: 64 };
-
-    // roads from center to each corner
-    for (const k of Object.keys(CORNERS)) this.road(C.x, C.z, CORNERS[k].x, CORNERS[k].z);
-    this.road(C.x, C.z, 6, 64);
+    const C = { x: MID, z: MID };
+    // road network: bases and places connect to Ground Zero and to their neighbours
+    const hubs = [...Object.values(CORNERS), ...POIS];
+    for (const h of hubs) this.road(C.x, C.z, h.x, h.z);
+    const ring = POIS.filter((p) => p.id !== 'gz').sort((a, b) => Math.atan2(a.z - MID, a.x - MID) - Math.atan2(b.z - MID, b.x - MID));
+    for (let i = 0; i < ring.length; i++) this.road(ring[i].x, ring[i].z, ring[(i + 1) % ring.length].x, ring[(i + 1) % ring.length].z);
     this.pendingCars = [];
-    for (const k of Object.keys(CORNERS)) {
-      for (const t of [0.35, 0.62]) {
-        const x = Math.round(C.x + (CORNERS[k].x - C.x) * t), z = Math.round(C.z + (CORNERS[k].z - C.z) * t);
-        this.pendingCars.push([x + 2, z - 1, R() < 0.5]);
+    for (const h of hubs)
+      for (const t of [0.2, 0.45, 0.7]) {
+        const x = Math.round(C.x + (h.x - C.x) * t), z = Math.round(C.z + (h.z - C.z) * t);
+        if (R() < 0.7) this.pendingCars.push([x + 2, z - 1, R() < 0.5]);
       }
-    }
 
-    // faction outposts
+    // faction bases
     FACTIONS.forEach((f) => this.outpost(f, CORNERS[f.corner]));
 
-    // scav town (NE)
+    // places
+    for (const p of POIS) {
+      if (p.kind === 'ruins') this.ruins(p);
+      else if (p.kind === 'scav') this.scavTown(p);
+      else if (p.kind === 'airfield') this.airfield(p);
+      else if (p.kind === 'camp') this.camp(p);
+      else this.town(p);
+      if (p.lz) this.landingZone(p);
+    }
     this.scavTown(CORNERS.NE);
+    this.landingZone({ id: 'scavne', name: 'Vila Scav NE', x: CORNERS.NE.x, z: CORNERS.NE.z, risk: 'MÉDIO' });
 
-    // center ruins
-    this.ruins(C);
+    // neutral paid extraction: west clearing
+    this.extracts.push({ name: 'Clareira Oeste', x: 20, z: MID, r: 4, faction: null, cost: 4000 });
+    for (let x = 14; x <= 26; x++) for (let z = MID - 6; z <= MID + 6; z++) this.ground(x, z, 'concrete');
+    this.prop('helipad', 0, 20, MID, 0);
+    this.reserve(12, MID - 8, 28, MID + 8);
+    this.road(20, MID, C.x, C.z);
 
-    // neutral extraction: west clearing
-    this.reserve(2, 58, 12, 70);
-    for (let x = 3; x <= 10; x++) for (let z = 60; z <= 68; z++) this.ground(x, z, 'road');
-    this.prop('helipad', 0, 7, 64.5, 0);
-    this.extracts.push({ name: 'Clareira Oeste', x: 7, z: 64.5, r: 4, faction: null, cost: 4000 });
-
-    // forest cabins
-    const cabins = [[38, 40], [88, 40], [40, 92], [88, 88], [70, 32], [26, 74], [98, 64]];
-    for (const [x, z] of cabins) {
+    // forest cabins scattered in the woods
+    for (let i = 0; i < 26; i++) {
+      const p = this.freeSpot(60 + R() * (W - 120), 60 + R() * (H - 120), 3);
+      const x = Math.floor(p.x), z = Math.floor(p.z);
+      if (this.reserved[this.idx(x, z)]) continue;
       this.building(x, z, 6, 5, { wall: 'plank', doors: R() < 0.5 ? 'ns' : 'ew' });
       this.crate(x + 1, z + 1, R() < 0.25 ? 'military' : 'common', 'Caixa de Cabana');
       this.botSpawns.push({ x: x + 3, z: z + 7, faction: 'scav' });
@@ -296,7 +350,7 @@ export class RaidMap {
     for (const [x, z, ax] of this.pendingCars) this.car(x, z, ax);
 
     // rocks
-    for (let i = 0; i < 70; i++) {
+    for (let i = 0; i < 70 * K * 4; i++) {
       const x = 4 + Math.floor(R() * (W - 8)), z = 4 + Math.floor(R() * (H - 8));
       if (this.reserved[this.idx(x, z)]) continue;
       const n = 1 + Math.floor(R() * 4);
@@ -306,46 +360,119 @@ export class RaidMap {
       }
     }
 
-    // forest
-    for (let x = 3; x < W - 3; x++)
-      for (let z = 3; z < H - 3; z++) {
-        if (this.reserved[this.idx(x, z)] || this.isSolid(x, z)) continue;
+    // forest (dense patches + sparse trees)
+    for (let z = 3; z < H - 3; z++)
+      for (let x = 3; x < W - 3; x++) {
         const dens = noise(x + 50, z + 50, 14);
-        if (R() < (dens > 0.6 ? 0.022 : 0.003)) {
-          let ok = true;
-          for (let ox = -3; ox <= 3; ox++) for (let oz = -3; oz <= 3; oz++) if (this.isSolid(x + ox, z + oz)) ok = false;
-          if (ok) this.tree(x, z);
-        }
+        if (R() >= (dens > 0.6 ? 0.032 : 0.0022)) continue;
+        if (this.reserved[this.idx(x, z)] || this.isSolid(x, z) || this.gnd[this.idx(x, z)] === 3) continue;
+        let ok = true;
+        for (let ox = -3; ox <= 3 && ok; ox++) for (let oz = -3; oz <= 3; oz++) if (this.isSolid(x + ox, z + oz)) { ok = false; break; }
+        if (ok) this.tree(x, z);
       }
 
     // scattered loot in the wild
-    for (let i = 0; i < 10; i++) {
-      const p = this.freeSpot(10 + R() * (W - 20), 10 + R() * (H - 20), 1);
-      this.crate(Math.floor(p.x), Math.floor(p.z), 'common', 'Mochila Abandonada');
+    for (let i = 0; i < 90; i++) {
+      const p = this.freeSpot(20 + R() * (W - 40), 20 + R() * (H - 40), 1);
+      this.crate(Math.floor(p.x), Math.floor(p.z), R() < 0.15 ? 'military' : 'common', R() < 0.5 ? 'Mochila Abandonada' : 'Caixa de Suprimentos');
     }
 
-    // bushes and roadside fences (decoration, no collision)
-    for (let i = 0; i < 520; i++) {
+    // bushes and fences (decoration, no collision)
+    for (let i = 0; i < 520 * K * 3; i++) {
       const x = 3 + R() * (W - 6), z = 3 + R() * (H - 6);
       const cx = Math.floor(x), cz = Math.floor(z);
       if (this.reserved[this.idx(cx, cz)] || this.isSolid(cx, cz)) continue;
       this.prop('bush', Math.floor(R() * 2), x, z, R() * 6.28, 0.7 + R() * 0.6);
     }
-    for (let i = 0; i < 26; i++) {
-      const p = this.freeSpot(10 + R() * (W - 20), 10 + R() * (H - 20), 0);
+    for (let i = 0; i < 160; i++) {
+      const p = this.freeSpot(30 + R() * (W - 60), 30 + R() * (H - 60), 0);
       const ax = R() < 0.5;
       for (let k = 0; k < 4; k++) this.prop('fence', 0, p.x + (ax ? k * 2.1 : 0), p.z + (ax ? 0 : k * 2.1), ax ? 0 : Math.PI / 2);
     }
 
-    // wild scav spawns
-    for (let i = 0; i < 6; i++) this.botSpawns.push({ x: 20 + R() * (W - 40), z: 20 + R() * (H - 40), faction: 'scav' });
+    // wildlife of the sector: scavs and zombie hordes
+    for (let i = 0; i < 40; i++) this.botSpawns.push({ x: 40 + R() * (W - 80), z: 40 + R() * (H - 80), faction: 'scav' });
+    for (let h = 0; h < 10; h++) {
+      const a = R() * Math.PI * 2, rr = 8 + R() * 40;
+      this.zombieSpawns.push({ x: MID + Math.cos(a) * rr, z: MID + Math.sin(a) * rr, n: 4 + Math.floor(R() * 4) });
+    }
+    for (const p of POIS) if (p.id !== 'gz') this.zombieSpawns.push({ x: p.x + (R() - 0.5) * 30, z: p.z + (R() - 0.5) * 30, n: 2 + Math.floor(R() * 4) });
+    for (let i = 0; i < 70; i++) this.zombieSpawns.push({ x: 30 + R() * (W - 60), z: 30 + R() * (H - 60), n: 1 });
+  }
+
+  /** Village: houses around a square, with loot and scavs. */
+  town(c) {
+    const R = this.rand;
+    const n = 6 + Math.floor(R() * 4);
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + R() * 0.4, rr = 12 + R() * 14;
+      const w = 6 + Math.floor(R() * 4), d = 5 + Math.floor(R() * 3);
+      const x = Math.round(c.x + Math.cos(a) * rr - w / 2), z = Math.round(c.z + Math.sin(a) * rr - d / 2);
+      this.building(x, z, w, d, { wall: R() < 0.6 ? 'brick' : 'plank', floor: 'plank', doors: ['ns', 'ew', 'nsew'][i % 3] });
+      this.crate(x + 1, z + 1, R() < 0.2 ? 'military' : 'common', 'Armário');
+      if (R() < 0.5) this.crate(x + w - 2, z + d - 2, 'common', 'Caixa');
+    }
+    for (let i = 0; i < 4; i++) this.botSpawns.push({ x: c.x + (R() - 0.5) * 20, z: c.z + (R() - 0.5) * 20, faction: 'scav' });
+    this.reserve(c.x - 32, c.z - 32, c.x + 32, c.z + 32);
+  }
+
+  /** Airfield: runway, hangars, parked vehicles, military loot. */
+  airfield(c) {
+    for (let x = c.x - 90; x <= c.x + 90; x++) for (let z = c.z - 7; z <= c.z + 7; z++) this.ground(x, z, 'concrete');
+    for (let x = c.x - 85; x <= c.x + 85; x += 8) for (let z = c.z - 1; z <= c.z; z++) this.ground(x, z, 'helipadMark');
+    this.reserve(c.x - 92, c.z - 30, c.x + 92, c.z + 9);
+    for (const dx of [-40, -15, 10]) {
+      this.structure('hangar', c.x + dx, c.z - 20, 10, 8, Math.PI);
+      this.crate(c.x + dx - 3, c.z - 22, 'military', 'Caixa Militar');
+      this.crate(c.x + dx + 3, c.z - 22, 'rare', 'Cofre de Carga');
+    }
+    this.structure('truck', c.x + 35, c.z - 16, 3, 8, 0);
+    this.structure('apc', c.x + 45, c.z - 16, 3, 6, 0);
+    this.structure('tower', c.x - 60, c.z - 18, 3, 3, 0);
+    for (let i = 0; i < 5; i++) this.botSpawns.push({ x: c.x - 30 + i * 15, z: c.z - 12, faction: 'scav', guard: true });
+  }
+
+  /** Abandoned military camp: walls, towers, tents of crates. */
+  camp(c) {
+    const R = this.rand;
+    const s = 16;
+    for (let x = c.x - s; x <= c.x + s; x++)
+      for (let z = c.z - s; z <= c.z + s; z++) {
+        this.ground(x, z, 'dirt');
+        const edge = x === c.x - s || x === c.x + s || z === c.z - s || z === c.z + s;
+        if (edge && Math.abs(x - c.x) > 2 && Math.abs(z - c.z) > 2) this.block(x, z, 2, 'stone');
+      }
+    this.reserve(c.x - s - 2, c.z - s - 2, c.x + s + 2, c.z + s + 2);
+    this.structure('tower', c.x - s + 3, c.z - s + 3, 3, 3, 0);
+    this.structure('tower', c.x + s - 3, c.z + s - 3, 3, 3, 0);
+    this.structure('humvee', c.x + 8, c.z - 8, 3, 5, 0.3);
+    this.structure('truck', c.x - 8, c.z + 6, 3, 8, 0);
+    for (const [dx, dz] of [[-4, -4], [4, 4], [-10, 10], [10, -2]]) this.crate(c.x + dx, c.z + dz, 'military', 'Caixa Militar');
+    this.crate(c.x, c.z, 'rare', 'Cofre do Comando');
+    for (let i = -3; i <= 3; i++) this.sandbag(c.x + i, c.z - 6, 0);
+    for (let i = 0; i < 6; i++) this.botSpawns.push({ x: c.x + (R() - 0.5) * 20, z: c.z + (R() - 0.5) * 20, faction: 'scav', guard: true });
+  }
+
+  /** Common base: helipad (landing zone + paid extraction), sandbags and supplies. */
+  landingZone(p) {
+    const x = Math.round(p.x + 22), z = Math.round(p.z + 22);
+    for (let i = x - 4; i <= x + 4; i++) for (let j = z - 4; j <= z + 4; j++) {
+      this.ground(i, j, 'concrete');
+      this.clearCell(i, j);
+    }
+    this.prop('helipad', 0, x + 0.5, z + 0.5, 0);
+    for (let i = -2; i <= 2; i++) this.sandbag(x + i, z + 6, 0);
+    this.crate(x + 5, z - 4, 'common', 'Caixa de Suprimentos');
+    this.reserve(x - 7, z - 7, x + 7, z + 7);
+    this.lzs.push({ id: p.id, name: p.name, x: x + 0.5, z: z + 0.5, risk: p.risk });
+    this.extracts.push({ name: `LZ ${p.name}`, x: x + 0.5, z: z + 0.5, r: 4, faction: null, cost: 3000 });
   }
 
   outpost(f, c) {
     const s = 9; // half size
     const x0 = c.x - s, z0 = c.z - s, x1 = c.x + s, z1 = c.z + s;
     // walls w/ gate facing map center
-    const gx = c.x < 64 ? 'e' : 'w', gz = c.z < 64 ? 's' : 'n';
+    const gx = c.x < MID ? 'e' : 'w', gz = c.z < MID ? 's' : 'n';
     for (let x = x0; x <= x1; x++)
       for (let z = z0; z <= z1; z++) {
         this.ground(x, z, 'concrete');
@@ -364,7 +491,7 @@ export class RaidMap {
     this.crate(x0 + 2, z0 + 2, 'military', 'Caixa de Suprimentos');
     this.crate(x1 - 2, z1 - 2, 'military', 'Caixa de Suprimentos');
     // vehicles, watchtower, barriers, supplies
-    const sx = c.x < 64 ? 1 : -1, sz = c.z < 64 ? 1 : -1;
+    const sx = c.x < MID ? 1 : -1, sz = c.z < MID ? 1 : -1;
     this.structure('truck', c.x - 6 * sx, c.z - 2, 3, 8, 0);
     this.structure('humvee', c.x + 6 * sx, c.z - 3 * sz, 3, 5, Math.PI / 2);
     this.structure('tower', c.x - 6 * sx, c.z + 6 * sz, 3, 3, 0);
@@ -381,8 +508,8 @@ export class RaidMap {
     this.extracts.push({ name: `Heliponto ${f.name}`, x: c.x + 0.5, z: c.z + 0.5, r: 3.5, faction: f.id });
     for (let i = 0; i < 3; i++) this.botSpawns.push({ x: c.x + (i - 1) * 3, z: c.z + (gz === 's' ? 7 : -7), faction: f.id, guard: true });
     // patrol squad that roams toward the center
-    this.botSpawns.push({ x: c.x + (c.x < 64 ? 13 : -13), z: c.z + (c.z < 64 ? 13 : -13), faction: f.id, patrol: true });
-    this.botSpawns.push({ x: c.x + (c.x < 64 ? 14 : -14), z: c.z + (c.z < 64 ? 12 : -12), faction: f.id, patrol: true });
+    this.botSpawns.push({ x: c.x + (c.x < MID ? 13 : -13), z: c.z + (c.z < MID ? 13 : -13), faction: f.id, patrol: true });
+    this.botSpawns.push({ x: c.x + (c.x < MID ? 14 : -14), z: c.z + (c.z < MID ? 12 : -12), faction: f.id, patrol: true });
   }
 
   scavTown(c) {

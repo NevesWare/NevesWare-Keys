@@ -55,7 +55,7 @@ export class BotBrain {
       if (!this.hostile(o)) continue;
       const dx = o.pos.x - a.pos.x, dz = o.pos.z - a.pos.z;
       const d = Math.hypot(dx, dz);
-      if (d > this.sight || d >= bestD) continue;
+      if (d > this.sight * (o.crouch ? 0.6 : 1) || d >= bestD) continue;
       const inCone = Math.abs(angDiff(a.aim, Math.atan2(dx, dz))) < 1.2;
       if (!inCone && d > 6 && this.state !== 'combat') continue;
       if (!this.raid.map.hasLOS(a.pos.x, a.pos.z, o.pos.x, o.pos.z)) continue;
@@ -277,7 +277,7 @@ export class ZombieBrain extends BotBrain {
     for (const o of this.raid.actors) {
       if (!this.hostile(o)) continue;
       const d = Math.hypot(o.pos.x - a.pos.x, o.pos.z - a.pos.z);
-      if (d > this.sight || d >= bestD) continue;
+      if (d > this.sight * (o.crouch ? 0.7 : 1) || d >= bestD) continue;
       if (d > 4 && !this.raid.map.hasLOS(a.pos.x, a.pos.z, o.pos.x, o.pos.z)) continue;
       best = o;
       bestD = d;

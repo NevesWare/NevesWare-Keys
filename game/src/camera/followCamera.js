@@ -14,6 +14,14 @@ export class FollowCamera {
     this.focus = new THREE.Vector3();
     this.minDist = 9;
     this.maxDist = 32;
+    this.fov = fov;
+    // blends: 0..1 — over-the-shoulder aim view, cinematic (helicopter) view
+    this.aim = 0;
+    this.aimTarget = 0;
+    this.cine = 0;
+    this.cineTarget = 0;
+    this.cineDist = 44;
+    this.lookAt = new THREE.Vector3();
   }
 
   setAspect(aspect) {
@@ -54,16 +62,31 @@ export class FollowCamera {
   }
 
   update(dt, target) {
-    this.focus.lerp(target, 1 - Math.exp(-6 * dt));
+    this.aim += (this.aimTarget - this.aim) * (1 - Math.exp(-7 * dt));
+    this.cine += (this.cineTarget - this.cine) * (1 - Math.exp(-2.2 * dt));
+    this.focus.lerp(target, 1 - Math.exp(-(this.cine > 0.5 ? 3 : 6) * dt));
     this.yaw += (this.targetYaw - this.yaw) * (1 - Math.exp(-8 * dt));
     this.apply();
   }
 
   apply() {
-    const cp = Math.cos(this.pitch);
-    const off = new THREE.Vector3(Math.sin(this.yaw) * cp, Math.sin(this.pitch), Math.cos(this.yaw) * cp).multiplyScalar(this.distance);
-    this.camera.position.copy(this.focus).add(off);
-    this.camera.lookAt(this.focus);
+    const L = THREE.MathUtils.lerp;
+    // aiming: camera drops toward the shoulder and looks ahead (sees farther)
+    let pitch = L(this.pitch, 0.52, this.aim);
+    let dist = L(this.distance, Math.max(8, this.distance * 0.62), this.aim);
+    pitch = L(pitch, 0.6, this.cine);
+    dist = L(dist, this.cineDist, this.cine);
+    const cp = Math.cos(pitch);
+    const off = new THREE.Vector3(Math.sin(this.yaw) * cp, Math.sin(pitch), Math.cos(this.yaw) * cp).multiplyScalar(dist);
+    this.lookAt.copy(this.focus);
+    this.lookAt.y += 1.1 * this.aim;
+    this.camera.position.copy(this.lookAt).add(off);
+    this.camera.lookAt(this.lookAt);
+    const fov = L(this.fov, this.fov * 0.86, this.aim);
+    if (Math.abs(this.camera.fov - fov) > 0.01) {
+      this.camera.fov = fov;
+      this.camera.updateProjectionMatrix();
+    }
     this.camera.updateMatrixWorld();
   }
 }

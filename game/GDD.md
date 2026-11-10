@@ -95,6 +95,18 @@ A base não é uma tela: é um lugar dentro do jogo. Do menu principal você ent
 
 Ao voltar de uma incursão, o jogador desembarca no heliponto da base.
 
+## 4d. Setor de 1 km, inserção pelo mapa e câmera de mira (v0.7)
+
+- **Mapa:** 1024 × 1024 m, fixo e persistente (como no DayZ). Só o loot e os inimigos mudam a cada incursão. Lugares: as bases Red Bears (N), Eagle Force (SO) e Death Cult (SE); Ground Zero (centro); Aeródromo Pha; Base Militar Kilo; Vila Norte; Serraria; Hospital São Lucas; Fazenda Velha; Posto Florestal; Porto Sul; Vila Leste; Acampamento Oeste; e a vila scav NE. Estradas ligam tudo.
+- **Bases comuns:** heliponto com sacos de areia e suprimentos. Servem de ponto de pouso e de extração paga (₢ 3.000). A Clareira Oeste continua custando ₢ 4.000.
+- **Inserção:** no heliponto da base abre o mapa do setor, com a sua base, as bases rivais, as bases comuns e o tempo de voo. Escolha a LZ e toque em EMBARCAR. O personagem entra no helicóptero e ele decola na base. Depois vem o voo cinemático até a LZ com contagem regressiva (dá para PULAR), o pouso, a animação de desembarque e o início do jogo. O relógio da incursão (40 min) só começa no pouso.
+- **Extração:** o helicóptero pousa, o jogador embarca e o helicóptero sobe antes da tela de resultado.
+- **Desempenho:** o mundo é dividido em regiões de 64 m e só as próximas são desenhadas. Inimigos aparecem quando o jogador chega a menos de 110 m e "dormem" além de 140 m.
+- **Safe zone:** o HUD completo fica disponível. Dá para andar, correr, agachar, rolar, mirar, recarregar, trocar de arma e usar o inventário. Só atirar é bloqueado (botão com cadeado).
+- **Agachar (C / botão):** metade da velocidade. Os inimigos te veem a 60–70% da distância normal.
+- **Rolar (Espaço / botão):** esquiva rápida de 0,7 s que custa 15 de estamina.
+- **Câmera de mira:** ao mirar, a câmera desce (~30°), aproxima por trás do ombro, sobe para a altura dos olhos e fecha um pouco o FOV, para ver mais longe na direção da mira.
+
 ## 6b. Tamanhos realistas no inventário (v0.6)
 
 **1 célula ≈ 12,5 cm.** Cada item ocupa o tamanho real dele, e o tooltip mostra o tamanho em células e em cm. **[feito]**
