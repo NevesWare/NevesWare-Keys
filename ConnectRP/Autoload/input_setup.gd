@@ -19,6 +19,7 @@ const ACTIONS := {
 	"phone": [KEY_M],
 	"map": [KEY_N],
 	"chat": [KEY_T],
+	"horn": [KEY_H],
 }
 
 func _ready() -> void:

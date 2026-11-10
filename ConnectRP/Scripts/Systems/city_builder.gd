@@ -15,14 +15,19 @@ const FIRST := -224.0
 ## Distância de corte (ajustada pela qualidade gráfica antes de build()).
 static var VIS_RANGE: float = 280.0
 const WORLD := 300.0
+const TEX_VERSION := 3
+## Detalhes extras (ar-condicionado, vitrines, mobiliário urbano). Desligado na qualidade baixa.
+static var DETAILS: bool = true
 
 var _rng := RandomNumberGenerator.new()
 var _tex: Dictionary = {}
 var _mats: Dictionary = {}
 var _meshes: Dictionary = {}
 var _cur: Node3D
-var _facade_mats: Array[StandardMaterial3D] = []
+var _facade_mats: Array[ShaderMaterial] = []
 var _night: float = -1.0
+var _shop_mat: ShaderMaterial
+var _ground_mats: Array[StandardMaterial3D] = []
 var _body: StaticBody3D
 
 var _favela_colors: Array[Color] = [
@@ -106,44 +111,46 @@ func _window_em(wins: Array, tint: Color, cols: int, rows: int = 1) -> ImageText
 
 func _make_textures() -> void:
 	var warm := Color(1.0, 0.82, 0.5)
-	_tex["glass"] = _img_tex(_facade_img(Color(0.16, 0.2, 0.26), [Rect2i(8, 10, 112, 104)],
-		Color(0.42, 0.62, 0.78), Color(0.1, 0.12, 0.16), 0.02))
-	_tex["glass_em"] = _window_em([Rect2i(8, 10, 112, 104)], Color(1.0, 0.9, 0.7), 4, 3)
-	_tex["office"] = _img_tex(_facade_img(Color(0.78, 0.77, 0.74), [Rect2i(10, 42, 108, 50)],
-		Color(0.27, 0.38, 0.5), Color(0.5, 0.5, 0.5), 0.03))
+	# fachadas: albedo + máscara de janelas (vidro reflexivo) + normal
+	_facade_set("glass", Color(0.2, 0.23, 0.27), [Rect2i(6, 8, 116, 108)], Color(0.1, 0.13, 0.17), Color(0.14, 0.15, 0.17), 0.01, 4, 3)
+	_tex["glass_em"] = _window_em([Rect2i(6, 8, 116, 108)], Color(1.0, 0.9, 0.7), 4, 3)
+	_facade_set("office", Color(0.78, 0.77, 0.74), [Rect2i(10, 42, 108, 50)], Color(0.12, 0.15, 0.19), Color(0.42, 0.42, 0.44), 0.025, 4, 1)
 	_tex["office_em"] = _window_em([Rect2i(10, 42, 108, 50)], Color(0.9, 0.92, 1.0), 4)
+	_facade_set("apartment", Color(0.93, 0.92, 0.88), [Rect2i(18, 30, 34, 56), Rect2i(76, 30, 34, 56)],
+		Color(0.14, 0.17, 0.2), Color(0.6, 0.58, 0.55), 0.03, 1, 1, Rect2i(0, 98, 128, 6))
 	_tex["apartment_em"] = _window_em([Rect2i(18, 30, 34, 56), Rect2i(76, 30, 34, 56)], warm, 1)
-	_tex["house_em"] = _window_em([Rect2i(40, 38, 48, 56)], warm, 1)
-	_tex["favela_em"] = _window_em([Rect2i(52, 44, 36, 38)], warm, 1)
-	var ap := _facade_img(Color(0.93, 0.92, 0.88), [Rect2i(18, 30, 34, 56), Rect2i(76, 30, 34, 56)],
-		Color(0.3, 0.42, 0.52), Color(0.6, 0.58, 0.55), 0.03)
-	ap.fill_rect(Rect2i(0, 98, 128, 5), Color(0.65, 0.65, 0.65))
-	_tex["apartment"] = _img_tex(ap)
-	var ho := _facade_img(Color(0.97, 0.96, 0.92), [Rect2i(40, 38, 48, 56)],
-		Color(0.28, 0.4, 0.5), Color(0.9, 0.9, 0.9), 0.03)
-	ho.fill_rect(Rect2i(22, 38, 14, 56), Color(0.25, 0.45, 0.3))
-	ho.fill_rect(Rect2i(92, 38, 14, 56), Color(0.25, 0.45, 0.3))
+	_facade_set("house", Color(0.97, 0.96, 0.92), [Rect2i(40, 38, 48, 56)], Color(0.15, 0.18, 0.21), Color(0.92, 0.92, 0.9), 0.03, 1, 1)
+	var ho: Image = _tex["house_img"]
+	ho.fill_rect(Rect2i(22, 38, 14, 56), Color(0.28, 0.3, 0.3))
+	ho.fill_rect(Rect2i(92, 38, 14, 56), Color(0.28, 0.3, 0.3))
 	_tex["house"] = _img_tex(ho)
-	_tex["favela"] = _img_tex(_facade_img(Color(0.95, 0.95, 0.95), [Rect2i(52, 44, 36, 38)],
-		Color(0.2, 0.25, 0.3), Color(0.35, 0.35, 0.35), 0.07))
-	_tex["asphalt"] = _img_tex(_flat_img(Color(0.2, 0.2, 0.22), 64, 0.04))
-	_tex["sand"] = _img_tex(_flat_img(Color(0.86, 0.78, 0.6), 64, 0.05))
-	_tex["grass"] = _img_tex(_flat_img(Color(0.3, 0.5, 0.25), 64, 0.06))
+	_tex["house_em"] = _window_em([Rect2i(40, 38, 48, 56)], warm, 1)
+	_facade_set("favela", Color(0.93, 0.92, 0.9), [Rect2i(52, 44, 36, 38)], Color(0.16, 0.18, 0.2), Color(0.4, 0.4, 0.4), 0.08, 1, 1)
+	_tex["favela_em"] = _window_em([Rect2i(52, 44, 36, 38)], warm, 1)
+	# vitrine do térreo: faixa de letreiro + 3 vidros com caixilho
+	_facade_set("shop", Color(0.13, 0.13, 0.14), [Rect2i(5, 34, 118, 90)], Color(0.1, 0.12, 0.13), Color(0.08, 0.08, 0.09), 0.01, 3, 1,
+		Rect2i(0, 6, 128, 20))
+	_tex["shop_em"] = _window_em([Rect2i(5, 34, 118, 90)], Color(1.0, 0.86, 0.66), 3, 1)
 
-	var sw := _flat_img(Color(0.72, 0.72, 0.7), 128, 0.03)
-	sw.fill_rect(Rect2i(0, 0, 128, 2), Color(0.5, 0.5, 0.5))
-	sw.fill_rect(Rect2i(0, 0, 2, 128), Color(0.5, 0.5, 0.5))
-	sw.fill_rect(Rect2i(0, 64, 128, 1), Color(0.55, 0.55, 0.55))
-	sw.fill_rect(Rect2i(64, 0, 1, 128), Color(0.55, 0.55, 0.55))
-	_tex["sidewalk"] = _img_tex(sw)
+	# superfícies (256 px, sem emendas)
+	var n_fine := _noise_img(256, 0.09, 3, 11)
+	var n_mid := _noise_img(256, 0.025, 4, 12)
+	var n_big := _noise_img(256, 0.006, 3, 13)
+	_surface("asphalt", n_fine, n_mid, n_big, _col_asphalt, 2.5)
+	_surface("sidewalk", n_fine, n_mid, n_big, _col_sidewalk, 2.0, _h_sidewalk.bind(n_fine))
+	_surface("grass", n_fine, n_mid, n_big, _col_grass, 1.5)
+	_surface("sand", n_fine, n_mid, n_big, _col_sand, 1.2)
+	_surface("roof", n_fine, n_mid, n_big, _col_roof, 1.5)
+	_surface("concrete", n_fine, n_mid, n_big, _col_concrete, 1.0)
 
 	var wave := Image.create(128, 128, false, Image.FORMAT_RGB8)
-	wave.fill(Color(0.93, 0.9, 0.82))
+	wave.fill(Color(0.88, 0.86, 0.8))
 	for x in range(128):
 		var yc := 64.0 + sin(float(x) / 128.0 * TAU) * 26.0
 		for y in range(128):
 			if absf(float(y) - yc) < 14.0:
-				wave.set_pixel(x, y, Color(0.15, 0.15, 0.17))
+				wave.set_pixel(x, y, Color(0.13, 0.13, 0.14))
+	_noisy(wave, 0.03)
 	_tex["wave"] = _img_tex(wave)
 
 	var crop := Image.create(64, 64, false, Image.FORMAT_RGB8)
@@ -152,6 +159,140 @@ func _make_textures() -> void:
 		for x in range(64):
 			crop.set_pixel(x, y, Color(v, v, v))
 	_tex["crop"] = _img_tex(crop)
+
+
+func _col_asphalt(f: float, m: float, b: float, x: int, y: int) -> Color:
+	var v := 0.11 + f * 0.07 + (m - 0.5) * 0.05 + (b - 0.5) * 0.06
+	if _hash(x, y) > 0.985:
+		v += 0.08
+	return Color(v, v * 0.99, v * 0.97)
+
+
+func _col_sidewalk(f: float, m: float, b: float, x: int, y: int) -> Color:
+	var v := 0.46 + f * 0.06 + (m - 0.5) * 0.08 - maxf(0.0, b - 0.62) * 0.25
+	if _grout(x, y):
+		v *= 0.62
+	return Color(v, v * 0.985, v * 0.96)
+
+
+static func _grout(x: int, y: int) -> bool:
+	return mini(x % 128, 127 - x % 128) < 2 or mini(y % 128, 127 - y % 128) < 2
+
+
+func _h_sidewalk(x: int, y: int, nf: Image) -> float:
+	return 0.0 if _grout(x, y) else 0.6 + nf.get_pixel(x, y).r * 0.4
+
+
+func _col_grass(f: float, m: float, b: float, _x: int, _y: int) -> Color:
+	var k := clampf(m * 0.7 + b * 0.5 - 0.1, 0.0, 1.0)
+	var c := Color(0.17, 0.27, 0.11).lerp(Color(0.32, 0.42, 0.18), k)
+	c = c.lerp(Color(0.38, 0.36, 0.22), maxf(0.0, b - 0.65) * 1.2)
+	return c * (0.85 + f * 0.3)
+
+
+func _col_sand(f: float, m: float, _b: float, x: int, _y: int) -> Color:
+	var r := 0.5 + 0.5 * sin(float(x) * 0.25 + m * 9.0)
+	var v := 0.9 + f * 0.08 + r * 0.05
+	return Color(0.84 * v, 0.75 * v, 0.58 * v)
+
+
+func _col_roof(f: float, m: float, b: float, _x: int, _y: int) -> Color:
+	var v := 0.3 + f * 0.06 + (m - 0.5) * 0.1 - maxf(0.0, b - 0.6) * 0.2
+	return Color(v, v, v * 1.02)
+
+
+func _col_concrete(f: float, m: float, b: float, _x: int, _y: int) -> Color:
+	var v := 0.7 + f * 0.05 + (m - 0.5) * 0.08 - maxf(0.0, b - 0.6) * 0.25
+	return Color(v, v * 0.98, v * 0.95)
+
+
+static func _hash(x: int, y: int) -> float:
+	var h := (x * 374761393 + y * 668265263) & 0x7fffffff
+	h = (h ^ (h >> 13)) * 1274126177 & 0x7fffffff
+	return float(h % 10000) / 10000.0
+
+
+func _noise_img(size: int, freq: float, octaves: int, seed_v: int) -> Image:
+	var n := FastNoiseLite.new()
+	n.seed = seed_v
+	n.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	n.frequency = freq
+	n.fractal_octaves = octaves
+	var img := n.get_seamless_image(size, size)
+	img.convert(Image.FORMAT_RGB8)
+	return img
+
+
+## Gera albedo + normal map de uma superfície a partir de 3 camadas de ruído.
+func _surface(key: String, nf: Image, nm: Image, nb: Image, color_fn: Callable, strength: float,
+		height_fn: Callable = Callable()) -> void:
+	var dir := "user://texcache_v%d" % TEX_VERSION
+	var pa := "%s/%s.png" % [dir, key]
+	var pn := "%s/%s_n.png" % [dir, key]
+	if FileAccess.file_exists(pa) and FileAccess.file_exists(pn):
+		var ia := Image.load_from_file(pa)
+		var inn := Image.load_from_file(pn)
+		if ia != null and inn != null:
+			_tex[key] = _img_tex(ia)
+			_tex[key + "_n"] = _img_tex(inn)
+			return
+	var size := nf.get_width()
+	var img := Image.create(size, size, false, Image.FORMAT_RGB8)
+	var bump := Image.create(size, size, false, Image.FORMAT_RGB8)
+	for y in range(size):
+		for x in range(size):
+			var f := nf.get_pixel(x, y).r
+			var col: Color = color_fn.call(f, nm.get_pixel(x, y).r, nb.get_pixel(x, y).r, x, y)
+			img.set_pixel(x, y, col.clamp())
+			var hgt: float = f if not height_fn.is_valid() else float(height_fn.call(x, y))
+			bump.set_pixel(x, y, Color(hgt, hgt, hgt))
+	bump.bump_map_to_normal_map(strength)
+	DirAccess.make_dir_recursive_absolute(dir)
+	img.save_png(pa)
+	bump.save_png(pn)
+	_tex[key] = _img_tex(img)
+	_tex[key + "_n"] = _img_tex(bump)
+
+
+## Fachada: albedo, máscara de vidro (rugosidade baixa + metálico = reflete o céu)
+## e normal map (janelas "afundadas" na parede).
+func _facade_set(kind: String, bg: Color, wins: Array, win_col: Color, frame: Color, noise: float,
+		cols: int, rows: int, band: Rect2i = Rect2i()) -> void:
+	var img := Image.create(128, 128, false, Image.FORMAT_RGB8)
+	img.fill(bg)
+	var mask := Image.create(128, 128, false, Image.FORMAT_RGB8)
+	mask.fill(Color.BLACK)
+	var bump := Image.create(128, 128, false, Image.FORMAT_RGB8)
+	bump.fill(Color(0.8, 0.8, 0.8))
+	if band.size.x > 0:
+		img.fill_rect(band, bg.darkened(0.25))
+		bump.fill_rect(band, Color(1, 1, 1))
+	for r in wins:
+		var rect: Rect2i = r
+		img.fill_rect(rect.grow(3), frame)
+		bump.fill_rect(rect.grow(3), Color(0.9, 0.9, 0.9))
+		var cw := rect.size.x / cols
+		var rh := rect.size.y / rows
+		for i in range(cols):
+			for j in range(rows):
+				var pane := Rect2i(rect.position.x + i * cw + 1, rect.position.y + j * rh + 1, cw - 2, rh - 2)
+				var k := _rng.randf_range(0.85, 1.15)
+				img.fill_rect(pane, Color(win_col.r * k, win_col.g * k, win_col.b * k))
+				mask.fill_rect(pane, Color.WHITE)
+				bump.fill_rect(pane, Color(0.35, 0.35, 0.35))
+	_noisy(img, noise)
+	_tex[kind + "_img"] = img
+	_tex[kind] = _img_tex(img)
+	var rough := mask.duplicate() as Image
+	for y in range(128):
+		for x in range(128):
+			var m := mask.get_pixel(x, y).r
+			rough.set_pixel(x, y, Color(1.0 - m * 0.93, 0, 0))
+			mask.set_pixel(x, y, Color(m * 0.85, 0, 0))
+	_tex[kind + "_rough"] = _img_tex(rough)
+	_tex[kind + "_metal"] = _img_tex(mask)
+	bump.bump_map_to_normal_map(3.0)
+	_tex[kind + "_n"] = _img_tex(bump)
 
 
 # ============================================================ materiais
@@ -177,25 +318,39 @@ func _tmat(tex_key: String, tint: Color, scale: float, rough: float = 0.9) -> St
 	m.roughness = rough
 	m.uv1_triplanar = true
 	m.uv1_scale = Vector3(scale, scale, scale)
+	if tex_key in ["asphalt", "sidewalk", "concrete", "wave"]:
+		# "brilho da cidade" à noite (substitui a iluminação de rua sem custo de luzes)
+		m.emission_enabled = true
+		m.emission = Color(0.16, 0.12, 0.08)
+		m.emission_energy_multiplier = 0.0
+		_ground_mats.append(m)
+	if _tex.has(tex_key + "_n"):
+		m.normal_enabled = true
+		m.normal_texture = _tex[tex_key + "_n"]
+		m.normal_scale = 0.8
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	_mats[key] = m
 	return m
 
 
-func _facade_mat(kind: String, tint: Color) -> StandardMaterial3D:
+const FACADE_SHADER := preload("res://Shaders/facade.gdshader")
+
+
+func _facade_mat(kind: String, tint: Color) -> ShaderMaterial:
 	var key := "f|%s|%s" % [kind, tint.to_html()]
 	if _mats.has(key):
-		return _mats[key] as StandardMaterial3D
-	var m := StandardMaterial3D.new()
-	m.albedo_texture = _tex[kind]
-	m.albedo_color = tint
-	m.roughness = 0.35 if kind == "glass" else 0.85
-	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+		return _mats[key] as ShaderMaterial
+	var m := ShaderMaterial.new()
+	m.shader = FACADE_SHADER
+	m.set_shader_parameter("albedo_tex", _tex[kind])
+	m.set_shader_parameter("tint", tint)
+	if _tex.has(kind + "_metal"):
+		m.set_shader_parameter("mask_tex", _tex[kind + "_metal"])
+		m.set_shader_parameter("normal_tex", _tex[kind + "_n"])
 	if _tex.has(kind + "_em"):
-		m.emission_enabled = true
-		m.emission = Color.WHITE
-		m.emission_texture = _tex[kind + "_em"]
-		m.emission_energy_multiplier = 0.0
-		_facade_mats.append(m)
+		m.set_shader_parameter("emission_tex", _tex[kind + "_em"])
+		m.set_shader_parameter("emission_strength", 0.45 if kind == "glass" else 0.75)
+	_facade_mats.append(m)
 	_mats[key] = m
 	return m
 
@@ -207,7 +362,11 @@ func set_night(f: float) -> void:
 		return
 	_night = f
 	for m in _facade_mats:
-		m.emission_energy_multiplier = f * 0.55
+		m.set_shader_parameter("night", f)
+	if _shop_mat != null:
+		_shop_mat.set_shader_parameter("night", f)
+	for m in _ground_mats:
+		m.emission_energy_multiplier = f
 
 
 # ============================================================ primitivas
@@ -283,7 +442,8 @@ func _sign(text: String, pos: Vector3, size: int = 80, color: Color = Color.WHIT
 	l.pixel_size = 0.02
 	l.modulate = color
 	l.outline_modulate = outline
-	l.outline_size = 12
+	l.outline_size = 6
+	l.font = Ui.font(700)
 	l.position = pos
 	l.rotation_degrees.y = 180.0 # voltado para -Z
 	l.visibility_range_end = 150.0
@@ -373,8 +533,65 @@ func _building(base: Vector3, w: float, d: float, floors: int, kind: String, tin
 	var h := float(floors) * FLOOR_H
 	_facade(base, w, h, d, _facade_mat(kind, tint), yaw)
 	if flat_roof:
-		_solid(base + Vector3(0.0, h + 0.2, 0.0), Vector3(w + 0.5, 0.4, d + 0.5), _cmat(Color(0.25, 0.25, 0.27)), yaw, false)
+		var roof := _tmat("roof", Color.WHITE, 0.25)
+		var trim := _tmat("concrete", Color(0.85, 0.85, 0.85), 0.5)
+		_solid(base + Vector3(0.0, h + 0.1, 0.0), Vector3(w, 0.2, d), roof, yaw, false)
+		# platibanda (mureta do telhado)
+		_detail(base + Vector3(0.0, h + 0.55, 0.0), _ring_mesh(w + 0.3, d + 0.3, 0.9, 0.3), trim, yaw)
+		if DETAILS:
+			if floors >= 3:
+				var units := 1 + _rng.randi() % 3
+				for i in range(units):
+					var off := Vector3(_rng.randf_range(-w * 0.3, w * 0.3), h + 0.2, _rng.randf_range(-d * 0.3, d * 0.3)).rotated(Vector3.UP, yaw)
+					var sz := Vector3(_rng.randf_range(1.5, 3.0), _rng.randf_range(0.9, 1.6), _rng.randf_range(1.5, 3.0))
+					_solid(base + off + Vector3(0, sz.y * 0.5, 0), sz, _cmat(Color(0.62, 0.63, 0.64), 0.6), yaw, false)
+			if kind in ["office", "glass", "apartment"]:
+				# térreo com vitrine de vidro escuro
+				_solid(base + Vector3(0.0, 2.0, 0.0), Vector3(w + 0.25, 3.8, d + 0.25), _shopfront_mat(), yaw, false)
+				_solid(base + Vector3(0.0, 4.05, 0.0), Vector3(w + 0.6, 0.3, d + 0.6), trim, yaw, false)
 	return h
+
+
+func _shopfront_mat() -> ShaderMaterial:
+	if _mats.has("shopfront"):
+		return _mats["shopfront"]
+	var m := _facade_mat("shop", Color.WHITE).duplicate() as ShaderMaterial
+	_facade_mats.erase(m)
+	m.set_shader_parameter("world_uv", true)
+	m.set_shader_parameter("base_emission", 0.08)
+	m.set_shader_parameter("emission_strength", 0.4)
+	_mats["shopfront"] = m
+	_shop_mat = m
+	return m
+
+
+## Anel (4 paredes finas) — mureta de telhado em uma malha só.
+func _ring_mesh(w: float, d: float, h: float, t: float) -> ArrayMesh:
+	var key := "ring_%s_%s_%s" % [snappedf(w, 0.5), snappedf(d, 0.5), h]
+	if _meshes.has(key):
+		return _meshes[key]
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var parts := [
+		[Vector3(0, 0, -d * 0.5 + t * 0.5), Vector3(w, h, t)], [Vector3(0, 0, d * 0.5 - t * 0.5), Vector3(w, h, t)],
+		[Vector3(-w * 0.5 + t * 0.5, 0, 0), Vector3(t, h, d)], [Vector3(w * 0.5 - t * 0.5, 0, 0), Vector3(t, h, d)]]
+	for p in parts:
+		var bm := BoxMesh.new()
+		bm.size = p[1]
+		st.append_from(bm, 0, Transform3D(Basis.IDENTITY, p[0]))
+	var mesh := st.commit()
+	_meshes[key] = mesh
+	return mesh
+
+
+func _detail(pos: Vector3, mesh: Mesh, mat: Material, yaw: float = 0.0) -> void:
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	mi.material_override = mat
+	mi.position = pos
+	mi.rotation.y = yaw
+	mi.visibility_range_end = VIS_RANGE
+	_cur.add_child(mi)
 
 
 func _xf(origin: Vector3, scl: Vector3) -> Transform3D:
@@ -407,12 +624,18 @@ func _build_terrain() -> void:
 	_world_box(Vector3(0, 0.0, 235), Vector3(524, 0.04, 46), _tmat("sand", Color.WHITE, 0.2))
 	_world_box(Vector3(0, -0.9, 262), Vector3(600, 0.3, 8.14), _tmat("sand", Color(0.9, 0.85, 0.7), 0.2), true, Vector3(10.6, 0, 0))
 	_world_box(Vector3(0, -1.65, 283), Vector3(600, 0.3, 34), _tmat("sand", Color(0.7, 0.65, 0.5), 0.2), true)
-	var water := StandardMaterial3D.new()
-	water.albedo_color = Color(0.1, 0.45, 0.65, 0.75)
-	water.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	water.roughness = 0.1
-	water.metallic = 0.3
-	_world_box(Vector3(0, -0.5, 270), Vector3(600, 0.05, 60), water)
+	var water := ShaderMaterial.new()
+	water.shader = load("res://Shaders/water.gdshader")
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(620, 70)
+	plane.subdivide_width = 48
+	plane.subdivide_depth = 8
+	var wm := MeshInstance3D.new()
+	wm.mesh = plane
+	wm.material_override = water
+	wm.position = Vector3(0, -0.45, 272)
+	wm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(wm)
 
 
 func _build_roads() -> void:
@@ -495,6 +718,11 @@ func _build_block(ix: int, iz: int) -> void:
 	_begin(Vector3(cx, 0.0, cz))
 	if kind != "field":
 		_solid(Vector3(0, SLAB_H * 0.5, 0), Vector3(BLOCK, SLAB_H, BLOCK), _tmat("sidewalk", Color.WHITE, 0.5))
+		# meio-fio de concreto claro
+		_detail(Vector3(0, SLAB_H * 0.5 + 0.005, 0), _ring_mesh(BLOCK + 0.1, BLOCK + 0.1, SLAB_H + 0.02, 0.35),
+			_tmat("concrete", Color.WHITE, 0.5))
+		if DETAILS:
+			_street_props()
 	match kind:
 		"tower": _fill_tower()
 		"commercial": _fill_commercial()
@@ -509,6 +737,22 @@ func _build_block(ix: int, iz: int) -> void:
 		"dealer": _fill_dealer()
 		"plaza": _fill_plaza()
 		"field": _fill_field()
+
+
+## Mobiliário urbano na calçada: lixeiras e frades (balizadores) — sem postes.
+func _street_props() -> void:
+	var bin_mat := _cmat(Color(0.12, 0.14, 0.13), 0.6)
+	var bollard := _cmat(Color(0.2, 0.2, 0.21), 0.5)
+	for side in range(4):
+		var a := side * PI * 0.5
+		for k in range(2):
+			if _rng.randf() < 0.5:
+				var along := _rng.randf_range(-18.0, 18.0)
+				var p := Vector3(along, 0, 25.85).rotated(Vector3.UP, a)
+				_solid(Vector3(p.x, SLAB_H + 0.45, p.z), Vector3(0.55, 0.9, 0.55), bin_mat, a, true)
+		for k in range(3):
+			var p2 := Vector3(-24.6 + k * 0.9, 0, 25.85).rotated(Vector3.UP, a)
+			_cyl(Vector3(p2.x, SLAB_H + 0.4, p2.z), 0.09, 0.8, bollard, false)
 
 
 func _pick_color(list: Array[Color]) -> Color:

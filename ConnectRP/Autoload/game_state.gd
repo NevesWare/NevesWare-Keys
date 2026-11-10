@@ -52,13 +52,14 @@ var jobs_done: int = 0
 var has_license: bool = false
 var owned_cars: Array = []          # [{"model": "sedan", "color": 2}]
 var hours: float = 9.0
+var day: int = 1
 var saved_position: Variant = null  # Vector3 ou null
 var has_save: bool = false
 var playing: bool = false
 var dead: bool = false
 var position_provider: Callable
 
-var settings: Dictionary = {"quality": 1, "sensitivity": 1.0, "show_fps": true}
+var settings: Dictionary = {"quality": 1, "sensitivity": 1.0, "show_fps": true, "volume": 1.0}
 var cli: Dictionary = {}            # argumentos de linha de comando (testes)
 
 var _autosave_t: float = 0.0
@@ -94,7 +95,10 @@ func _notification(what: int) -> void:
 func _process(delta: float) -> void:
 	if not playing:
 		return
-	hours = fmod(hours + delta * 24.0 / (DAY_MINUTES * 60.0), 24.0)
+	hours += delta * 24.0 / (DAY_MINUTES * 60.0)
+	if hours >= 24.0:
+		hours -= 24.0
+		day += 1
 	hunger = maxf(0.0, hunger - delta * 100.0 / (HUNGER_MINUTES * 60.0))
 	thirst = maxf(0.0, thirst - delta * 100.0 / (THIRST_MINUTES * 60.0))
 	if (hunger <= 0.0 or thirst <= 0.0) and not dead:
@@ -119,6 +123,8 @@ static func fmt_money(v: int) -> String:
 func add_money(v: int, reason: String = "") -> void:
 	money += v
 	stats_changed.emit()
+	if v > 0:
+		Sfx.play_ui("money")
 	if reason != "":
 		toast("+%s  %s" % [fmt_money(v), reason], Color(0.4, 1.0, 0.5))
 
@@ -126,6 +132,7 @@ func add_money(v: int, reason: String = "") -> void:
 ## Paga em dinheiro; se faltar, completa com o banco (cartão).
 func pay(v: int, reason: String = "") -> bool:
 	if money + bank < v:
+		Sfx.play_ui("error")
 		toast("Saldo insuficiente (%s)" % fmt_money(v), Color(1.0, 0.4, 0.35))
 		return false
 	var from_cash := mini(money, v)
@@ -211,6 +218,10 @@ func toast(text: String, color: Color = Color.WHITE) -> void:
 
 # ---------------------------------------------------------------------- tempo
 
+func weekday_text() -> String:
+	return ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"][day % 7]
+
+
 func clock_text() -> String:
 	var h := int(hours)
 	var m := int((hours - h) * 60.0)
@@ -258,6 +269,7 @@ func new_game(p_name: String, ap: Dictionary) -> void:
 	has_license = false
 	owned_cars = []
 	hours = 9.0
+	day = 1
 	saved_position = null
 	dead = false
 
@@ -275,7 +287,7 @@ func save_game() -> void:
 		"version": 2, "name": player_name, "appearance": appearance,
 		"money": money, "bank": bank, "health": health, "armor": armor,
 		"hunger": hunger, "thirst": thirst, "job": job, "jobs_done": jobs_done,
-		"license": has_license, "cars": owned_cars, "hours": hours, "pos": pos,
+		"license": has_license, "cars": owned_cars, "hours": hours, "day": day, "pos": pos,
 	}
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if f == null:
@@ -310,6 +322,7 @@ func load_game() -> bool:
 	has_license = bool(d.get("license", false))
 	owned_cars = d.get("cars", []) if d.get("cars", []) is Array else []
 	hours = float(d.get("hours", 9.0))
+	day = int(d.get("day", 1))
 	var pos: Variant = d.get("pos", [])
 	saved_position = Vector3(pos[0], pos[1], pos[2]) if pos is Array and pos.size() == 3 else null
 	if health <= 0.0:
@@ -337,13 +350,16 @@ func save_settings() -> void:
 
 ## Valores dependentes da qualidade gráfica escolhida (0 baixa, 1 média, 2 alta).
 func quality_profile() -> Dictionary:
-	match int(settings.get("quality", 1)):
+	match int(cli.get("quality", settings.get("quality", 1))):
 		0:
 			return {"scale3d": 0.7, "shadows": false, "shadow_dist": 0.0, "vis": 170.0, "far": 210.0,
-				"fog": 0.006, "peds": 8, "traffic": 5}
+				"fog": 0.006, "peds": 8, "traffic": 5, "glow": false, "msaa": 0, "shadow_splits": false,
+				"map_size": 1024, "details": false}
 		2:
-			return {"scale3d": 1.0, "shadows": true, "shadow_dist": 60.0, "vis": 280.0, "far": 350.0,
-				"fog": 0.0025, "peds": 20, "traffic": 12}
+			return {"scale3d": 1.0, "shadows": true, "shadow_dist": 80.0, "vis": 280.0, "far": 350.0,
+				"fog": 0.0022, "peds": 20, "traffic": 12, "glow": true, "msaa": 2, "shadow_splits": true,
+				"map_size": 2048, "details": true}
 		_:
-			return {"scale3d": 0.85, "shadows": true, "shadow_dist": 40.0, "vis": 230.0, "far": 280.0,
-				"fog": 0.0038, "peds": 14, "traffic": 8}
+			return {"scale3d": 0.85, "shadows": true, "shadow_dist": 45.0, "vis": 230.0, "far": 280.0,
+				"fog": 0.0032, "peds": 14, "traffic": 8, "glow": true, "msaa": 1, "shadow_splits": false,
+				"map_size": 1024, "details": true}

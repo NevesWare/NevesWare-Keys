@@ -43,6 +43,11 @@ var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 var _grounded: bool = true
 var _ray := PhysicsRayQueryParameters3D.new()
 var _hit_cd: float = 0.0
+var _engine: AudioStreamPlayer3D
+var _skid: AudioStreamPlayer3D
+var _audio_t: float = 0.0
+var _throttle_audio: float = 0.0
+var _horn_cd: float = 0.0
 
 
 func _ready() -> void:
@@ -67,6 +72,18 @@ func _ready() -> void:
 		plate = "%s%s%s-%d%d%d%d" % [char(65 + randi() % 26), char(65 + randi() % 26), char(65 + randi() % 26),
 			randi() % 10, randi() % 10, randi() % 10, randi() % 10]
 	_apply_layers()
+	_engine = AudioStreamPlayer3D.new()
+	_engine.stream = Sfx.bank["engine"]
+	_engine.unit_size = 5.0
+	_engine.max_distance = 55.0
+	_engine.volume_db = -10.0
+	_engine.position.y = 0.6
+	add_child(_engine)
+	_skid = AudioStreamPlayer3D.new()
+	_skid.stream = Sfx.bank["skid"]
+	_skid.max_distance = 50.0
+	_skid.volume_db = -60.0
+	add_child(_skid)
 
 
 func half_width() -> float:
@@ -121,6 +138,8 @@ func _physics_process(delta: float) -> void:
 		throttle = fwd_in - back_in
 		steer_in = Input.get_action_strength("move_right") - Input.get_action_strength("move_left")
 		handbrake = Input.is_action_pressed("jump")
+		if Input.is_action_just_pressed("horn"):
+			honk()
 	elif ai and traffic != null:
 		var r := _ai_drive(delta)
 		throttle = r.x
@@ -193,6 +212,49 @@ func _physics_process(delta: float) -> void:
 	visual.set_lights(lights_on, braking)
 	visual.set_spot_enabled(driver != null)
 	visual.update_wheels(delta, speed, steer)
+	_update_audio(delta, throttle, handbrake)
+
+
+func honk() -> void:
+	if _horn_cd > 0.0:
+		return
+	_horn_cd = 0.5
+	Sfx.play_at("horn", self, -2.0 if driver != null else -6.0, 1.0, 70.0)
+
+
+## Motor: o tom segue a "rotação" (com trocas de marcha); derrapagem no freio de mão.
+func _update_audio(delta: float, throttle: float, handbrake: bool) -> void:
+	_horn_cd = maxf(0.0, _horn_cd - delta)
+	_audio_t -= delta
+	if _audio_t <= 0.0:
+		_audio_t = 0.5
+		var cam := get_viewport().get_camera_3d()
+		var near := cam != null and cam.global_position.distance_to(global_position) < 60.0
+		var alive := engine_health > 0.0 and (driver != null or ai)
+		if near and alive and not _engine.playing:
+			_engine.play(randf())
+		elif (not near or not alive) and _engine.playing:
+			_engine.stop()
+	if not _engine.playing:
+		return
+	var max_speed: float = stats.get("max_speed", 30.0)
+	var band := max_speed / 5.0
+	var spd := absf(speed)
+	var gear := mini(int(spd / band), 4)
+	var rpm := (spd - gear * band) / band
+	if gear > 0:
+		rpm = 0.3 + rpm * 0.7
+	_throttle_audio = lerpf(_throttle_audio, absf(throttle), 1.0 - exp(-6.0 * delta))
+	var target_pitch := 0.55 + rpm * 0.95 + _throttle_audio * 0.12
+	_engine.pitch_scale = lerpf(_engine.pitch_scale, target_pitch, 1.0 - exp(-10.0 * delta))
+	var base_db := -4.0 if driver != null else -11.0
+	_engine.volume_db = base_db + _throttle_audio * 4.0
+	var skidding := handbrake and spd > 6.0
+	if skidding and not _skid.playing:
+		_skid.play()
+	_skid.volume_db = lerpf(_skid.volume_db, -6.0 if skidding else -60.0, 1.0 - exp(-10.0 * delta))
+	if not skidding and _skid.volume_db < -50.0 and _skid.playing:
+		_skid.stop()
 
 
 ## Mantém o carro "assentado" no chão (sobe meio-fio de calçada) sem rolar.
@@ -229,8 +291,10 @@ func _handle_collisions(pre_speed: float, fwd: Vector3) -> void:
 				other.call("hit_by_vehicle", self, absf(pre_speed))
 				_hit_cd = 0.6
 			continue
-		if impact > 6.0 and _hit_cd <= 0.0:
+		if impact > 3.0 and _hit_cd <= 0.0:
+			Sfx.play_at("crash", self, clampf(-14.0 + impact, -14.0, 2.0), randf_range(0.85, 1.1), 60.0)
 			_hit_cd = 0.4
+		if impact > 6.0 and _hit_cd >= 0.399:
 			var was_ok := engine_health > 0.0
 			engine_health = maxf(0.0, engine_health - (impact - 6.0) * 1.3)
 			if driver != null:
@@ -273,6 +337,8 @@ func _ai_drive(delta: float) -> Vector3:
 		blocked = not space.intersect_ray(q).is_empty()
 	if blocked:
 		_ai_wait += delta
+		if _ai_wait > 2.0 and _ai_wait - delta <= 2.0 and randf() < 0.5:
+			honk()
 		if _ai_wait > 4.0:
 			_ai_wait = 0.0
 			_ai_ghost = 1.5

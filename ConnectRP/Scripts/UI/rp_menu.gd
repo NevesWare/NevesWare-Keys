@@ -1,12 +1,15 @@
 class_name RpMenu
 extends CanvasLayer
-## Menu de opções grande, próprio para toque (banco, lanchonete, celular...).
+## Menu de opções para toque (banco, lanchonete, celular...), visual limpo.
 ## open(titulo, subtitulo, opcoes) — opcoes = [[texto, Callable, habilitado?], ...]
-## O menu fecha antes de chamar a opção; para "continuar" no menu, a opção
-## pode chamar open() de novo.
+## O texto pode ter "|" para separar o valor à direita: "Hambúrguer|R$ 25".
+## O menu fecha antes de chamar a opção; para continuar no menu, a opção
+## chama open() de novo.
 
 signal opened
 signal closed
+
+const WIDTH := 500.0
 
 var is_open: bool = false
 var _dim: ColorRect
@@ -14,13 +17,14 @@ var _panel: PanelContainer
 var _title: Label
 var _subtitle: Label
 var _list: VBoxContainer
+var _scroll: ScrollContainer
 
 
 func _ready() -> void:
 	layer = 30
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_dim = ColorRect.new()
-	_dim.color = Color(0, 0, 0, 0.45)
+	_dim.color = Color(0, 0, 0, 0.35)
 	_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_dim.mouse_filter = Control.MOUSE_FILTER_STOP
 	_dim.gui_input.connect(func(e: InputEvent) -> void:
@@ -29,79 +33,97 @@ func _ready() -> void:
 	add_child(_dim)
 
 	_panel = PanelContainer.new()
-	_panel.custom_minimum_size = Vector2(520, 0)
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.06, 0.07, 0.1, 0.96)
-	sb.border_color = Color(1.0, 0.7, 0.12)
-	sb.border_width_top = 4
-	sb.corner_radius_top_left = 14
-	sb.corner_radius_top_right = 14
-	sb.corner_radius_bottom_left = 14
-	sb.corner_radius_bottom_right = 14
-	sb.content_margin_left = 22
-	sb.content_margin_right = 22
-	sb.content_margin_top = 18
-	sb.content_margin_bottom = 18
-	_panel.add_theme_stylebox_override("panel", sb)
+	_panel.custom_minimum_size = Vector2(WIDTH, 0)
+	_panel.add_theme_stylebox_override("panel", Ui.box(Color(0.03, 0.03, 0.035, 0.88), 16, 0))
 	add_child(_panel)
-
 	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 10)
+	v.add_theme_constant_override("separation", 0)
 	_panel.add_child(v)
-	_title = Label.new()
-	_title.add_theme_font_size_override("font_size", 30)
-	_title.add_theme_color_override("font_color", Color(1.0, 0.78, 0.2))
-	v.add_child(_title)
-	_subtitle = Label.new()
-	_subtitle.add_theme_font_size_override("font_size", 18)
-	_subtitle.add_theme_color_override("font_color", Color(0.8, 0.82, 0.88))
-	_subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	v.add_child(_subtitle)
 
-	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(0, 80)
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	v.add_child(scroll)
+	# cabeçalho
+	var head := MarginContainer.new()
+	for side in ["left", "right", "top", "bottom"]:
+		head.add_theme_constant_override("margin_" + side, 22 if side != "bottom" else 14)
+	v.add_child(head)
+	var hv := VBoxContainer.new()
+	hv.add_theme_constant_override("separation", 2)
+	head.add_child(hv)
+	var hrow := HBoxContainer.new()
+	hv.add_child(hrow)
+	_title = Ui.label("", 26, 700)
+	_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hrow.add_child(_title)
+	var x := Button.new()
+	x.flat = true
+	x.custom_minimum_size = Vector2(44, 44)
+	x.focus_mode = Control.FOCUS_NONE
+	x.draw.connect(func() -> void: Ui.draw_icon(x, "close", x.size * 0.5, 9.0, Ui.TEXT_DIM))
+	x.pressed.connect(close)
+	hrow.add_child(x)
+	_subtitle = Ui.label("", 15, 400, Ui.TEXT_DIM)
+	_subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	hv.add_child(_subtitle)
+
+	var sep := ColorRect.new()
+	sep.color = Ui.LINE
+	sep.custom_minimum_size = Vector2(0, 1)
+	v.add_child(sep)
+
+	_scroll = ScrollContainer.new()
+	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	v.add_child(_scroll)
 	_list = VBoxContainer.new()
 	_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_list.add_theme_constant_override("separation", 8)
-	scroll.add_child(_list)
-
-	var close_btn := _make_button("FECHAR", Color(0.3, 0.3, 0.35))
-	close_btn.pressed.connect(close)
-	v.add_child(close_btn)
+	_list.add_theme_constant_override("separation", 0)
+	_scroll.add_child(_list)
+	var foot := Control.new()
+	foot.custom_minimum_size = Vector2(0, 10)
+	v.add_child(foot)
 	_set_visible(false)
 
 
-static func style_button(b: Button, accent: Color) -> void:
-	for st in ["normal", "hover", "pressed", "disabled", "focus"]:
-		var sb := StyleBoxFlat.new()
-		sb.bg_color = accent.darkened(0.55) if st != "pressed" else accent.darkened(0.25)
-		if st == "disabled":
-			sb.bg_color = Color(0.15, 0.15, 0.17)
-		if st == "focus":
-			sb.bg_color = Color(0, 0, 0, 0)
-			sb.draw_center = false
-		sb.border_color = accent
-		sb.border_width_left = 3
-		sb.corner_radius_top_left = 10
-		sb.corner_radius_top_right = 10
-		sb.corner_radius_bottom_left = 10
-		sb.corner_radius_bottom_right = 10
-		sb.content_margin_left = 16
-		sb.content_margin_right = 16
-		b.add_theme_stylebox_override(st, sb)
-	b.add_theme_font_size_override("font_size", 22)
-	b.add_theme_color_override("font_disabled_color", Color(0.5, 0.5, 0.5))
-
-
-func _make_button(text: String, accent: Color) -> Button:
+func _row(text: String, cb: Callable, enabled: bool) -> Button:
 	var b := Button.new()
-	b.text = text
 	b.custom_minimum_size = Vector2(0, 58)
-	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	b.focus_mode = Control.FOCUS_NONE
-	style_button(b, accent)
+	b.disabled = not enabled
+	var normal := StyleBoxEmpty.new()
+	var hover := Ui.box(Color(1, 1, 1, 0.06), 0)
+	var pressed := Ui.box(Color(1, 1, 1, 0.92), 0)
+	for st in ["normal", "disabled", "focus"]:
+		b.add_theme_stylebox_override(st, normal)
+	b.add_theme_stylebox_override("hover", hover)
+	b.add_theme_stylebox_override("pressed", pressed)
+	b.add_theme_stylebox_override("hover_pressed", pressed)
+	var parts := text.split("|", true, 1)
+	var left := Ui.label(parts[0], 19, 600, Ui.TEXT if enabled else Ui.TEXT_FAINT)
+	var right := Ui.label(parts[1] if parts.size() > 1 else "", 17, 400, Ui.TEXT_DIM if enabled else Ui.TEXT_FAINT,
+		HORIZONTAL_ALIGNMENT_RIGHT)
+	for l in [left, right]:
+		l.set_anchors_preset(Control.PRESET_FULL_RECT)
+		l.offset_left = 24
+		l.offset_right = -24
+		l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		b.add_child(l)
+	b.button_down.connect(func() -> void:
+		left.add_theme_color_override("font_color", Color(0.04, 0.04, 0.05))
+		right.add_theme_color_override("font_color", Color(0.04, 0.04, 0.05, 0.7)))
+	b.button_up.connect(func() -> void:
+		left.add_theme_color_override("font_color", Ui.TEXT)
+		right.add_theme_color_override("font_color", Ui.TEXT_DIM))
+	b.pressed.connect(func() -> void:
+		Ui._click()
+		close()
+		if cb.is_valid():
+			cb.call())
+	var line := ColorRect.new()
+	line.color = Color(1, 1, 1, 0.06)
+	line.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	line.offset_top = -1
+	line.offset_left = 24
+	line.offset_right = -24
+	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	b.add_child(line)
 	return b
 
 
@@ -110,19 +132,13 @@ func open(title: String, subtitle: String, options: Array) -> void:
 	_subtitle.text = subtitle
 	_subtitle.visible = subtitle != ""
 	for c in _list.get_children():
+		_list.remove_child(c)
 		c.queue_free()
 	for opt in options:
-		var b := _make_button(String(opt[0]), Color(1.0, 0.7, 0.12))
-		var cb: Callable = opt[1]
-		b.disabled = opt.size() > 2 and not bool(opt[2])
-		b.pressed.connect(func() -> void:
-			close()
-			if cb.is_valid():
-				cb.call())
-		_list.add_child(b)
+		var enabled: bool = not (opt.size() > 2 and not bool(opt[2]))
+		_list.add_child(_row(String(opt[0]), opt[1], enabled))
 	var vh := _panel.get_viewport_rect().size.y
-	var scroll := _list.get_parent() as ScrollContainer
-	scroll.custom_minimum_size.y = minf(options.size() * 66.0, vh - 250.0)
+	_scroll.custom_minimum_size.y = minf(options.size() * 58.0, vh - 230.0)
 	_set_visible(true)
 	if not is_open:
 		is_open = true
@@ -130,7 +146,8 @@ func open(title: String, subtitle: String, options: Array) -> void:
 	_panel.size = Vector2.ZERO
 	await get_tree().process_frame
 	_panel.size = Vector2.ZERO
-	_panel.position = ((_panel.get_viewport_rect().size - _panel.size) * 0.5).floor()
+	var vs := _panel.get_viewport_rect().size
+	_panel.position = Vector2(maxf(24.0, vs.x * 0.5 - WIDTH * 0.5), ((vs.y - _panel.size.y) * 0.5)).floor()
 
 
 func close() -> void:

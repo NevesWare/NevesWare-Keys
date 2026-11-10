@@ -5,7 +5,7 @@ extends CharacterBody3D
 
 enum State { WALK, FALLEN, FLEE }
 
-const SIDEWALK_OFFSET := 25.2
+const SIDEWALK_OFFSET := 25.0
 
 var rig: HumanoidRig
 var state: State = State.WALK
@@ -123,6 +123,7 @@ func _knock(from_dir: Vector3, force: float) -> void:
 
 
 func take_damage(_amount: float, from_dir: Vector3) -> void:
+	Sfx.play_at("punch", self, -4.0, randf_range(0.9, 1.1), 30.0)
 	if state != State.FALLEN:
 		_knock(from_dir, 3.0)
 

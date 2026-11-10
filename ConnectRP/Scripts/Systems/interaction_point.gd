@@ -19,8 +19,9 @@ var _t: float = 0.0
 
 func _ready() -> void:
 	add_to_group("interaction_points")
+	color = Color(1.0, 1.0, 1.0)   # marcadores neutros (visual limpo)
 	var ring_mat := StandardMaterial3D.new()
-	ring_mat.albedo_color = Color(color.r, color.g, color.b, 0.45)
+	ring_mat.albedo_color = Color(color.r, color.g, color.b, 0.22)
 	ring_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	ring_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	ring_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
@@ -40,7 +41,7 @@ func _ready() -> void:
 	add_child(ring)
 
 	var floor_mat := ring_mat.duplicate() as StandardMaterial3D
-	floor_mat.albedo_color = Color(color.r, color.g, color.b, 0.25)
+	floor_mat.albedo_color = Color(color.r, color.g, color.b, 0.12)
 	var disc := MeshInstance3D.new()
 	var dm := CylinderMesh.new()
 	dm.top_radius = radius * 0.55
@@ -61,7 +62,7 @@ func _ready() -> void:
 	arrow_mat.albedo_color = color
 	arrow_mat.emission_enabled = true
 	arrow_mat.emission = color
-	arrow_mat.emission_energy_multiplier = 0.6
+	arrow_mat.emission_energy_multiplier = 0.4
 	var am := MeshInstance3D.new()
 	var pm := PrismMesh.new()
 	pm.size = Vector3(0.5, 0.5, 0.12)
@@ -74,12 +75,13 @@ func _ready() -> void:
 	var label := Label3D.new()
 	label.text = title
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	label.font_size = 64
-	label.outline_size = 14
+	label.font_size = 56
+	label.font = Ui.font(600)
+	label.outline_size = 8
 	label.pixel_size = 0.008
 	label.position.y = 2.75
 	label.modulate = Color.WHITE
-	label.outline_modulate = Color(0, 0, 0, 0.85)
+	label.outline_modulate = Color(0, 0, 0, 0.6)
 	label.visibility_range_end = 45.0
 	label.no_depth_test = false
 	add_child(label)

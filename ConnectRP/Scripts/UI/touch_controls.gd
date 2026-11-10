@@ -27,6 +27,7 @@ const LAYOUTS := {
 		["brake", "FREIO / RÉ", 265.0, 90.0, 56.0],
 		["jump", "FREIO MÃO", 255.0, 235.0, 46.0],
 		["interact", "SAIR", 95.0, 300.0, 46.0],
+		["horn", "BUZINA", 380.0, 120.0, 40.0],
 	],
 }
 
@@ -227,60 +228,50 @@ func _set_action(action: String, pressed: bool, strength: float = 1.0) -> void:
 
 # -------------------------------------------------------------------- desenho
 
-func _accent(action: String) -> Color:
-	match action:
-		"punch": return Color(0.96, 0.3, 0.25)
-		"jump": return Color(0.3, 0.85, 0.45)
-		"sprint": return Color(1.0, 0.8, 0.2)
-		"crouch": return Color(0.3, 0.65, 1.0)
-		"interact": return Color(1.0, 0.95, 0.95)
-		"accelerate": return Color(0.3, 0.85, 0.45)
-		"brake": return Color(0.96, 0.3, 0.25)
-		_: return Color(0.72, 0.48, 1.0)
-
-
 func _on_draw() -> void:
 	var c := _canvas
-	# ---- joystick
-	c.draw_circle(_joy_center, JOY_RADIUS, Color(0.05, 0.06, 0.1, 0.35))
-	c.draw_arc(_joy_center, JOY_RADIUS, 0.0, TAU, 64, Color(1, 1, 1, 0.5), 4.0, true)
-	c.draw_arc(_joy_center, JOY_RADIUS * 0.62, 0.0, TAU, 48, Color(1, 1, 1, 0.15), 2.0, true)
+	# ---- joystick (anel fino + pino branco)
+	var active := _joy_active
+	c.draw_circle(_joy_center, JOY_RADIUS, Color(0, 0, 0, 0.22 if active else 0.14))
+	c.draw_arc(_joy_center, JOY_RADIUS, 0.0, TAU, 72, Color(1, 1, 1, 0.42 if active else 0.25), 2.0, true)
 	for dir in [Vector2.UP, Vector2.RIGHT, Vector2.DOWN, Vector2.LEFT]:
 		var perp := Vector2(-dir.y, dir.x)
-		var tip: Vector2 = _joy_center + dir * (JOY_RADIUS - 14.0)
-		var pts := PackedVector2Array([tip - dir * 8.0 + perp * 7.0, tip, tip - dir * 8.0 - perp * 7.0])
-		c.draw_polyline(pts, Color(1, 1, 1, 0.55), 3.0, true)
-	c.draw_circle(_joy_knob + Vector2(0, 3), 40.0, Color(0, 0, 0, 0.25))
-	c.draw_circle(_joy_knob, 40.0, Color(0.9, 0.95, 1.0, 0.55))
-	c.draw_circle(_joy_knob, 26.0, Color(0.35, 0.7, 1.0, 0.85))
-	c.draw_arc(_joy_knob, 33.0, PI * 1.15, PI * 1.85, 16, Color(1, 1, 1, 0.5), 3.0, true)
+		var tip: Vector2 = _joy_center + dir * (JOY_RADIUS - 13.0)
+		c.draw_polyline(PackedVector2Array([tip - dir * 6.0 + perp * 6.0, tip, tip - dir * 6.0 - perp * 6.0]),
+			Color(1, 1, 1, 0.35), 2.0, true)
+	c.draw_circle(_joy_knob, 34.0, Color(0, 0, 0, 0.18))
+	c.draw_circle(_joy_knob, 30.0, Color(1, 1, 1, 0.85 if active else 0.55))
 
-	# ---- botões de ação
-	var font := ThemeDB.fallback_font
+	# ---- botões: círculo escuro translúcido, contorno fino, ícone branco
+	var font := Ui.font(600)
 	for i in range(BUTTONS.size()):
 		var action := String(BUTTONS[i][0])
 		if _hidden.get(action, false):
 			continue
 		var r := float(BUTTONS[i][4])
 		var p := _btn_pos(i)
-		var col := _accent(action)
 		var down: bool = _pressed.get(action, false)
 		var on: bool = _active.get(action, false)
-		var rr := r * (0.93 if down else 1.0)
-		c.draw_circle(p + Vector2(0, 4), rr, Color(0, 0, 0, 0.25))
-		c.draw_circle(p, rr, Color(0.06, 0.07, 0.1, 0.75 if down else 0.55))
-		if down or on:
-			c.draw_circle(p, rr - 4.0, Color(col.r, col.g, col.b, 0.4 if down else 0.3))
-		c.draw_arc(p, rr - 2.0, 0.0, TAU, 48, Color(col.r, col.g, col.b, 0.95), 4.0, true)
-		c.draw_arc(p, rr - 10.0, PI * 1.15, PI * 1.85, 24, Color(1, 1, 1, 0.28), 3.0, true)
-		_draw_icon(action, p + Vector2(0, -rr * 0.12), rr * 0.4)
-		c.draw_string(font, Vector2(p.x - rr, p.y + rr * 0.68), String(_labels.get(action, BUTTONS[i][1])),
-			HORIZONTAL_ALIGNMENT_CENTER, rr * 2.0, 14, Color(1, 1, 1, 0.92))
+		var rr := r * (0.94 if down else 1.0)
+		if down:
+			c.draw_circle(p, rr, Color(1, 1, 1, 0.9))
+		else:
+			c.draw_circle(p, rr, Color(0.02, 0.02, 0.025, 0.42))
+			c.draw_arc(p, rr - 1.0, 0.0, TAU, 56, Color(1, 1, 1, 0.75 if on else 0.3), 2.5 if on else 1.5, true)
+		var ic := Color(0.04, 0.04, 0.05) if down else Color(1, 1, 1, 0.95)
+		_icon_color = ic
+		_draw_icon(action, p + Vector2(0, -rr * 0.08), rr * 0.36)
+		var label := String(_labels.get(action, BUTTONS[i][1]))
+		c.draw_string(font, Vector2(p.x - rr * 1.5, p.y + rr + 15.0), label, HORIZONTAL_ALIGNMENT_CENTER, rr * 3.0, 11,
+			Color(1, 1, 1, 0.7))
+
+
+var _icon_color: Color = Color.WHITE
 
 
 func _draw_icon(action: String, o: Vector2, s: float) -> void:
 	var c := _canvas
-	var w := Color(1, 1, 1, 0.95)
+	var w := _icon_color
 	match action:
 		"jump":
 			for k in range(2):
@@ -295,7 +286,7 @@ func _draw_icon(action: String, o: Vector2, s: float) -> void:
 			for k in range(4):
 				c.draw_circle(o + Vector2(-s * 0.6 + k * s * 0.4, -s * 0.25), s * 0.22, w)
 			c.draw_circle(o + Vector2(-s * 0.85, s * 0.25), s * 0.22, w)
-			c.draw_rect(Rect2(o + Vector2(-s * 0.5, s * 0.8), Vector2(s * 1.0, s * 0.3)), Color(1, 1, 1, 0.6))
+			c.draw_rect(Rect2(o + Vector2(-s * 0.5, s * 0.8), Vector2(s * 1.0, s * 0.3)), Color(w.r, w.g, w.b, 0.6))
 		"crouch":
 			c.draw_circle(o + Vector2(0, -s * 0.9), s * 0.25, w)
 			c.draw_polyline(PackedVector2Array([o + Vector2(0, -s * 0.6), o + Vector2(-s * 0.25, 0), o + Vector2(s * 0.4, s * 0.1), o + Vector2(s * 0.4, s * 0.8)]), w, 5.0, true)
@@ -305,10 +296,12 @@ func _draw_icon(action: String, o: Vector2, s: float) -> void:
 		"brake":
 			c.draw_colored_polygon(PackedVector2Array([o + Vector2(0, s * 0.8), o + Vector2(s * 0.85, -s * 0.6), o + Vector2(-s * 0.85, -s * 0.6)]), w)
 		"interact":
-			c.draw_arc(o, s * 0.8, 0.0, TAU, 24, w, 4.0, true)
+			c.draw_arc(o, s * 0.8, 0.0, TAU, 24, w, 3.0, true)
 			c.draw_circle(o, s * 0.3, w)
+		"horn":
+			Ui.draw_icon(c, "horn", o, s, w)
 		"prone":
 			c.draw_circle(o + Vector2(-s * 0.85, s * 0.05), s * 0.22, w)
 			c.draw_polyline(PackedVector2Array([o + Vector2(-s * 0.6, s * 0.15), o + Vector2(s * 0.9, s * 0.3)]), w, 5.0, true)
 			c.draw_polyline(PackedVector2Array([o + Vector2(-s * 0.4, s * 0.15), o + Vector2(-s * 0.2, -s * 0.25), o + Vector2(s * 0.15, 0)]), w, 4.0, true)
-			c.draw_line(o + Vector2(-s, s * 0.6), o + Vector2(s, s * 0.6), Color(1, 1, 1, 0.5), 3.0, true)
+			c.draw_line(o + Vector2(-s, s * 0.6), o + Vector2(s, s * 0.6), Color(w.r, w.g, w.b, 0.5), 3.0, true)

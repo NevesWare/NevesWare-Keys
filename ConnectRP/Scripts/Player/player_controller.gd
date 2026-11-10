@@ -40,6 +40,7 @@ var _punch_hand: int = 0
 var vehicle: Car = null
 ## Desliga o controle (menu aberto, desmaiado...).
 var input_enabled: bool = true
+var _step_t: float = 0.0
 
 
 func _ready() -> void:
@@ -63,6 +64,7 @@ func enter_vehicle(car: Car) -> void:
 	visual.visible = false
 	set_physics_process(false)
 	car.set_driver(self)
+	Sfx.play_at("door", car, -4.0, randf_range(0.95, 1.05))
 	camera_rig.follow_vehicle(car)
 	vehicle_changed.emit(car)
 
@@ -73,6 +75,7 @@ func exit_vehicle() -> void:
 	var car := vehicle
 	vehicle = null
 	car.set_driver(null)
+	Sfx.play_at("door", car, -4.0, randf_range(0.85, 0.95))
 	var side := car.global_transform.basis.x
 	var spots: Array[Vector3] = [
 		car.global_position - side * (car.half_width() + 0.9),
@@ -175,6 +178,7 @@ func _physics_process(delta: float) -> void:
 		var target_yaw := atan2(-dir.x, -dir.z)
 		visual.rotation.y = lerp_angle(visual.rotation.y, target_yaw, clampf(turn_speed * delta, 0.0, 1.0))
 
+	_footsteps(delta)
 	_crouch_amount = move_toward(_crouch_amount, 1.0 if stance == Stance.CROUCH else 0.0, delta * 6.0)
 	_prone_amount = move_toward(_prone_amount, 1.0 if stance == Stance.PRONE else 0.0, delta * 4.0)
 	visual.update_animation(delta, get_horizontal_speed(), is_on_floor(), _crouch_amount, _prone_amount, velocity.y)
@@ -186,6 +190,17 @@ func _physics_process(delta: float) -> void:
 	elif stance == Stance.PRONE:
 		cam_h = 0.7
 	camera_rig.height_offset = lerpf(camera_rig.height_offset, cam_h, 1.0 - exp(-8.0 * delta))
+
+
+func _footsteps(delta: float) -> void:
+	var spd := get_horizontal_speed()
+	if not is_on_floor() or spd < 0.6 or stance == Stance.PRONE:
+		_step_t = 0.0
+		return
+	_step_t -= delta
+	if _step_t <= 0.0:
+		_step_t = clampf(0.95 - spd * 0.09, 0.26, 0.6)
+		Sfx.play_at("step", self, -14.0 + minf(spd, 7.0), randf_range(0.85, 1.15), 25.0)
 
 
 func get_horizontal_speed() -> float:
@@ -231,6 +246,7 @@ func _start_punch() -> void:
 	if get_horizontal_speed() < 0.5:
 		visual.rotation.y = camera_rig.yaw # soca para onde a câmera olha
 	visual.play_punch(_punch_hand)
+	Sfx.play_at("whoosh", self, -10.0, randf_range(0.9, 1.15), 20.0)
 	_punch_hand = 1 - _punch_hand
 	get_tree().create_timer(0.15).timeout.connect(_do_punch_hit)
 

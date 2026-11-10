@@ -40,13 +40,18 @@ var _net_t: float = 0.0
 var _ped_t: float = 0.0
 var _frames: int = 0
 var _profile: Dictionary
+var _amb_t: float = 0.0
+var _route: PackedVector3Array = PackedVector3Array()
+var _route_dirty: bool = true
 
 
 func _ready() -> void:
 	_rng.randomize()
 	_profile = GameState.quality_profile()
 	CityBuilder.VIS_RANGE = _profile["vis"]
+	CityBuilder.DETAILS = _profile.get("details", true)
 	get_viewport().scaling_3d_scale = _profile["scale3d"]
+	get_viewport().msaa_3d = int(_profile.get("msaa", 0)) as Viewport.MSAA
 	if GameState.cli.has("hour"):
 		GameState.hours = float(GameState.cli["hour"])
 
@@ -58,6 +63,7 @@ func _ready() -> void:
 	day_night.setup(_profile, city)
 	_add_signs()
 	_collect_spots()
+	Sfx.set_ambience(true)
 
 	_spawn_player()
 	_build_points()
@@ -66,8 +72,8 @@ func _ready() -> void:
 	add_child(traffic)
 	traffic.spawn(int(_profile["traffic"]), player)
 	_spawn_pedestrians(int(_profile["peds"]))
-	_job_beam = _make_beam(Color(1.0, 0.85, 0.1, 0.35))
-	_gps_beam = _make_beam(Color(0.85, 0.3, 1.0, 0.3))
+	_job_beam = _make_beam(Color(1.0, 0.92, 0.7, 0.28))
+	_gps_beam = _make_beam(Color(1.0, 1.0, 1.0, 0.18))
 
 	touch = TouchControls.new()
 	add_child(touch)
@@ -94,11 +100,28 @@ func _ready() -> void:
 
 	if GameState.has_license == false and GameState.jobs_done == 0 and GameState.saved_position == null:
 		_welcome()
+	_capture_map()
 	_dev_cli()
 
 
 func _exit_tree() -> void:
 	GameState.playing = false
+	Sfx.set_ambience(false)
+
+
+## Foto aérea da cidade para o radar (só na 1ª vez; depois vem do cache).
+func _capture_map() -> void:
+	if MapCapture.texture != null:
+		return
+	var hidden: Array[Node3D] = []
+	for c in get_children():
+		if c is Node3D and c != city and c != day_night and (c as Node3D).visible:
+			hidden.append(c)
+			(c as Node3D).visible = false
+	await MapCapture.capture(self, city, int(_profile.get("map_size", 1024)))
+	for n in hidden:
+		if is_instance_valid(n):
+			n.visible = true
 
 
 # ================================================================= construção
@@ -122,8 +145,9 @@ func _add_signs() -> void:
 	l.font_size = 70
 	l.pixel_size = 0.02
 	l.modulate = Color(1.0, 0.85, 0.2)
-	l.outline_size = 12
-	l.outline_modulate = Color(0.4, 0.05, 0.05)
+	l.outline_size = 6
+	l.font = Ui.font(700)
+	l.outline_modulate = Color(0.25, 0.05, 0.05)
 	l.position = Vector3(-83.5, 5.2, 8.2)
 	l.rotation_degrees.y = 180.0
 	l.visibility_range_end = 150.0
@@ -254,6 +278,8 @@ func _process(delta: float) -> void:
 	touch.set_mode("car" if in_car else "foot")
 	hud.set_vehicle_info(player.vehicle)
 	_update_nearby()
+	if menu.is_open or hud.is_map_open():
+		hud.set_hint("")
 
 	if not typing and not menu.is_open and not hud.is_map_open() and not GameState.dead:
 		if Input.is_action_just_pressed("interact"):
@@ -277,6 +303,12 @@ func _process(delta: float) -> void:
 	_process_waypoint()
 	_recycle_pedestrians(delta)
 	_network_tick(delta)
+	_amb_t -= delta
+	if _amb_t <= 0.0:
+		_amb_t = 0.5
+		Sfx.update_ambience(player.camera_rig.global_position, GameState.daylight())
+		_route_dirty = true
+	day_night.saturation_override = 0.0 if GameState.dead else -1.0
 
 
 func _refresh_input_lock() -> void:
@@ -308,7 +340,7 @@ func _update_nearby() -> void:
 			_auto_point = null
 		touch.set_button_label("interact", "SAIR")
 		touch.set_button_visible("interact", true)
-		hud.set_hint("Pare no marcador para usar: " + _near_point.title if _near_point != null else "")
+		hud.set_hint("Pare no marcador  ·  " + _near_point.title if _near_point != null else "")
 		return
 	if _near_point == null:
 		var best_car := 1e9
@@ -323,11 +355,11 @@ func _update_nearby() -> void:
 	if _near_point != null:
 		touch.set_button_label("interact", "USAR")
 		touch.set_button_visible("interact", true)
-		hud.set_hint(_near_point.title + "  —  toque em USAR (E)")
+		hud.set_hint(_near_point.title + "   ·   USAR")
 	elif _near_car != null:
 		touch.set_button_label("interact", "ENTRAR")
 		touch.set_button_visible("interact", true)
-		hud.set_hint("%s %s  —  toque em ENTRAR (E)" % [_near_car.display_name(), "(seu)" if _near_car.owned else ""])
+		hud.set_hint("%s%s   ·   ENTRAR" % [_near_car.display_name(), " (seu)" if _near_car.owned else ""])
 	else:
 		touch.set_button_visible("interact", false)
 		hud.set_hint("")
@@ -375,23 +407,52 @@ func player_map_state() -> Dictionary:
 	return {"pos": player.global_position, "cam_yaw": player.camera_rig.yaw, "heading": heading}
 
 
+## [posição, letra, raio, preenchido, preso na borda]
 func map_blips() -> Array:
 	var out: Array = []
 	for p in points:
-		out.append([p.global_position, p.color, p.blip, 8.0])
+		out.append([p.global_position, p.blip, 8.0, false, false])
 	if my_car != null and is_instance_valid(my_car) and my_car.driver == null:
-		out.append([my_car.global_position, Color(0.4, 0.7, 1.0), "V", 7.0])
+		out.append([my_car.global_position, "V", 7.0, true, false])
 	for r in remote.values():
-		out.append([(r as Node3D).global_position, Color(0.4, 0.95, 1.0), "", 5.0])
+		out.append([(r as Node3D).global_position, "", 4.5, true, false])
 	if waypoint is Vector3:
-		out.append([waypoint, Color(0.85, 0.3, 1.0), "X", 9.0, true])
+		out.append([waypoint, "", 6.5, true, true])
 	if job_stage != "":
-		out.append([job_target, Color(1.0, 0.85, 0.1), "!", 10.0, true])
+		out.append([job_target, "!", 9.0, true, true])
 	return out
+
+
+## Rota do GPS pelas ruas (grade): jogador -> cruzamento -> esquina em L -> destino.
+func gps_route() -> PackedVector3Array:
+	if not _route_dirty:
+		return _route
+	_route_dirty = false
+	var target: Variant = job_target if job_stage != "" else waypoint
+	_route = PackedVector3Array()
+	if not target is Vector3:
+		return _route
+	var tg: Vector3 = target
+	var pp := player.global_position
+	var a := _nearest_node(pp)
+	var b := _nearest_node(tg)
+	_route.append(pp)
+	_route.append(TrafficManager.node_pos(a))
+	if a.x != b.x and a.y != b.y:
+		_route.append(TrafficManager.node_pos(Vector2i(b.x, a.y)))
+	_route.append(TrafficManager.node_pos(b))
+	_route.append(tg)
+	return _route
+
+
+func _nearest_node(p: Vector3) -> Vector2i:
+	return Vector2i(clampi(roundi((p.x + 256.0) / CityBuilder.PITCH), 0, TrafficManager.NODES_X - 1),
+		clampi(roundi((p.z + 256.0) / CityBuilder.PITCH), 0, TrafficManager.NODES_Z - 1))
 
 
 func _set_waypoint(p: Vector3) -> void:
 	waypoint = p
+	_route_dirty = true
 	_gps_beam.position = Vector3(p.x, 35.0, p.z)
 	_gps_beam.visible = true
 	hud.toast("GPS marcado", Color(0.85, 0.5, 1.0))
@@ -432,6 +493,7 @@ func _set_job_target(stage: String, p: Vector3, reward: int) -> void:
 	job_stage = stage
 	job_target = p
 	job_reward = reward
+	_route_dirty = true
 	_job_beam.visible = stage != ""
 	_job_beam.position = Vector3(p.x, 35.0, p.z)
 
@@ -485,11 +547,11 @@ func _random_spot(list: Array[Vector3], from: Vector3, min_d: float, max_d: floa
 func _bank_menu() -> void:
 	var gs := GameState
 	menu.open("Banco", "Carteira: %s   •   Conta: %s" % [gs.fmt_money(gs.money), gs.fmt_money(gs.bank)], [
-		["Depositar R$ 100", func() -> void: gs.deposit(100); _bank_menu(), gs.money > 0],
-		["Depositar tudo", func() -> void: gs.deposit(gs.money); _bank_menu(), gs.money > 0],
-		["Sacar R$ 100", func() -> void: gs.withdraw(100); _bank_menu(), gs.bank > 0],
-		["Sacar R$ 500", func() -> void: gs.withdraw(500); _bank_menu(), gs.bank > 0],
-		["Sacar R$ 1.000", func() -> void: gs.withdraw(1000); _bank_menu(), gs.bank > 0],
+		["Depositar|R$ 100", func() -> void: gs.deposit(100); _bank_menu(), gs.money > 0],
+		["Depositar tudo|" + gs.fmt_money(gs.money), func() -> void: gs.deposit(gs.money); _bank_menu(), gs.money > 0],
+		["Sacar|R$ 100", func() -> void: gs.withdraw(100); _bank_menu(), gs.bank > 0],
+		["Sacar|R$ 500", func() -> void: gs.withdraw(500); _bank_menu(), gs.bank > 0],
+		["Sacar|R$ 1.000", func() -> void: gs.withdraw(1000); _bank_menu(), gs.bank > 0],
 	])
 
 
@@ -497,7 +559,7 @@ func _food_menu(title: String, items: Array) -> void:
 	var opts: Array = []
 	for it in items:
 		var item: Array = it
-		opts.append(["%s — %s" % [item[0], GameState.fmt_money(item[1])], func() -> void:
+		opts.append(["%s|%s" % [item[0], GameState.fmt_money(item[1])], func() -> void:
 			if GameState.pay(int(item[1]), String(item[0])):
 				GameState.eat(float(item[2]))
 				GameState.drink(float(item[3]))
@@ -508,7 +570,7 @@ func _food_menu(title: String, items: Array) -> void:
 func _hospital_menu() -> void:
 	var cost := 150
 	menu.open("Hospital", "Vida: %d%%" % int(GameState.health), [
-		["Tratamento completo — %s" % GameState.fmt_money(cost), func() -> void:
+		["Tratamento completo|%s" % GameState.fmt_money(cost), func() -> void:
 			if GameState.pay(cost, "Tratamento médico"):
 				GameState.heal(100.0), GameState.health < 100.0],
 	])
@@ -517,11 +579,11 @@ func _hospital_menu() -> void:
 func _police_menu() -> void:
 	var gs := GameState
 	menu.open("Delegacia", "Documentos e segurança", [
-		["Tirar CNH — R$ 300" if not gs.has_license else "CNH emitida ✓", func() -> void:
+		["Tirar CNH|R$ 300" if not gs.has_license else "CNH|emitida", func() -> void:
 			if gs.pay(300, "Emissão de CNH"):
 				gs.has_license = true
 				gs.toast("CNH emitida! Agora você pode comprar carros.", Color(0.5, 1, 0.6)), not gs.has_license],
-		["Comprar colete — R$ 400", func() -> void:
+		["Colete balístico|R$ 400", func() -> void:
 			if gs.pay(400, "Colete"):
 				gs.armor = 100.0
 				gs.stats_changed.emit(), gs.armor < 100.0],
@@ -533,10 +595,10 @@ func _police_menu() -> void:
 func _jobs_menu() -> void:
 	var gs := GameState
 	menu.open("Agência de Empregos", "Emprego atual: %s  •  Serviços feitos: %d" % [gs.JOB_NAMES.get(gs.job, gs.job), gs.jobs_done], [
-		["Entregador (pacotes no Depósito)", func() -> void:
+		["Entregador|pacotes", func() -> void:
 			gs.set_job("entregador")
 			_set_job_target("", Vector3.ZERO, 0), gs.job != "entregador"],
-		["Taxista (precisa de um carro)", func() -> void:
+		["Taxista|precisa de carro", func() -> void:
 			gs.set_job("taxista")
 			_set_job_target("", Vector3.ZERO, 0), gs.job != "taxista"],
 		["Pedir demissão", func() -> void:
@@ -564,7 +626,7 @@ func _dealer_menu() -> void:
 	for m in gs.CAR_MODELS:
 		var key: String = m
 		var info: Dictionary = gs.CAR_MODELS[key]
-		opts.append(["%s — %s  (%d km/h)" % [info["name"], gs.fmt_money(info["price"]), int(info["max_speed"] * 3.6)],
+		opts.append(["%s  ·  %d km/h|%s" % [info["name"], int(info["max_speed"] * 3.6), gs.fmt_money(info["price"])],
 			_dealer_colors.bind(key), gs.has_license])
 	var sub := "Pagamento no débito (carteira + banco)."
 	if not gs.has_license:
@@ -578,7 +640,7 @@ func _dealer_colors(model: String) -> void:
 	var opts: Array = []
 	for i in range(gs.CAR_COLORS.size()):
 		var idx := i
-		opts.append([names[i], func() -> void: _buy_car(model, idx)])
+		opts.append([names[i] + "|" + gs.fmt_money(int(gs.CAR_MODELS[model]["price"])), func() -> void: _buy_car(model, idx)])
 	menu.open(gs.CAR_MODELS[model]["name"], "Escolha a cor", opts)
 
 
@@ -599,7 +661,7 @@ func _fuel_menu() -> void:
 		return
 	var cost := car.refuel_cost()
 	menu.open("Posto", "Tanque: %d%%" % int(car.fuel), [
-		["Encher o tanque — %s" % GameState.fmt_money(cost), func() -> void:
+		["Encher o tanque|%s" % GameState.fmt_money(cost), func() -> void:
 			if GameState.pay(cost, "Combustível"):
 				car.fuel = 100.0, car.fuel < 99.0],
 	])
@@ -611,7 +673,7 @@ func _repair_menu() -> void:
 		return
 	var cost := car.repair_cost()
 	menu.open("Oficina", "Motor: %d%%" % int(car.engine_health), [
-		["Consertar — %s" % GameState.fmt_money(cost), func() -> void:
+		["Consertar motor|%s" % GameState.fmt_money(cost), func() -> void:
 			if GameState.pay(cost, "Conserto"):
 				car.engine_health = 100.0, car.engine_health < 99.0],
 	])
@@ -624,7 +686,7 @@ func open_phone() -> void:
 	menu.open("Celular", "%s  •  %s  •  %s" % [gs.player_name, gs.clock_text(), gs.JOB_NAMES.get(gs.job, gs.job)], [
 		["Mapa / GPS", hud.open_map],
 		["Garagem (%d)" % gs.owned_cars.size(), _garage_menu],
-		["Banco: %s em conta" % gs.fmt_money(gs.bank), func() -> void: pass, false],
+		["Saldo bancário|%s" % gs.fmt_money(gs.bank), func() -> void: pass, false],
 		["Limpar GPS", func() -> void:
 			waypoint = null
 			_gps_beam.visible = false, waypoint != null],
@@ -643,7 +705,7 @@ func _garage_menu() -> void:
 		var idx := i
 		var c: Dictionary = gs.owned_cars[i]
 		var info: Dictionary = gs.CAR_MODELS.get(String(c.get("model", "sedan")), gs.CAR_MODELS["sedan"])
-		opts.append(["Chamar %s" % info["name"], func() -> void: _summon_near_player(idx)])
+		opts.append(["%s|chamar" % info["name"], func() -> void: _summon_near_player(idx)])
 	var sub := "Seus veículos aparecem na rua mais próxima." if not opts.is_empty() else "Você ainda não tem carros. Visite a Concessionária (C)."
 	menu.open("Garagem", sub, opts)
 
@@ -684,13 +746,13 @@ func _settings_menu() -> void:
 	var opts: Array = []
 	for i in range(3):
 		var qi := i
-		opts.append(["Gráficos: %s%s" % [names[i], " ✓" if q == i else ""], func() -> void:
+		opts.append(["Gráficos|%s%s" % [names[i], "  •" if q == i else ""], func() -> void:
 			gs.settings["quality"] = qi
 			gs.save_settings()
 			gs.toast("Qualidade aplicada ao reabrir o mapa", Color(0.8, 0.9, 1.0))
 			_settings_menu(), q != i])
 	var sens := float(gs.settings.get("sensitivity", 1.0))
-	opts.append(["Sensibilidade da câmera: %.1fx (tocar = +0.25)" % sens, func() -> void:
+	opts.append(["Sensibilidade da câmera|%.2fx" % sens, func() -> void:
 		var ns := sens + 0.25
 		if ns > 2.0:
 			ns = 0.5
@@ -698,7 +760,17 @@ func _settings_menu() -> void:
 		player.camera_rig.sensitivity_scale = ns
 		gs.save_settings()
 		_settings_menu()])
-	opts.append(["Mostrar FPS: %s" % ("sim" if gs.settings.get("show_fps", true) else "não"), func() -> void:
+	var vol := float(gs.settings.get("volume", 1.0))
+	opts.append(["Volume|%d%%" % int(vol * 100.0), func() -> void:
+		var nv := vol + 0.25
+		if nv > 1.01:
+			nv = 0.0
+		gs.settings["volume"] = nv
+		Sfx.volume = nv
+		Sfx.apply_volume()
+		gs.save_settings()
+		_settings_menu()])
+	opts.append(["Mostrar FPS|%s" % ("sim" if gs.settings.get("show_fps", true) else "não"), func() -> void:
 		gs.settings["show_fps"] = not bool(gs.settings.get("show_fps", true))
 		gs.save_settings()
 		_settings_menu()])
