@@ -4,6 +4,7 @@ import { slotAccepts, loadoutWeight, loadoutValue, activeWeapon, takeItem, addTo
 import { ui3d } from './icons.js';
 import { sfx } from '../audio.js';
 import { renderSettings as renderSettingsPanel } from './settings.js';
+import { confirmBox } from './screens.js';
 export { loadSettings } from './settings.js';
 
 const ICONS = {
@@ -242,7 +243,7 @@ export class InventoryScreen {
       el.innerHTML = `<div class="risk">Em risco no raid: <b>₢ ${loadoutValue(lo).toLocaleString('pt-BR')}</b></div>
         <button class="btn deploy">CHAMAR HELICÓPTERO</button>`;
       el.querySelector('.deploy').onclick = () => {
-        if (!activeWeapon(lo) && !confirm('Você vai entrar no raid desarmado. Continuar?')) return;
+        if (!activeWeapon(lo)) return confirmBox('Você vai entrar na incursão desarmado. Continuar?', () => this.h.onDeploy?.(), 'ENTRAR DESARMADO');
         this.h.onDeploy?.();
       };
     } else {

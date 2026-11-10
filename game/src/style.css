@@ -1,4 +1,5 @@
 :root {
+  color-scheme: dark;
   --bg: #0b0c0d;
   --panel: rgba(14, 16, 18, 0.78);
   --panel2: rgba(24, 27, 30, 0.9);
@@ -345,3 +346,5 @@ body.hud-edit .screen:not(#settings-modal) { visibility: hidden; }
 body.hud-edit #inv-screen { visibility: hidden; }
 .he-bar { top: 30%; }
 .he-panel { top: calc(30% + 52px); }
+
+#portrait-warn .mm-btn { margin-top: 18px; font-size: 18px; }

@@ -24,6 +24,7 @@ import { factionById } from './data/factions.js';
 import { newLoadout, loadoutValue, carriedItems, clearLoadout } from './inventory/loadout.js';
 import { botLoadout } from './raid/loot.js';
 import { unlockAudio, setVolume } from './audio.js';
+import mannequinUrl from './assets/mannequin.glb?url';
 
 const $ = (id) => document.getElementById(id);
 const STEP = 1 / 60;
@@ -242,7 +243,7 @@ function goTitle() {
   mainMenu(profile, {
     play: () => {
       unlockAudio();
-      if (isTouch) document.documentElement.requestFullscreen?.().catch(() => {});
+      goImmersive();
       if (profile) goLobby();
       else goFaction();
     },
@@ -610,6 +611,23 @@ function showcaseStep(dt) {
   for (const a of showcase.actors) a.update(dt);
 }
 
+// ---------- fullscreen + landscape ----------
+/** Mobile game: go fullscreen and lock to landscape (needs a user gesture). */
+function goImmersive() {
+  if (!isTouch) return;
+  const el = document.documentElement;
+  const lock = () => window.screen.orientation?.lock?.('landscape')?.catch(() => {});
+  if (!document.fullscreenElement && el.requestFullscreen) el.requestFullscreen({ navigationUI: 'hide' }).then(lock, lock);
+  else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+  else lock();
+}
+$('pw-go').addEventListener('click', goImmersive);
+window.addEventListener('pointerup', function first() {
+  window.removeEventListener('pointerup', first);
+  goImmersive();
+});
+window.addEventListener('orientationchange', () => setTimeout(resize, 250));
+
 // ---------- boot ----------
 touch.onCamera = (dx) => cam.addYaw(-dx * 0.0065 * settings.sens);
 touch.onZoom = (f) => cam.zoom(f);
@@ -624,7 +642,7 @@ const playBtn = $('mm-play');
 showScreen('main-menu');
 playBtn.disabled = true;
 playBtn.textContent = 'CARREGANDO…';
-loadCharacters(`${import.meta.env.BASE_URL}models/mannequin.glb`)
+loadCharacters(mannequinUrl)
   .then(() => {
     setTimeout(() => ui3d.preloadAll(), 50);
     playBtn.disabled = false;

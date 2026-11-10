@@ -4,7 +4,7 @@ Extraction shooter com câmera de cima em perspectiva e visual **realista estili
 
 Cena de vitrine: `npm run dev` e abra `/?showcase` (use `&dist=10` para aproximar).
 
-Créditos: manequim animado da Universal Animation Library de Quaternius (CC0) — ver `public/models/CREDITS.md`. O resto é procedural.
+Créditos: manequim animado da Universal Animation Library de Quaternius (CC0) — ver `src/assets/CREDITS.md`. O resto é procedural.
 
 ## Como rodar
 
