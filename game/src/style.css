@@ -25,7 +25,8 @@ html, body {
   font-family: 'Barlow Condensed', 'Arial Narrow', sans-serif; font-size: 17px;
   user-select: none; -webkit-user-select: none; touch-action: none; overscroll-behavior: none;
 }
-#game { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; cursor: crosshair; }
+#app { position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; overflow: hidden; transform-origin: 0 0; background: var(--bg); }
+#game { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: crosshair; }
 .hidden { display: none !important; }
 button { font-family: inherit; color: inherit; }
 svg { width: 1.1em; height: 1.1em; fill: currentColor; vertical-align: -0.15em; }
@@ -47,7 +48,7 @@ svg { width: 1.1em; height: 1.1em; fill: currentColor; vertical-align: -0.15em; 
 /* ---------- screens / menus ---------- */
 .screen { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; padding: 16px calc(16px + var(--safe-r)) 16px calc(16px + var(--safe-l)); }
 #main-menu { place-items: stretch; justify-items: start; background: linear-gradient(90deg, rgba(8,9,10,0.92) 0%, rgba(8,9,10,0.75) 32%, rgba(8,9,10,0) 62%); }
-.mm-side { height: 100%; width: min(420px, 46vw); display: flex; flex-direction: column; justify-content: center; gap: 22px; padding-left: 3vw; }
+.mm-side { height: 100%; width: min(420px, 46%); display: flex; flex-direction: column; justify-content: center; gap: 22px; padding-left: 3%; }
 .logo { font-size: 64px; font-weight: 700; letter-spacing: 4px; line-height: 0.9; }
 .logo span { color: var(--accent); }
 .tag { color: var(--dim); letter-spacing: 5px; font-size: 14px; margin-top: 8px; }
@@ -192,7 +193,7 @@ body.hud-edit #touch-zone { pointer-events: none; }
 body.hud-edit .touch-only { display: grid !important; }
 body.hud-edit .t-joy { display: block !important; }
 .he-grid { position: absolute; inset: 0; background-image: linear-gradient(to right, rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.05) 1px, transparent 1px); background-size: 5% 10%; background-color: rgba(0,0,0,0.35); }
-.he-bar { position: absolute; z-index: 2; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--panel2); border: 1px solid var(--line2); border-radius: 10px; pointer-events: auto; flex-wrap: wrap; justify-content: center; max-width: 92vw; }
+.he-bar { position: absolute; z-index: 2; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--panel2); border: 1px solid var(--line2); border-radius: 10px; pointer-events: auto; flex-wrap: wrap; justify-content: center; max-width: 92%; }
 .he-title { font-weight: 700; letter-spacing: 3px; }
 .he-hint { color: var(--dim); font-family: Inter, sans-serif; font-size: 12px; }
 .he-btn { padding: 7px 12px; border-radius: 6px; border: 1px solid var(--line2); background: rgba(255,255,255,0.05); font-weight: 600; letter-spacing: 1px; cursor: pointer; }
@@ -201,11 +202,6 @@ body.hud-edit .t-joy { display: block !important; }
 .he-panel label { display: flex; align-items: center; gap: 8px; font-size: 15px; }
 .he-panel input[type=range] { width: 120px; }
 
-#portrait-warn { display: none; }
-@media (orientation: portrait) and (pointer: coarse) {
-  #portrait-warn { display: flex; position: fixed; inset: 0; z-index: 200; background: var(--bg); flex-direction: column; align-items: center; justify-content: center; gap: 12px; font-size: 22px; text-align: center; padding: 24px; }
-  #portrait-warn div { font-size: 64px; color: var(--accent); }
-}
 
 /* ---------- inventory screen ---------- */
 #inv-screen {
@@ -293,7 +289,7 @@ body.touch .keyhints { display: none; }
 /* map / quests / settings */
 .iv-map { flex: 1; display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
 .iv-map h3 { width: 100%; }
-.big-map { width: min(70vh, 60vw); height: auto; image-rendering: pixelated; border: 1px solid var(--line2); }
+.big-map { width: min(calc(var(--ah, 100vh) * 0.7), calc(var(--aw, 100vw) * 0.6)); height: auto; image-rendering: pixelated; border: 1px solid var(--line2); }
 .map-legend { display: flex; flex-direction: column; gap: 4px; font-size: 15px; }
 .map-legend i { display: inline-block; width: 12px; height: 12px; margin-right: 6px; vertical-align: -1px; }
 .iv-quests, .iv-cfg { flex: 1; }
@@ -306,38 +302,34 @@ body.touch .keyhints { display: none; }
 .iv-cfg .hint { color: var(--dim); }
 
 /* compact (phones in landscape) */
-@media (max-height: 500px) {
-  body { font-size: 15px; }
-  #inv-screen { padding-top: 6px; gap: 5px; }
-  .iv-tabs button { padding: 5px 10px; font-size: 14px; }
-  .iv-tabs button span { display: none; }
-  .iv-tabs button.on span { display: inline; }
-  .iv-pane { padding: 5px 7px; }
-  .iv-pane h3 { font-size: 15px; margin-bottom: 3px; }
-  .stats-bar { font-size: 14px; gap: 10px; padding: 3px 6px; }
-  .iv-bottom { min-height: 40px; }
-  .btn { font-size: 18px; padding: 8px 18px; }
-  .logo { font-size: 48px; }
-  .title-box { padding: 16px 22px; }
-  .title-box h1 { font-size: 30px; }
-  .faction-card { width: 200px; padding: 10px; }
-  .faction-card h3 { font-size: 21px; }
-  .quests li { grid-template-columns: 1fr; }
-}
+body.compact { font-size: 15px; }
+body.compact #inv-screen { padding-top: 6px; gap: 5px; }
+body.compact .iv-tabs button { padding: 5px 10px; font-size: 14px; }
+body.compact .iv-tabs button span { display: none; }
+body.compact .iv-tabs button.on span { display: inline; }
+body.compact .iv-pane { padding: 5px 7px; }
+body.compact .iv-pane h3 { font-size: 15px; margin-bottom: 3px; }
+body.compact .stats-bar { font-size: 14px; gap: 10px; padding: 3px 6px; }
+body.compact .iv-bottom { min-height: 40px; }
+body.compact .btn { font-size: 18px; padding: 8px 18px; }
+body.compact .logo { font-size: 48px; }
+body.compact .title-box { padding: 16px 22px; }
+body.compact .title-box h1 { font-size: 30px; }
+body.compact .faction-card { width: 200px; padding: 10px; }
+body.compact .faction-card h3 { font-size: 21px; }
+body.compact .quests li { grid-template-columns: 1fr; }
 
-@media (max-height: 500px) {
-  .logo { font-size: 46px; }
-  .mm-side { gap: 14px; }
-  .mm-btn { padding: 9px 20px; font-size: 17px; }
-  .fs-head h1 { font-size: 28px; }
-  .faction-card { padding: 12px; }
-  .faction-card h3 { font-size: 22px; }
-  .faction-card p { display: none; }
-  .modal-card { height: 100%; }
-  .set-row { padding: 9px 0; }
-  .set-nav { min-width: 120px; }
-}
-@media (max-width: 700px) { #faction-list { grid-template-columns: 1fr; } }
+body.compact .logo { font-size: 46px; }
+body.compact .mm-side { gap: 14px; }
+body.compact .mm-btn { padding: 9px 20px; font-size: 17px; }
+body.compact .fs-head h1 { font-size: 28px; }
+body.compact .faction-card { padding: 12px; }
+body.compact .faction-card h3 { font-size: 22px; }
+body.compact .faction-card p { display: none; }
+body.compact .modal-card { height: 100%; }
+body.compact .set-row { padding: 9px 0; }
+body.compact .set-nav { min-width: 120px; }
+body.narrow #faction-list { grid-template-columns: 1fr; }
 
 .iv-menu { background: rgba(255,255,255,0.05); border: 1px solid var(--line2); padding: 6px 12px; font-size: 15px; font-weight: 600; letter-spacing: 2px; cursor: pointer; }
 .iv-menu:hover { border-color: var(--accent); }
@@ -347,4 +339,3 @@ body.hud-edit #inv-screen { visibility: hidden; }
 .he-bar { top: 30%; }
 .he-panel { top: calc(30% + 52px); }
 
-#portrait-warn .mm-btn { margin-top: 18px; font-size: 18px; }

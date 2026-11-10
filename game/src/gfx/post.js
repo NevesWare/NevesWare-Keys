@@ -4,6 +4,7 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+import { view } from '../ui/viewport.js';
 
 /** Quality tiers. 'auto' resolves from the device. */
 export const TIERS = {
@@ -89,7 +90,7 @@ export class Pipeline {
   }
 
   resize() {
-    const w = window.innerWidth, h = window.innerHeight;
+    const w = view.w, h = view.h;
     this.renderer.setSize(w, h, false);
     if (this.composer) {
       this.composer.setPixelRatio(this.renderer.getPixelRatio());

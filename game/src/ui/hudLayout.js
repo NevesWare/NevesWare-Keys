@@ -1,4 +1,5 @@
 import { sfx } from '../audio.js';
+import { toApp, view } from './viewport.js';
 
 const KEY = 'deadsector-hud-v2';
 
@@ -116,10 +117,12 @@ export class HudEditor {
         e.stopPropagation();
         this.select(el.dataset.w);
         const id = el.dataset.w;
-        const start = { x: e.clientX, y: e.clientY, wx: this.layout[id].x, wy: this.layout[id].y };
+        const sp = toApp(e.clientX, e.clientY);
+        const start = { x: sp.x, y: sp.y, wx: this.layout[id].x, wy: this.layout[id].y };
         const move = (ev) => {
-          const dx = ((ev.clientX - start.x) / window.innerWidth) * 100;
-          const dy = ((ev.clientY - start.y) / window.innerHeight) * 100;
+          const mp = toApp(ev.clientX, ev.clientY);
+          const dx = ((mp.x - start.x) / view.w) * 100;
+          const dy = ((mp.y - start.y) / view.h) * 100;
           this.layout[id].x = Math.round(Math.min(98, Math.max(2, start.wx + dx)) * 2) / 2;
           this.layout[id].y = Math.round(Math.min(98, Math.max(2, start.wy + dy)) * 2) / 2;
           this.apply();

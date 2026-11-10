@@ -4,6 +4,8 @@
  * - Anywhere else: drag to rotate the camera 360°, pinch to zoom.
  * - Buttons: FIRE (hold), AIM (toggle or hold), reload, swap, heal, interact, bag, menu.
  */
+import { toApp, view } from './viewport.js';
+
 const R = 58;
 
 export class TouchControls {
@@ -89,15 +91,16 @@ export class TouchControls {
   down(e) {
     if (e.pointerType === 'mouse' || document.body.classList.contains('hud-edit')) return;
     e.preventDefault();
-    if (!this.stick && e.clientX < window.innerWidth * 0.42 && e.clientY > window.innerHeight * 0.3) {
+    const p = toApp(e.clientX, e.clientY);
+    if (!this.stick && p.x < view.w * 0.42 && p.y > view.h * 0.3) {
       // float the joystick to the touch point
-      this.stick = { id: e.pointerId, x: e.clientX, y: e.clientY };
+      this.stick = { id: e.pointerId, x: p.x, y: p.y };
       this.joy.classList.add('active');
-      this.joy.style.left = `${e.clientX}px`;
-      this.joy.style.top = `${e.clientY}px`;
+      this.joy.style.left = `${p.x}px`;
+      this.joy.style.top = `${p.y}px`;
       return;
     }
-    this.drags.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    this.drags.set(e.pointerId, { x: p.x, y: p.y });
     if (this.drags.size === 2) {
       const [a, b] = [...this.drags.values()];
       this.pinch = Math.hypot(a.x - b.x, a.y - b.y);
@@ -105,8 +108,9 @@ export class TouchControls {
   }
 
   moveEv(e) {
+    const p = toApp(e.clientX, e.clientY);
     if (this.stick && e.pointerId === this.stick.id) {
-      let dx = e.clientX - this.stick.x, dy = e.clientY - this.stick.y;
+      let dx = p.x - this.stick.x, dy = p.y - this.stick.y;
       const d = Math.hypot(dx, dy);
       if (d > R) {
         dx = (dx / d) * R;
@@ -120,17 +124,17 @@ export class TouchControls {
     const d = this.drags.get(e.pointerId);
     if (!d) return;
     if (this.drags.size >= 2) {
-      d.x = e.clientX;
-      d.y = e.clientY;
+      d.x = p.x;
+      d.y = p.y;
       const [a, b] = [...this.drags.values()];
       const dist = Math.hypot(a.x - b.x, a.y - b.y);
       if (this.pinch) this.onZoom?.(this.pinch / dist);
       this.pinch = dist;
       return;
     }
-    const dx = e.clientX - d.x;
-    d.x = e.clientX;
-    d.y = e.clientY;
+    const dx = p.x - d.x;
+    d.x = p.x;
+    d.y = p.y;
     this.onCamera?.(dx);
   }
 

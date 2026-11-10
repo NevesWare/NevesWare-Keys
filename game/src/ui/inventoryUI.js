@@ -2,6 +2,9 @@ import { ITEMS, CATEGORY_TINT, itemValue, itemWeight } from '../data/items.js';
 import { size } from '../inventory/grid.js';
 import { ui3d } from './icons.js';
 import { sfx } from '../audio.js';
+import { toApp, rectToApp, view } from './viewport.js';
+
+const appRoot = () => document.getElementById('app') ?? document.body;
 
 /**
  * Grid & slot panels with drag and drop (mouse + touch).
@@ -21,7 +24,7 @@ export class InventoryUI {
     this.onSell = null;
     this.tooltip = document.createElement('div');
     this.tooltip.className = 'tooltip';
-    document.body.appendChild(this.tooltip);
+    appRoot().appendChild(this.tooltip);
     this.rotBtn = document.createElement('button');
     this.rotBtn.className = 'drag-rotate hidden';
     this.rotBtn.textContent = '⟳ GIRAR';
@@ -30,7 +33,7 @@ export class InventoryUI {
       e.stopPropagation();
       if (this.drag) this.rotateDrag();
     });
-    document.body.appendChild(this.rotBtn);
+    appRoot().appendChild(this.rotBtn);
 
     window.addEventListener('pointermove', (e) => this.onMove(e));
     window.addEventListener('pointerup', (e) => this.onUp(e));
@@ -190,7 +193,8 @@ export class InventoryUI {
         this.quickMove(item, panelId);
         return;
       }
-      this.pending = { item, panelId, x: e.clientX, y: e.clientY, rect: el.getBoundingClientRect(), pid: e.pointerId, el };
+      const p = toApp(e.clientX, e.clientY);
+      this.pending = { item, panelId, x: p.x, y: p.y, cx: e.clientX, cy: e.clientY, rect: rectToApp(el.getBoundingClientRect()), pid: e.pointerId, el };
     });
     el.addEventListener('pointerenter', (e) => {
       if (e.pointerType === 'mouse') this.showTip(item, el);
@@ -210,11 +214,11 @@ export class InventoryUI {
     if (item.grid) html += row('Espaço', `${item.grid.w}×${item.grid.h}`);
     if (d.stack) html += row('Qtd.', `${item.count}/${d.stack}`);
     this.tooltip.innerHTML = html;
-    const r = el.getBoundingClientRect();
+    const r = rectToApp(el.getBoundingClientRect());
     const tw = 220;
     this.tooltip.style.display = 'block';
-    this.tooltip.style.left = `${r.right + tw + 8 < window.innerWidth ? r.right + 6 : Math.max(4, r.left - tw - 6)}px`;
-    this.tooltip.style.top = `${Math.max(4, Math.min(window.innerHeight - 170, r.top))}px`;
+    this.tooltip.style.left = `${r.right + tw + 8 < view.w ? r.right + 6 : Math.max(4, r.left - tw - 6)}px`;
+    this.tooltip.style.top = `${Math.max(4, Math.min(view.h - 170, r.top))}px`;
     clearTimeout(this.tipT);
     if (autoHide) this.tipT = setTimeout(() => (this.tooltip.style.display = 'none'), autoHide);
   }
@@ -225,7 +229,7 @@ export class InventoryUI {
     const C = this.cell;
     const ghost = document.createElement('div');
     ghost.className = 'inv-item drag-ghost';
-    document.body.appendChild(ghost);
+    appRoot().appendChild(ghost);
     const fromSlot = this.panels.get(from).type === 'slot';
     const origRot = item.rot;
     if (fromSlot) item.rot = false;
@@ -236,7 +240,7 @@ export class InventoryUI {
     };
     this.sizeGhost();
     this.rotBtn.classList.toggle('hidden', !matchMedia('(pointer: coarse)').matches);
-    this.onMove({ clientX: x, clientY: y, pointerId: pid });
+    this.onMove({ clientX: this.pendingClient.x, clientY: this.pendingClient.y, pointerId: pid });
   }
 
   sizeGhost() {
@@ -284,17 +288,20 @@ export class InventoryUI {
     const p = this.panels.get(area.dataset.drop);
     if (!p) return null;
     const C = this.cell;
-    const r = area.getBoundingClientRect();
-    const cx = Math.floor((x - r.left) / C) - this.drag.gx;
-    const cy = Math.floor((y - r.top) / C) - this.drag.gy;
+    const r = rectToApp(area.getBoundingClientRect());
+    const ap = toApp(x, y);
+    const cx = Math.floor((ap.x - r.left) / C) - this.drag.gx;
+    const cy = Math.floor((ap.y - r.top) / C) - this.drag.gy;
     return { area, panel: p, id: area.dataset.drop, cx, cy };
   }
 
   onMove(e) {
     if (this.pending && !this.drag && e.pointerId === this.pending.pid) {
       const pd = this.pending;
-      if (Math.hypot(e.clientX - pd.x, e.clientY - pd.y) > 6) {
+      const mp = toApp(e.clientX, e.clientY);
+      if (Math.hypot(mp.x - pd.x, mp.y - pd.y) > 6) {
         this.pending = null;
+        this.pendingClient = { x: pd.cx, y: pd.cy };
         this.startDrag(pd.item, pd.panelId, pd.x, pd.y, pd.rect, pd.pid);
       }
     }
@@ -302,8 +309,9 @@ export class InventoryUI {
     this.lastPos = { clientX: e.clientX, clientY: e.clientY, pointerId: e.pointerId };
     const d = this.drag;
     const C = this.cell;
-    d.ghost.style.left = `${e.clientX - d.gx * C - C / 2}px`;
-    d.ghost.style.top = `${e.clientY - d.gy * C - C / 2}px`;
+    const gp = toApp(e.clientX, e.clientY);
+    d.ghost.style.left = `${gp.x - d.gx * C - C / 2}px`;
+    d.ghost.style.top = `${gp.y - d.gy * C - C / 2}px`;
     this.clearPreview();
     const t = this.targetAt(e.clientX, e.clientY);
     if (!t) return;

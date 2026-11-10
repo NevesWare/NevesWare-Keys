@@ -10,6 +10,7 @@ import { ui3d } from './ui/icons.js';
 import { showScreen, hideScreens, factionSelect, resultScreen, mainMenu, pauseMenu, hidePause, confirmBox } from './ui/screens.js';
 import { openSettingsModal } from './ui/settings.js';
 import { loadLayout, applyLayout, HudEditor } from './ui/hudLayout.js';
+import { view, updateView } from './ui/viewport.js';
 import { load, save, newProfile, wipe } from './save.js';
 import { Raid } from './raid/raid.js';
 import { RaidMap } from './raid/map.js';
@@ -166,9 +167,10 @@ const quality = () => {
 };
 
 function resize() {
+  updateView();
   applyHud();
   pipeline.resize();
-  cam.setAspect(window.innerWidth / window.innerHeight);
+  cam.setAspect(view.w / view.h);
   renderer.getDrawingBufferSize(viewport);
 }
 window.addEventListener('resize', resize);
@@ -621,7 +623,6 @@ function goImmersive() {
   else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
   else lock();
 }
-$('pw-go').addEventListener('click', goImmersive);
 window.addEventListener('pointerup', function first() {
   window.removeEventListener('pointerup', first);
   goImmersive();

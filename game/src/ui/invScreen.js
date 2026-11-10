@@ -5,6 +5,7 @@ import { ui3d } from './icons.js';
 import { sfx } from '../audio.js';
 import { renderSettings as renderSettingsPanel } from './settings.js';
 import { confirmBox } from './screens.js';
+import { view } from './viewport.js';
 export { loadSettings } from './settings.js';
 
 const ICONS = {
@@ -52,7 +53,7 @@ export class InventoryScreen {
   }
 
   computeCell() {
-    const W = window.innerWidth, H = window.innerHeight;
+    const W = view.w, H = view.h;
     const c = Math.floor(Math.min((W - 96) / 24.6, (H - 118) / 11));
     return Math.max(24, Math.min(54, c));
   }
@@ -130,7 +131,7 @@ export class InventoryScreen {
     const lo = profile.loadout;
     const C = this.inv.cell;
     const p = this.pane('PERSONAGEM', ICONS.inv, 'iv-char');
-    const compact = window.innerHeight < 520;
+    const compact = view.h < 520;
     const row = document.createElement('div');
     row.className = `char-row${compact ? ' compact' : ''}`;
     const cv = document.createElement('canvas');
