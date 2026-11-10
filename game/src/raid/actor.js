@@ -1,35 +1,31 @@
 import * as THREE from 'three';
-import { ITEMS } from '../data/items.js';
-import { factionById } from '../data/factions.js';
-
-const BOX = new THREE.BoxGeometry(1, 1, 1);
-
-function part(color, sx, sy, sz, x, y, z) {
-  const m = new THREE.Mesh(BOX, new THREE.MeshLambertMaterial({ color }));
-  m.scale.set(sx, sy, sz);
-  m.position.set(x, y, z);
-  return m;
-}
+import { ITEMS, ammoIdFor } from '../data/items.js';
+import { humanoid, weaponGeo } from '../vox/models.js';
+import { activeWeapon, countItem, takeItem, storages } from '../inventory/loadout.js';
 
 export const ACTOR_RADIUS = 0.32;
-export const MUZZLE_HEIGHT = 1.0;
+export const MUZZLE_HEIGHT = 1.08;
+
+let seedCounter = 0;
 
 /**
  * Anything that walks and shoots: the player and every bot.
- * loadout = { weapon: item|null, armor: item|null, backpack: Grid }
+ * loadout: see inventory/loadout.js
  */
 export class Actor {
-  constructor({ name, faction, loadout, isPlayer = false }) {
+  constructor({ name, faction, loadout, isPlayer = false, seed }) {
     this.name = name;
     this.faction = faction;
     this.isPlayer = isPlayer;
     this.loadout = loadout;
+    this.seed = seed ?? seedCounter++;
     this.pos = new THREE.Vector3();
     this.vel = new THREE.Vector2();
     this.aim = 0; // radians, 0 = +z
     this.health = 100;
     this.maxHealth = 100;
     this.alive = true;
+    this.hidden = false;
     this.cooldown = 0;
     this.reloadT = 0;
     this.healT = 0;
@@ -38,84 +34,105 @@ export class Actor {
     this.walkPhase = 0;
     this.kills = 0;
     this.killedBy = null;
-    this.mesh = this.buildMesh();
+    this.mesh = new THREE.Group();
+    this.material = new THREE.MeshLambertMaterial({ vertexColors: true });
+    this.gearKey = '';
+    this.refreshGear();
+  }
+
+  get weapon() {
+    return activeWeapon(this.loadout);
   }
 
   get weaponDef() {
-    return this.loadout.weapon ? ITEMS[this.loadout.weapon.id].weapon : null;
+    const w = this.weapon;
+    return w ? ITEMS[w.id].weapon : null;
   }
 
-  buildMesh() {
-    const f = factionById(this.faction);
-    const g = new THREE.Group();
-    const body = f?.color ?? '#a8703f';
-    const skin = '#f4e9d8';
-    const dark = '#2a1d3d';
-    this.legL = part(dark, 0.18, 0.55, 0.2, -0.13, 0.28, 0);
-    this.legR = part(dark, 0.18, 0.55, 0.2, 0.13, 0.28, 0);
-    this.torso = part(body, 0.52, 0.55, 0.32, 0, 0.83, 0);
-    this.head = part(skin, 0.3, 0.3, 0.3, 0, 1.28, 0);
-    this.gun = part('#140c1c', 0.09, 0.09, 0.62, 0.2, 0.98, 0.32);
-    this.vest = part('#44305e', 0.58, 0.4, 0.38, 0, 0.86, 0);
-    this.vest.visible = !!this.loadout.armor;
-    if (this.faction === 'scav') this.hat = part('#6b3f2a', 0.36, 0.1, 0.36, 0, 1.47, 0);
-    else this.hat = part(body, 0.34, 0.12, 0.34, 0, 1.46, 0);
-    g.add(this.legL, this.legR, this.torso, this.vest, this.head, this.hat, this.gun);
-    this.parts = [this.legL, this.legR, this.torso, this.vest, this.head, this.hat, this.gun];
+  /** (Re)build the voxel body when equipment changes. */
+  refreshGear() {
+    const lo = this.loadout;
+    const armor = lo.armor ? (lo.armor.id === 'coleteP' ? 'P' : 'L') : null;
+    const helmet = lo.helmet ? (lo.helmet.id === 'capaceteP' ? 'P' : 'L') : null;
+    const wid = this.weapon?.id ?? null;
+    const key = `${armor}|${helmet}|${!!lo.backpack}|${wid}`;
+    if (key === this.gearKey) return;
+    this.gearKey = key;
+
+    const m = this.mesh;
+    m.clear();
+    const h = humanoid({ faction: this.faction, armor, helmet, backpack: !!lo.backpack, seed: this.seed });
+    const mk = (geo) => {
+      const x = new THREE.Mesh(geo, this.material);
+      x.castShadow = true;
+      return x;
+    };
+    this.upper = mk(h.upper);
+    this.legL = mk(h.legL);
+    this.legR = mk(h.legR);
+    this.legL.position.set(-h.hipX, h.hipY, 0);
+    this.legR.position.set(h.hipX, h.hipY, 0);
+    m.add(this.upper, this.legL, this.legR);
+    if (wid) {
+      this.gun = mk(weaponGeo(wid));
+      this.gun.position.set(...h.gunPos);
+      this.gunY = h.gunPos[1];
+      m.add(this.gun);
+    } else this.gun = null;
 
     if (this.isPlayer) {
-      const ring = new THREE.Mesh(
-        new THREE.RingGeometry(0.42, 0.55, 16),
-        new THREE.MeshBasicMaterial({ color: '#ffd66b', side: THREE.DoubleSide }),
-      );
-      ring.rotation.x = -Math.PI / 2;
-      ring.position.y = 0.03;
-      g.add(ring);
-      this.ring = ring;
-      // x-ray silhouette: only draws where something is in front of the player
-      const ghostMat = new THREE.MeshBasicMaterial({ color: '#f4e9d8', depthFunc: THREE.GreaterDepth, depthWrite: false });
-      for (const p of [this.torso, this.head, this.legL, this.legR]) {
-        const gm = new THREE.Mesh(BOX, ghostMat);
-        gm.scale.copy(p.scale);
-        gm.position.copy(p.position);
-        gm.renderOrder = 10;
-        g.add(gm);
+      // x-ray silhouette where something occludes the player
+      const ghost = new THREE.MeshBasicMaterial({ color: '#ffd66b', depthFunc: THREE.GreaterDepth, depthWrite: false, transparent: true, opacity: 0.55 });
+      for (const src of [this.upper, this.legL, this.legR]) {
+        const g = new THREE.Mesh(src.geometry, ghost);
+        g.renderOrder = 10;
+        src.add(g);
       }
+      if (!this.ring) {
+        this.ring = new THREE.Mesh(
+          new THREE.RingGeometry(0.42, 0.5, 24),
+          new THREE.MeshBasicMaterial({ color: '#ffd66b', transparent: true, opacity: 0.8, depthWrite: false }),
+        );
+        this.ring.rotation.x = -Math.PI / 2;
+        this.ring.position.y = 0.02;
+      }
+      m.add(this.ring);
     }
-    return g;
-  }
-
-  refreshGear() {
-    this.vest.visible = !!this.loadout.armor;
-    this.gun.visible = !!this.loadout.weapon;
   }
 
   canFire() {
-    return this.alive && this.loadout.weapon && this.cooldown <= 0 && this.reloadT <= 0 && this.healT <= 0;
+    return this.alive && !!this.weapon && this.cooldown <= 0 && this.reloadT <= 0 && this.healT <= 0;
   }
 
-  /** Consumes one round; returns the weapon def or null (empty/cooldown). */
   fire() {
     if (!this.canFire()) return null;
     const w = this.weaponDef;
-    if (this.loadout.weapon.mag <= 0) return null;
-    this.loadout.weapon.mag--;
+    if (this.weapon.mag <= 0) return null;
+    this.weapon.mag--;
     this.cooldown = 60 / w.rpm;
     return w;
   }
 
   ammoReserve() {
     const w = this.weaponDef;
-    if (!w) return 0;
-    const ammoId = Object.keys(ITEMS).find((k) => ITEMS[k].cat === 'ammo' && ITEMS[k].caliber === w.caliber);
-    return this.loadout.backpack.count(ammoId);
+    return w ? countItem(this.loadout, ammoIdFor(w.caliber)) : 0;
+  }
+
+  switchWeapon(slot) {
+    const lo = this.loadout;
+    const target = slot ?? (lo.active === 'primary' ? 'secondary' : 'primary');
+    if (!lo[target] || lo.active === target) return false;
+    lo.active = target;
+    this.reloadT = 0;
+    this.cooldown = 0.35;
+    this.refreshGear();
+    return true;
   }
 
   startReload() {
     const w = this.weaponDef;
     if (!w || this.reloadT > 0 || this.healT > 0) return false;
-    if (this.loadout.weapon.mag >= w.mag) return false;
-    if (this.ammoReserve() <= 0) return false;
+    if (this.weapon.mag >= w.mag || this.ammoReserve() <= 0) return false;
     this.reloadT = w.reload;
     return true;
   }
@@ -123,42 +140,46 @@ export class Actor {
   finishReload() {
     const w = this.weaponDef;
     if (!w) return;
-    const ammoId = Object.keys(ITEMS).find((k) => ITEMS[k].cat === 'ammo' && ITEMS[k].caliber === w.caliber);
-    const need = w.mag - this.loadout.weapon.mag;
-    this.loadout.weapon.mag += this.loadout.backpack.take(ammoId, need);
+    this.weapon.mag += takeItem(this.loadout, ammoIdFor(w.caliber), w.mag - this.weapon.mag);
   }
 
-  /** Use best med from backpack. */
-  startHeal() {
+  /** Use a specific med item, or the best one carried. */
+  startHeal(item = null) {
     if (this.healT > 0 || this.reloadT > 0 || this.health >= this.maxHealth) return false;
-    const meds = this.loadout.backpack.items().filter((i) => ITEMS[i.id].cat === 'med');
-    if (!meds.length) return false;
-    const missing = this.maxHealth - this.health;
-    meds.sort((a, b) => Math.abs(ITEMS[a.id].med.heal - missing) - Math.abs(ITEMS[b.id].med.heal - missing));
-    this.healItem = meds[0];
-    this.healT = ITEMS[this.healItem.id].med.time;
+    let med = item;
+    if (!med) {
+      const meds = storages(this.loadout).flatMap((g) => g.items()).filter((i) => ITEMS[i.id].cat === 'med');
+      if (!meds.length) return false;
+      const missing = this.maxHealth - this.health;
+      meds.sort((a, b) => Math.abs(ITEMS[a.id].med.heal - missing) - Math.abs(ITEMS[b.id].med.heal - missing));
+      med = meds[0];
+    }
+    if (ITEMS[med.id].cat !== 'med') return false;
+    this.healItem = med;
+    this.healT = ITEMS[med.id].med.time;
     return true;
   }
 
   finishHeal() {
     if (!this.healItem) return;
     this.health = Math.min(this.maxHealth, this.health + ITEMS[this.healItem.id].med.heal);
-    this.loadout.backpack.remove(this.healItem);
+    for (const g of storages(this.loadout)) if (g.remove(this.healItem)) break;
     this.healItem = null;
   }
 
   takeDamage(dmg, attacker) {
     if (!this.alive) return 0;
-    const armor = this.loadout.armor;
-    if (armor && armor.dur > 0) {
-      const a = ITEMS[armor.id].armor;
-      const absorbed = dmg * a.reduce;
-      armor.dur = Math.max(0, armor.dur - absorbed);
-      dmg -= absorbed;
+    for (const slot of ['armor', 'helmet']) {
+      const a = this.loadout[slot];
+      if (a && a.dur > 0) {
+        const absorbed = dmg * ITEMS[a.id].armor.reduce;
+        a.dur = Math.max(0, a.dur - absorbed);
+        dmg -= absorbed;
+      }
     }
     this.health -= dmg;
     this.hitFlash = 0.08;
-    this.healT = 0; // getting shot interrupts healing
+    this.healT = 0;
     this.healItem = null;
     if (this.health <= 0) {
       this.health = 0;
@@ -166,8 +187,8 @@ export class Actor {
       this.killedBy = attacker;
       if (attacker) attacker.kills++;
       if (this.ring) this.ring.visible = false;
-      this.mesh.rotation.x = -Math.PI / 2;
-      this.mesh.position.y = 0.18;
+      this.mesh.rotation.set(-Math.PI / 2, this.aim, 0, 'YXZ');
+      this.mesh.position.y = 0.2;
     }
     return dmg;
   }
@@ -196,12 +217,15 @@ export class Actor {
     if (!this.alive) return;
     this.mesh.position.set(this.pos.x, 0, this.pos.z);
     this.mesh.rotation.y = this.aim;
+    // legs swing relative to movement direction
     const speed = this.vel.length();
-    this.walkPhase += speed * dt * 3.2;
-    const swing = speed > 0.2 ? Math.sin(this.walkPhase) * 0.5 : 0;
-    this.legL.rotation.x = swing;
-    this.legR.rotation.x = -swing;
-    const flash = this.hitFlash > 0;
-    for (const p of this.parts) p.material.emissive?.set(flash ? '#f4e9d8' : '#000000');
+    this.walkPhase += speed * dt * 2.6;
+    const swing = speed > 0.2 ? Math.sin(this.walkPhase) * 0.6 : 0;
+    const fwd = speed > 0.2 ? Math.cos(Math.atan2(this.vel.x, this.vel.y) - this.aim) : 1;
+    this.legL.rotation.x = swing * fwd;
+    this.legR.rotation.x = -swing * fwd;
+    this.upper.position.y = speed > 0.2 ? Math.abs(Math.cos(this.walkPhase)) * 0.025 : 0;
+    if (this.gun) this.gun.position.y = this.upper.position.y + this.gunY;
+    this.material.emissive.set(this.hitFlash > 0 ? '#ffffff' : '#000000');
   }
 }

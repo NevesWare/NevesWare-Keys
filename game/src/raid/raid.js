@@ -6,6 +6,8 @@ import { Helicopter } from './helicopter.js';
 import { fillContainer, botLoadout, bodyContainer } from './loot.js';
 import { factionById } from '../data/factions.js';
 import { sfx } from '../audio.js';
+import { buildWorld, addLighting } from '../world/worldRender.js';
+import { MAP_SIZE } from './map.js';
 
 export const RAID_TIME = 20 * 60;
 const EXTRACT_TIME = 10;
@@ -16,7 +18,8 @@ const INTERACT_RANGE = 1.9;
  * Emits events through callbacks so UI stays decoupled.
  */
 export class Raid {
-  constructor({ profile, seed = Math.floor(Math.random() * 1e9), callbacks }) {
+  constructor({ profile, seed = Math.floor(Math.random() * 1e9), callbacks, quality = {} }) {
+    this.quality = quality;
     this.profile = profile;
     this.cb = callbacks;
     this.scene = new THREE.Scene();
@@ -65,7 +68,7 @@ export class Raid {
 
     // insertion helicopter
     this.heli = new Helicopter(factionById(pf).color);
-    this.heli.placeAt(ins.x + 2.5, ins.z, Math.PI / 2);
+    this.heli.placeAt(ins.x + 4.5, ins.z, 0);
     this.heli.descend(3);
     this.scene.add(this.heli.mesh);
     sfx.heli(0.15);
@@ -73,21 +76,18 @@ export class Raid {
 
   setupScene() {
     const s = this.scene;
-    s.add(this.map.vox.buildMeshes());
-    s.add(new THREE.HemisphereLight('#a3c6e0', '#44305e', 1.4));
-    const sun = new THREE.DirectionalLight('#ffd6a0', 2.2);
-    sun.position.set(-30, 50, 20);
-    s.add(sun);
+    s.add(buildWorld(this.map.vox, this.map.props, { x0: 0, z0: 0, W: MAP_SIZE, H: MAP_SIZE }, { grass: this.quality.grass ?? 0.6 }));
+    this.lighting = addLighting(s, { shadowSize: this.quality.shadows ?? 2048 });
     // pooled muzzle flash lights (fixed count so shaders never recompile)
     this.flashes = [];
     for (let i = 0; i < 4; i++) {
-      const l = new THREE.PointLight('#ffd66b', 0, 7, 1.5);
+      const l = new THREE.PointLight('#ffc070', 0, 6, 1.6);
       s.add(l);
       this.flashes.push(l);
     }
     this.flashIdx = 0;
     // extraction zone markers (ring of tiles)
-    const ringMat = new THREE.MeshBasicMaterial({ color: '#ffd66b' });
+    const ringMat = new THREE.MeshBasicMaterial({ color: '#ffd66b', transparent: true, opacity: 0.85 });
     for (const ex of this.map.extracts) {
       if (ex.faction && ex.faction !== this.profile.faction) continue;
       const ring = new THREE.Mesh(new THREE.RingGeometry(ex.r - 0.25, ex.r, 32), ringMat);
@@ -95,7 +95,7 @@ export class Raid {
       ring.position.set(ex.x, 0.02, ex.z);
       s.add(ring);
     }
-    this.tracerMat = new THREE.LineBasicMaterial({ color: '#ffd66b' });
+    this.tracerMat = new THREE.LineBasicMaterial({ color: '#ffe8a0', transparent: true, opacity: 0.9 });
   }
 
   hostileOf(a, b) {
@@ -246,7 +246,7 @@ export class Raid {
         if (w && !sprint) {
           const wants = w.auto ? ctl.fire : ctl.firePressed;
           if (wants && pl.canFire()) {
-            if (pl.loadout.weapon.mag > 0) this.shoot(pl, pl.aim);
+            if (pl.weapon.mag > 0) this.shoot(pl, pl.aim);
             else {
               sfx.empty();
               if (pl.startReload()) sfx.reload();
@@ -276,7 +276,7 @@ export class Raid {
       } else {
         this.extractT -= dt;
         if (this.extractT < 4 && this.heli.mode === 'idle') {
-          this.heli.placeAt(this.extractZone.x + 2.8, this.extractZone.z, Math.PI / 2);
+          this.heli.placeAt(this.extractZone.x + 4.5, this.extractZone.z, 0);
           this.heli.descend(3.8);
         }
         if (Math.random() < dt * 8) sfx.heli(0.05 + 0.1 * (1 - this.extractT / EXTRACT_TIME));

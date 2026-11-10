@@ -54,6 +54,7 @@ export class RaidMap {
     this.extracts = [];
     this.outposts = {};
     this.botSpawns = [];
+    this.props = [];
     this.generate(seed);
   }
 
@@ -158,13 +159,33 @@ export class RaidMap {
     for (let y = 0; y < 4; y++) this.vox.voxels.delete(VoxelLevel.key(x, y, z));
   }
 
+  prop(kind, v, x, z, rot = this.rand() * Math.PI * 2, s = 1) {
+    this.props.push({ kind, v, x, z, rot, s });
+  }
+
   tree(x, z) {
-    this.block(x, z, 2, 'wood');
-    for (let dx = -1; dx <= 1; dx++)
-      for (let dz = -1; dz <= 1; dz++) {
-        this.vox.set(x + dx, 2, z + dz, 'leaves');
-        if (Math.abs(dx) + Math.abs(dz) <= 1) this.vox.set(x + dx, 3, z + dz, 'leaves');
-      }
+    this.block(x, z, 1, 'trunk');
+    this.prop('tree', Math.floor(this.rand() * 2), x + 0.5, z + 0.5, this.rand() * 6.28, 0.62 + this.rand() * 0.25);
+  }
+
+  rock(x, z) {
+    this.block(x, z, 1, 'rock');
+    this.prop('rock', Math.floor(this.rand() * 3), x + 0.5, z + 0.5);
+  }
+
+  sandbag(x, z, rot) {
+    this.block(x, z, 1, 'sandbag');
+    this.prop('sandbag', 0, x + 0.5, z + 0.5, rot);
+  }
+
+  /** Abandoned car: 2 x 4 cells, along x (alongX) or z. */
+  car(x, z, alongX) {
+    const cells = [];
+    for (let a = 0; a < 2; a++) for (let b = 0; b < 4; b++) cells.push(alongX ? [x + b, z + a] : [x + a, z + b]);
+    if (cells.some(([cx, cz]) => this.isSolid(cx, cz))) return;
+    for (const [cx, cz] of cells) this.block(cx, cz, 1, 'car');
+    const cx = alongX ? x + 2 : x + 1, cz = alongX ? z + 1 : z + 2;
+    this.prop('car', Math.floor(this.rand() * 4), cx, cz, (alongX ? Math.PI / 2 : 0) + (this.rand() - 0.5) * 0.15);
   }
 
   /** Rectangular building with wall height 2 and door gaps in the middle of chosen sides. */
@@ -188,6 +209,7 @@ export class RaidMap {
 
   crate(x, z, tier, label = 'Caixa') {
     this.block(x, z, 1, tier === 'rare' ? 'crateRare' : tier === 'military' ? 'crateMil' : 'crate');
+    this.prop('crate', tier, x + 0.5, z + 0.5, Math.floor(this.rand() * 4) * (Math.PI / 2));
     const c = { x: x + 0.5, z: z + 0.5, tier, label, grid: new Grid(5, 4), looted: false, filled: false };
     this.containers.push(c);
     return c;
@@ -232,6 +254,13 @@ export class RaidMap {
     // roads from center to each corner
     for (const k of Object.keys(CORNERS)) this.road(C.x, C.z, CORNERS[k].x, CORNERS[k].z);
     this.road(C.x, C.z, 64, 6);
+    this.pendingCars = [];
+    for (const k of Object.keys(CORNERS)) {
+      for (const t of [0.35, 0.62]) {
+        const x = Math.round(C.x + (CORNERS[k].x - C.x) * t), z = Math.round(C.z + (CORNERS[k].z - C.z) * t);
+        this.pendingCars.push([x + 2, z - 1, R() < 0.5]);
+      }
+    }
 
     // faction outposts
     FACTIONS.forEach((f) => this.outpost(f, CORNERS[f.corner]));
@@ -255,6 +284,8 @@ export class RaidMap {
       this.botSpawns.push({ x: x + 3, z: z + 7, faction: 'scav' });
     }
 
+    for (const [x, z, ax] of this.pendingCars) this.car(x, z, ax);
+
     // rocks
     for (let i = 0; i < 70; i++) {
       const x = 4 + Math.floor(R() * (W - 8)), z = 4 + Math.floor(R() * (H - 8));
@@ -262,7 +293,7 @@ export class RaidMap {
       const n = 1 + Math.floor(R() * 4);
       for (let k = 0; k < n; k++) {
         const rx = x + Math.floor(R() * 2), rz = z + Math.floor(R() * 2);
-        if (!this.reserved[this.idx(rx, rz)]) this.block(rx, rz, 1 + (R() < 0.4 ? 1 : 0), 'rock');
+        if (!this.reserved[this.idx(rx, rz)] && !this.isSolid(rx, rz)) this.rock(rx, rz);
       }
     }
 
@@ -271,7 +302,7 @@ export class RaidMap {
       for (let z = 3; z < H - 3; z++) {
         if (this.reserved[this.idx(x, z)] || this.isSolid(x, z)) continue;
         const dens = noise(x + 50, z + 50, 14);
-        if (R() < (dens > 0.55 ? 0.09 : 0.012)) {
+        if (R() < (dens > 0.55 ? 0.06 : 0.01)) {
           let ok = true;
           for (let ox = -1; ox <= 1; ox++) for (let oz = -1; oz <= 1; oz++) if (this.isSolid(x + ox, z + oz)) ok = false;
           if (ok) this.tree(x, z);
@@ -312,8 +343,8 @@ export class RaidMap {
     this.crate(x1 - 2, z1 - 2, 'military', 'Caixa de Suprimentos');
     // sandbag cover
     for (let i = -2; i <= 2; i++) {
-      this.block(c.x + i, c.z - 5, 1, 'sandbag');
-      this.block(c.x + i, c.z + 5, 1, 'sandbag');
+      this.sandbag(c.x + i, c.z - 5, 0);
+      this.sandbag(c.x + i, c.z + 5, 0);
     }
     this.outposts[f.id] = { x: c.x + 0.5, z: c.z + 0.5, faction: f.id };
     this.extracts.push({ name: `Heliponto ${f.name}`, x: c.x + 0.5, z: c.z + 0.5, r: 3.5, faction: f.id });

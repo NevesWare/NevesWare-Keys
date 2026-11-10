@@ -9,6 +9,8 @@ const KEYMAP = {
   KeyR: 'reload',
   KeyF: 'interact',
   KeyH: 'heal',
+  Digit1: 'hb1', Digit2: 'hb2', Digit3: 'hb3', Digit4: 'hb4', Digit5: 'hb5', Digit6: 'hb6',
+  KeyX: 'swap',
   Tab: 'inventory', KeyI: 'inventory',
   Escape: 'escape',
 };
@@ -80,7 +82,19 @@ export class Input {
   }
 
   isHeld(a) {
+    if (this.touch?.enabled) {
+      if (a === 'fire' && this.touch.firing) return true;
+      if (a === 'sprint' && this.touch.sprint) return true;
+    }
     return this.held.has(a) || this.padHeld.has(a);
+  }
+
+  /** Aim direction from touch/gamepad in screen terms, or null when using the mouse. */
+  stickAim() {
+    const t = this.touch;
+    if (t?.enabled && (t.aim.x || t.aim.y)) return t.aim;
+    if (this.padAim.x || this.padAim.y) return this.padAim;
+    return null;
   }
 
   pressed(a) {
@@ -96,8 +110,9 @@ export class Input {
 
   /** x = screen right, y = screen up/forward; length <= 1 */
   move() {
-    let x = (this.isHeld('right') ? 1 : 0) - (this.isHeld('left') ? 1 : 0) + this.padMove.x;
-    let y = (this.isHeld('up') ? 1 : 0) - (this.isHeld('down') ? 1 : 0) + this.padMove.y;
+    const tm = this.touch?.enabled ? this.touch.move : { x: 0, y: 0 };
+    let x = (this.isHeld('right') ? 1 : 0) - (this.isHeld('left') ? 1 : 0) + this.padMove.x + tm.x;
+    let y = (this.isHeld('up') ? 1 : 0) - (this.isHeld('down') ? 1 : 0) + this.padMove.y + tm.y;
     const l = Math.hypot(x, y);
     if (l > 1) {
       x /= l;

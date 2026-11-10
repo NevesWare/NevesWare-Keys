@@ -191,7 +191,7 @@ export class BotBrain {
 
         // shooting
         this.reaction -= dt;
-        if (a.loadout.weapon && a.loadout.weapon.mag <= 0) a.startReload();
+        if (a.weapon && a.weapon.mag <= 0) a.startReload();
         else if (this.reaction <= 0 && err < 0.15 && d < range) {
           const w = a.weaponDef;
           if (w.auto) {
@@ -221,7 +221,7 @@ export class BotBrain {
       }
     } else {
       // idle behaviors
-      if (a.loadout.weapon && a.loadout.weapon.mag < (a.weaponDef?.mag ?? 0) * 0.5) a.startReload();
+      if (a.weapon && a.weapon.mag < (a.weaponDef?.mag ?? 0) * 0.5) a.startReload();
       if (a.health < 60) a.startHeal();
       this.idleT -= dt;
       if (this.idleT <= 0) {

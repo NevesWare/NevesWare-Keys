@@ -1,5 +1,6 @@
 import { Grid } from '../inventory/grid.js';
-import { LOOT_TABLES, ITEMS, newItem } from '../data/items.js';
+import { LOOT_TABLES, ITEMS, newItem, ammoIdFor } from '../data/items.js';
+import { newLoadout, addToStorages, carriedItems, clearLoadout } from '../inventory/loadout.js';
 import { FACTIONS } from '../data/factions.js';
 
 function pick(table, rand) {
@@ -31,12 +32,7 @@ export function fillContainer(c, rand = Math.random) {
 const SCAV_NAMES = ['Zé Ferrugem', 'Tonhão', 'Biscoito', 'Careca', 'Juca', 'Pé de Pano', 'Sombra', 'Corvo', 'Dente', 'Lagarto', 'Faísca', 'Mosca'];
 const OP_NAMES = ['Alfa', 'Bravo', 'Delta', 'Eco', 'Foxtrot', 'Lima', 'Sierra', 'Tango', 'Vítor', 'Zulu'];
 
-function ammoFor(weaponId) {
-  const cal = ITEMS[weaponId].weapon.caliber;
-  return Object.keys(ITEMS).find((k) => ITEMS[k].cat === 'ammo' && ITEMS[k].caliber === cal);
-}
-
-function armed(id, rand) {
+function armed(id) {
   const w = newItem(id);
   w.mag = ITEMS[id].weapon.mag;
   return w;
@@ -44,40 +40,45 @@ function armed(id, rand) {
 
 /** Bot gear by faction. */
 export function botLoadout(faction, rand = Math.random) {
-  const backpack = new Grid(6, 5);
-  let weapon, armor = null, name;
+  const lo = newLoadout();
+  let name;
+  const give = (it) => addToStorages(lo, it);
   if (faction === 'scav') {
     const r = rand();
     const wid = r < 0.55 ? 'p9' : r < 0.8 ? 'trovao' : 'vespa';
-    weapon = armed(wid, rand);
-    backpack.add(newItem(ammoFor(wid), wid === 'trovao' ? 6 + Math.floor(rand() * 8) : 10 + Math.floor(rand() * 25)));
-    if (rand() < 0.5) backpack.add(roll(pick(LOOT_TABLES.common, rand), rand));
-    if (rand() < 0.35) backpack.add(newItem('bandagem'));
-    if (rand() < 0.15) armor = roll(['coleteL'], rand);
+    const w = armed(wid);
+    if (wid === 'p9') {
+      lo.secondary = w;
+      lo.active = 'secondary';
+    } else lo.primary = w;
+    if (rand() < 0.5) lo.backpack = newItem('mochilaP');
+    give(newItem(ammoIdFor(ITEMS[wid].weapon.caliber), wid === 'trovao' ? 6 + Math.floor(rand() * 8) : 10 + Math.floor(rand() * 25)));
+    if (rand() < 0.5) give(roll(pick(LOOT_TABLES.common, rand), rand));
+    if (rand() < 0.35) give(newItem('bandagem'));
+    if (rand() < 0.15) lo.armor = roll(['coleteL'], rand);
+    if (rand() < 0.2) lo.helmet = roll(['capaceteL'], rand);
     name = `Scav ${SCAV_NAMES[Math.floor(rand() * SCAV_NAMES.length)]}`;
   } else {
     const wid = rand() < 0.6 ? 'k7' : 'vespa';
-    weapon = armed(wid, rand);
-    backpack.add(newItem(ammoFor(wid), 30 + Math.floor(rand() * 40)));
-    backpack.add(newItem(rand() < 0.5 ? 'medkit' : 'bandagem'));
-    if (rand() < 0.5) backpack.add(roll(pick(LOOT_TABLES.military, rand), rand));
-    if (rand() < 0.2) backpack.add(roll(pick(LOOT_TABLES.rare, rand), rand));
-    armor = roll([rand() < 0.4 ? 'coleteP' : 'coleteL'], rand);
+    lo.primary = armed(wid);
+    if (rand() < 0.5) lo.secondary = armed('p9');
+    lo.backpack = newItem(rand() < 0.3 ? 'mochilaT' : 'mochilaM');
+    give(newItem(ammoIdFor(ITEMS[wid].weapon.caliber), 30 + Math.floor(rand() * 40)));
+    give(newItem(rand() < 0.5 ? 'medkit' : 'bandagem'));
+    if (rand() < 0.5) give(roll(pick(LOOT_TABLES.military, rand), rand));
+    if (rand() < 0.2) give(roll(pick(LOOT_TABLES.rare, rand), rand));
+    lo.armor = roll([rand() < 0.4 ? 'coleteP' : 'coleteL'], rand);
+    lo.helmet = roll([rand() < 0.35 ? 'capaceteP' : 'capaceteL'], rand);
     const f = FACTIONS.find((x) => x.id === faction);
     name = `${f ? f.name.split(' ').pop() : 'Op'} ${OP_NAMES[Math.floor(rand() * OP_NAMES.length)]}`;
   }
-  return { name, loadout: { weapon, armor, backpack } };
+  return { name, loadout: lo };
 }
 
 /** Converts a dead actor's gear into a lootable container. */
 export function bodyContainer(actor) {
-  const grid = new Grid(8, 6);
-  const { weapon, armor, backpack } = actor.loadout;
-  if (weapon) grid.add(weapon);
-  if (armor) grid.add(armor);
-  for (const it of backpack.items()) grid.add(it);
-  actor.loadout.weapon = null;
-  actor.loadout.armor = null;
-  backpack.clear();
+  const grid = new Grid(10, 8);
+  for (const it of carriedItems(actor.loadout)) grid.add(it);
+  clearLoadout(actor.loadout);
   return { x: actor.pos.x, z: actor.pos.z, label: `Corpo: ${actor.name}`, grid, filled: true, body: true };
 }
