@@ -43,6 +43,7 @@
     close: '<path d="M6 6l12 12M18 6L6 18"/>',
     heart: '<path d="M12 20s-7.5-4.6-7.5-10A4.3 4.3 0 0 1 12 7.4 4.3 4.3 0 0 1 19.5 10c0 5.4-7.5 10-7.5 10z"/>',
     target: '<circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.5"/>',
+    edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>',
     layers: '<path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/>'
   };
   function svgIcon(name, extra) {
@@ -50,7 +51,15 @@
   }
   var TYPE = { carro: { nome: "Carros", um: "Carro", ic: "car" }, moto: { nome: "Motos", um: "Moto", ic: "moto" }, barco: { nome: "Barcos", um: "Barco", ic: "boat" }, aereo: { nome: "Aéreos", um: "Aeronave", ic: "heli" } };
   var REG = {}; D.regioes.forEach(function (r) { REG[r.id] = r; });
+  /* locais do usuário (modo editor): pins novos e pins movidos, guardados no aparelho */
+  var EDIT = { custom: store.get("custom", []), moves: store.get("moves", {}) };
+  D.locais.forEach(function (l, i) { var m = EDIT.moves[l.n]; if (m) { l.x = m[0]; l.y = m[1]; } });
+  EDIT.custom.forEach(function (c) { c.s = "meu"; c.mine = true; D.locais.push(c); });
   D.locais.forEach(function (l, i) { l.i = i; });
+  function saveEdits() {
+    store.set("custom", D.locais.filter(function (l) { return l.mine; }).map(function (l) { return { n: l.n, c: l.c, r: l.r, x: l.x, y: l.y, d: l.d }; }));
+    store.set("moves", EDIT.moves);
+  }
 
   var toastT;
   function toast(msg) {
@@ -99,7 +108,6 @@
     $("#viewTitle").textContent = document.getElementById(TABS[i].view).getAttribute("data-title");
     placeGlow();
     closeSheet(); closeDrawer();
-    if (hero) hero.active = i === 0;
     if (TABS[i].id === "map") Map.show();
     if (TABS[prev].id === "map") $("#results").hidden = true;
   }
@@ -177,117 +185,18 @@
     var on = {}; cats.forEach(function (c) { on[c] = true; });
     var fRegion = "all", fStatus = "all", favOnly = false, sel = -1, query = "";
     var favs = store.get("favs", []);
+    var editMode = false, moveIdx = -1, showExport = false;
+    function setEdit(v) {
+      editMode = v; moveIdx = -1;
+      var b = $("#editFab"); if (b) b.classList.toggle("on", v);
+      if (v) { stageEl.classList.remove("tilted"); $("#tilt3d").classList.remove("on"); }
+      toast(v ? "Editor ligado: toque no mapa para criar um local" : "Editor desligado");
+      if (sel >= 0) openSheet(D.locais[sel]);
+    }
     var gMap, gOv;
 
-    /* ---- contorno de Leonida (pontos, suavizados) ---- */
-    var LAND = [[60, 190], [70, 160], [200, 150], [380, 148], [560, 152], [690, 160], [735, 175], [750, 260], [770, 350], [800, 450], [835, 550], [870, 650], [900, 750], [925, 840], [948, 920], [958, 1000], [960, 1060], [948, 1125], [915, 1172], [865, 1198], [815, 1196], [775, 1172], [745, 1135], [715, 1085], [690, 1030], [668, 965], [648, 895], [625, 820], [600, 745], [572, 680], [540, 620], [510, 565], [485, 515], [455, 470], [420, 430], [375, 400], [325, 380], [270, 360], [215, 330], [165, 295], [120, 265], [80, 240]];
-    var BEACH = [[970, 870], [980, 868], [992, 940], [996, 1010], [994, 1090], [984, 1092], [982, 1010], [978, 940]];
-    var KEYS = [[842, 1232, 26, 8, -18], [800, 1253, 24, 7, -20], [760, 1271, 22, 7, -18], [718, 1289, 30, 9, -16], [676, 1301, 20, 6, -12], [634, 1310, 22, 7, -10], [592, 1318, 26, 8, -8], [550, 1324, 18, 6, -6], [508, 1328, 20, 6, -4], [470, 1331, 24, 8, -2]];
-
-    function smooth(pts, closed) {
-      var n = pts.length, d = "M" + pts[0][0] + "," + pts[0][1];
-      var last = closed ? n : n - 1;
-      for (var i = 0; i < last; i++) {
-        var p0 = pts[(i - 1 + n) % n], p1 = pts[i], p2 = pts[(i + 1) % n], p3 = pts[(i + 2) % n];
-        if (!closed) { if (i === 0) p0 = p1; if (i + 2 >= n) p3 = p2; }
-        var c1x = p1[0] + (p2[0] - p0[0]) / 6, c1y = p1[1] + (p2[1] - p0[1]) / 6;
-        var c2x = p2[0] - (p3[0] - p1[0]) / 6, c2y = p2[1] - (p3[1] - p1[1]) / 6;
-        d += "C" + c1x.toFixed(1) + "," + c1y.toFixed(1) + " " + c2x.toFixed(1) + "," + c2y.toFixed(1) + " " + p2[0] + "," + p2[1];
-      }
-      return d + (closed ? "Z" : "");
-    }
-
-    /* SVG estático do mapa (vira bitmap para o zoom ficar leve) */
-    function mapSVG(vb) {
-      var land = smooth(LAND, true), beach = smooth(BEACH, true);
-      var keys = KEYS.map(function (k) { return '<ellipse cx="' + k[0] + '" cy="' + k[1] + '" rx="' + k[2] + '" ry="' + k[3] + '" transform="rotate(' + k[4] + " " + k[0] + " " + k[1] + ')"/>'; }).join("");
-      var islands = keys + '<path d="' + beach + '"/><ellipse cx="966" cy="975" rx="7" ry="5"/><ellipse cx="966" cy="1030" rx="12" ry="5" transform="rotate(-10 966 1030)"/><ellipse cx="310" cy="418" rx="12" ry="5"/><ellipse cx="338" cy="428" rx="8" ry="4"/>';
-      var grid = "";
-      for (var gx = 100; gx < W; gx += 100) grid += '<path d="M' + gx + ' 0V' + H + '"/>';
-      for (var gy = 100; gy < H; gy += 100) grid += '<path d="M0 ' + gy + 'H' + W + '"/>';
-      var gl = "";
-      for (var c = 0; c < 10; c++) gl += '<text x="' + (c * 100 + 50) + '" y="20">' + "ABCDEFGHIJ".charAt(c) + "</text>";
-      for (var r = 0; r < 14; r++) gl += '<text x="14" y="' + (r * 100 + 56) + '">' + (r + 1) + "</text>";
-      var ridges = "";
-      [[640, 240], [665, 262], [612, 262], [690, 240], [585, 230], [560, 268], [705, 280], [630, 300], [520, 300], [480, 280], [450, 250]].forEach(function (p, i) {
-        var s = i < 4 ? 1.3 : .9;
-        ridges += '<path d="M' + (p[0] - 16 * s) + " " + (p[1] + 8 * s) + "L" + p[0] + " " + (p[1] - 10 * s) + "L" + (p[0] + 16 * s) + " " + (p[1] + 8 * s) + '"/>';
-      });
-      var roads =
-        '<path d="M90 205 C250 190 450 185 700 190"/>' +
-        '<path d="M700 190 C730 300 770 420 820 560 S900 800 925 900 S945 1000 930 1060"/>' +
-        '<path d="M560 180 C600 330 640 480 700 640 S800 850 880 960"/>' +
-        '<path d="M232 296 C330 330 420 400 480 500 S560 640 600 740"/>' +
-        '<path d="M700 640 C760 650 820 620 860 640"/>' +
-        '<path d="M930 1060 C900 1120 880 1170 850 1220 S760 1272 718 1289 S600 1320 470 1331"/>' +
-        '<path d="M760 1000 C820 990 860 980 900 980"/>' +
-        '<path d="M940 960 C955 958 968 950 980 948"/>';
-      var labels = '<g font-family="monospace" font-size="13" fill="rgba(251,239,255,.28)">' + gl + "</g>";
-      return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="' + vb.slice(0, 4).join(" ") + '" width="' + vb[4] + '" height="' + vb[5] + '">' +
-        '<defs>' +
-        '<radialGradient id="sea" cx="70%" cy="70%" r="80%"><stop offset="0" stop-color="#1a1240"/><stop offset=".6" stop-color="#0f0a2a"/><stop offset="1" stop-color="#08061a"/></radialGradient>' +
-        '<linearGradient id="landG" x1="0" y1="0" x2=".4" y2="1"><stop offset="0" stop-color="#2a1a4c"/><stop offset=".55" stop-color="#33184f"/><stop offset="1" stop-color="#3d1748"/></linearGradient>' +
-        '<clipPath id="landClip"><path d="' + land + '"/></clipPath>' +
-        '<pattern id="swamp" width="14" height="14" patternUnits="userSpaceOnUse"><circle cx="3" cy="3" r="1.4" fill="#7be38a" opacity=".55"/><path d="M8 11c2-2 4-2 6 0" stroke="#5fd39a" stroke-width="1" fill="none" opacity=".5"/></pattern>' +
-        '<pattern id="city" width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(-8)"><rect x="1" y="1" width="6.5" height="6.5" rx="1" fill="#ff7ab8" opacity=".55"/></pattern>' +
-        '<pattern id="town" width="8" height="8" patternUnits="userSpaceOnUse"><rect x="1" y="1" width="5" height="5" rx="1" fill="#ffd9a8" opacity=".5"/></pattern>' +
-        '<pattern id="forest" width="12" height="12" patternUnits="userSpaceOnUse"><circle cx="4" cy="4" r="2.6" fill="#8b5cf6" opacity=".35"/><circle cx="10" cy="10" r="2" fill="#a98bff" opacity=".3"/></pattern>' +
-        '<radialGradient id="fade"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>' +
-        '<mask id="mVice"><ellipse cx="915" cy="985" rx="75" ry="125" fill="url(#fade)"/></mask>' +
-        '<mask id="mGrass"><ellipse cx="790" cy="1060" rx="120" ry="110" fill="url(#fade)"/></mask>' +
-        '<mask id="mForest"><ellipse cx="600" cy="270" rx="200" ry="120" fill="url(#fade)"/></mask>' +
-        '<filter id="glow" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="6"/></filter>' +
-        '<filter id="glowS" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="2.5"/></filter>' +
-        "</defs>" +
-        '<g stroke="rgba(139,92,246,.13)" stroke-width="1">' + grid + "</g>" + labels +
-        // águas rasas
-        '<g fill="none" stroke="#2de2e6" stroke-linejoin="round"><path d="' + land + '" stroke-width="60" opacity=".05"/><path d="' + land + '" stroke-width="30" opacity=".07"/><path d="' + land + '" stroke-width="12" opacity=".1"/></g>' +
-        '<g fill="#2de2e6" opacity=".09">' + KEYS.map(function (k) { return '<ellipse cx="' + k[0] + '" cy="' + k[1] + '" rx="' + (k[2] + 14) + '" ry="' + (k[3] + 10) + '" transform="rotate(' + k[4] + " " + k[0] + " " + k[1] + ')"/>'; }).join("") + "</g>" +
-        // terra
-        '<path d="' + land + '" fill="url(#landG)"/>' +
-        '<g fill="url(#landG)">' + islands + "</g>" +
-        '<g clip-path="url(#landClip)">' +
-        '<circle cx="912" cy="980" r="190" fill="#ff3d8b" opacity=".16"/>' +
-        '<circle cx="790" cy="1060" r="170" fill="#7be38a" opacity=".12"/>' +
-        '<circle cx="245" cy="280" r="220" fill="#ff9a3c" opacity=".14"/>' +
-        '<circle cx="720" cy="640" r="220" fill="#ffd23f" opacity=".08"/>' +
-        '<circle cx="610" cy="250" r="210" fill="#8b5cf6" opacity=".2"/>' +
-        '<rect x="600" y="120" width="320" height="320" fill="url(#forest)" mask="url(#mForest)"/>' +
-        '<rect x="660" y="940" width="260" height="240" fill="url(#swamp)" mask="url(#mGrass)"/>' +
-        '<rect x="830" y="850" width="140" height="280" fill="url(#city)" mask="url(#mVice)"/>' +
-        '<ellipse cx="700" cy="645" rx="38" ry="26" fill="url(#town)"/>' +
-        '<ellipse cx="240" cy="300" rx="55" ry="26" fill="url(#town)"/>' +
-        "</g>" +
-        '<g fill="url(#city)" opacity=".8"><path d="' + beach + '"/></g>' +
-        // relevo
-        '<g fill="none" stroke="#c9b6ff" stroke-width="2.2" stroke-linejoin="round" opacity=".55">' + ridges + "</g>" +
-        // água doce
-        '<g fill="#1a1a52" stroke="#2de2e6" stroke-width="2" stroke-opacity=".45"><ellipse cx="790" cy="762" rx="58" ry="46"/><ellipse cx="590" cy="300" rx="30" ry="17"/></g>' +
-        '<path d="M610 175 C590 260 560 330 525 420 S475 480 460 478" fill="none" stroke="#2de2e6" stroke-width="3" opacity=".5"/>' +
-        '<path d="M720 1000 C740 1040 770 1070 760 1120 M800 990 C790 1040 820 1090 810 1150" fill="none" stroke="#2de2e6" stroke-width="2" opacity=".35"/>' +
-        // estradas
-        '<g fill="none" stroke-linecap="round" stroke-linejoin="round">' +
-        '<g stroke="#ffd23f" stroke-width="7" opacity=".14" filter="url(#glowS)">' + roads + "</g>" +
-        '<g stroke="#ffe3a3" stroke-width="2.2" opacity=".55">' + roads + "</g></g>" +
-        // costa neon
-        '<g fill="none" stroke="#ff3d8b"><path d="' + land + '" stroke-width="8" opacity=".55" filter="url(#glow)"/><g stroke-width="5" opacity=".45" filter="url(#glowS)">' + islands + "</g></g>" +
-        '<g fill="none" stroke="#ff9fcb" stroke-width="1.8"><path d="' + land + '"/>' + islands + "</g>" +
-        "</svg>";
-    }
-
-    function raster(vb, cb) {
-      var img = new Image();
-      img.onload = function () {
-        var c = document.createElement("canvas"); c.width = vb[4]; c.height = vb[5];
-        var x = c.getContext("2d"); x.drawImage(img, 0, 0, vb[4], vb[5]);
-        try {
-          if (c.toBlob && window.URL) c.toBlob(function (b) { cb(b ? URL.createObjectURL(b) : c.toDataURL("image/png")); }, "image/png");
-          else cb(c.toDataURL("image/png"));
-        } catch (e) { cb("data:image/svg+xml;charset=utf-8," + encodeURIComponent(mapSVG(vb))); }
-      };
-      img.onerror = function () { cb("data:image/svg+xml;charset=utf-8," + encodeURIComponent(mapSVG(vb))); };
-      img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(mapSVG(vb));
-    }
+    /* imagem do mapa: posições dos locais usam a mesma grade de 1000 × 1400 */
+    var MAP_SRC = "img/mapa-leonida.jpg", MAXZ = 7;
 
     function build() {
       if (built) return; built = true;
@@ -295,27 +204,12 @@
       gMap = document.createElementNS(NS, "g");
       gOv = document.createElementNS(NS, "g");
       svg.appendChild(gMap); svg.appendChild(gOv);
-      var hiRes = Math.min(2, (window.devicePixelRatio || 1)) >= 2 ? 2200 : 1800;
-      raster([0, 0, W, H, hiRes, Math.round(hiRes * 1.4)], function (url) {
-        var im = document.createElementNS(NS, "image");
-        im.setAttribute("href", url); im.setAttributeNS("http://www.w3.org/1999/xlink", "href", url);
-        im.setAttribute("x", 0); im.setAttribute("y", 0); im.setAttribute("width", W); im.setAttribute("height", H);
-        gMap.insertBefore(im, gMap.firstChild);
-        ready = true; need = true;
-        // detalhe em alta para Vice City e Keys
-        raster([820, 850, 180, 280, 1260, 1960], function (u2) {
-          var d = document.createElementNS(NS, "image");
-          d.setAttribute("href", u2); d.setAttributeNS("http://www.w3.org/1999/xlink", "href", u2);
-          d.setAttribute("x", 820); d.setAttribute("y", 850); d.setAttribute("width", 180); d.setAttribute("height", 280);
-          gMap.appendChild(d);
-          raster([440, 1180, 440, 180, 2200, 900], function (u3) {
-            var e = document.createElementNS(NS, "image");
-            e.setAttribute("href", u3); e.setAttributeNS("http://www.w3.org/1999/xlink", "href", u3);
-            e.setAttribute("x", 440); e.setAttribute("y", 1180); e.setAttribute("width", 440); e.setAttribute("height", 180);
-            gMap.appendChild(e);
-          });
-        });
-      });
+      var im = document.createElementNS(NS, "image");
+      im.setAttribute("href", MAP_SRC); im.setAttributeNS("http://www.w3.org/1999/xlink", "href", MAP_SRC);
+      im.setAttribute("x", 0); im.setAttribute("y", 0); im.setAttribute("width", W); im.setAttribute("height", H);
+      im.setAttribute("preserveAspectRatio", "none");
+      gMap.appendChild(im);
+      ready = true;
       bindInput();
       buildChips();
       buildDrawer();
@@ -337,7 +231,7 @@
       need = true;
     }
     function clampView() {
-      st.k = clamp(st.k, fitK * .8, fitK * 16);
+      st.k = clamp(st.k, fitK * .8, fitK * MAXZ);
       var mw = W * st.k, mh = H * st.k, m = 80;
       st.tx = clamp(st.tx, Math.min(m - mw + 0, vw - mw - m) , Math.max(vw - m, m));
       st.ty = clamp(st.ty, Math.min(m - mh, vh - mh - m), Math.max(vh - m, m));
@@ -450,7 +344,7 @@
         if (ids.length >= 2 && pinch) {
           var a = ptrs[ids[0]], b = ptrs[ids[1]];
           var d = Math.hypot(a.x - b.x, a.y - b.y), cx = (a.x + b.x) / 2, cy = (a.y + b.y) / 2;
-          var nk = clamp(pinch.k * d / pinch.d, fitK * .8, fitK * 16);
+          var nk = clamp(pinch.k * d / pinch.d, fitK * .8, fitK * MAXZ);
           var mx = (pinch.cx - r.left - pinch.tx) / pinch.k, my = (pinch.cy - r.top - pinch.ty) / pinch.k;
           st.k = nk; st.tx = cx - r.left - mx * nk; st.ty = cy - r.top - my * nk;
           clampView(); need = true;
@@ -487,6 +381,7 @@
       $("#zoomIn").addEventListener("click", function () { zoomAt(vw / 2, vh / 2, 1.8, true); });
       $("#zoomOut").addEventListener("click", function () { zoomAt(vw / 2, vh / 2, 1 / 1.8, true); });
       $("#recenter").addEventListener("click", function () { home(); });
+      $("#editFab").addEventListener("click", function () { setEdit(!editMode); });
       $("#tilt3d").addEventListener("click", function () {
         var t = stageEl.classList.toggle("tilted");
         this.classList.toggle("on", t);
@@ -519,7 +414,7 @@
     }
 
     function zoomAt(sx, sy, f, animate) {
-      var nk = clamp(st.k * f, fitK * .8, fitK * 16);
+      var nk = clamp(st.k * f, fitK * .8, fitK * MAXZ);
       var mx = (sx - st.tx) / st.k, my = (sy - st.ty) / st.k;
       var b = { k: nk, tx: sx - mx * nk, ty: sy - my * nk };
       if (animate) { anim = { a: { k: st.k, tx: st.tx, ty: st.ty }, b: b, t0: performance.now(), dur: 380 }; }
@@ -547,12 +442,22 @@
           var minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
           G.items.forEach(function (p) { minX = Math.min(minX, p.l.x); maxX = Math.max(maxX, p.l.x); minY = Math.min(minY, p.l.y); maxY = Math.max(maxY, p.l.y); });
           var span = Math.max(maxX - minX, maxY - minY, 6);
-          var k = clamp(Math.min(vw, vh) * .45 / span, st.k * 1.6, fitK * 16);
+          var k = clamp(Math.min(vw, vh) * .45 / span, st.k * 1.6, fitK * MAXZ);
           anim = { a: { k: st.k, tx: st.tx, ty: st.ty }, b: { k: k, tx: vw / 2 - mx * k, ty: vh * .45 - my * k }, t0: now, dur: 600 };
         }
         return;
       }
       $("#results").hidden = true;
+      if (editMode) {
+        var rr = wrap.getBoundingClientRect();
+        var px = Math.round(clamp((e.clientX - rr.left - st.tx) / st.k, 0, W)), py = Math.round(clamp((e.clientY - rr.top - st.ty) / st.k, 0, H));
+        if (moveIdx >= 0) {
+          var ml = D.locais[moveIdx]; ml.x = px; ml.y = py;
+          if (!ml.mine) EDIT.moves[ml.n] = [px, py];
+          saveEdits(); moveIdx = -1; toast("Pin movido para " + quad(px, py)); select(ml.i, false); return;
+        }
+        openAddForm(px, py); return;
+      }
       if (sel >= 0) { closeSheet(); return; }
       if (now - lastTap < 320) { var r2 = wrap.getBoundingClientRect(); zoomAt(e.clientX - r2.left, e.clientY - r2.top, 2, true); }
       lastTap = now;
@@ -562,7 +467,7 @@
     function select(i, fly) {
       sel = i; need = true;
       var l = D.locais[i];
-      if (fly) flyTo(l.x, l.y, Math.max(st.k / fitK, l.r === "vice" ? 9 : 5));
+      if (fly) flyTo(l.x, l.y, Math.min(MAXZ, Math.max(st.k / fitK, l.r === "vice" ? 5.5 : 3.5)));
       else flyTo(l.x, l.y, Math.max(st.k / fitK, 1), 500);
       openSheet(l);
     }
@@ -573,12 +478,23 @@
         '<span class="icon-btn" style="width:46px;height:46px;border-radius:15px;background:' + c.cor + '26;color:' + c.cor + '">' + svgIcon(c.icone) + "</span>" +
         '<div style="flex:1;min-width:0"><h3>' + esc(l.n) + '</h3><div class="meta" style="margin-bottom:0">' +
         '<span class="tagc" style="color:' + c.cor + '">' + esc(c.nome) + '</span><span class="tagc" style="color:' + r.cor + '">' + esc(r.nome) + "</span>" +
-        '<span class="tagc ' + (l.s === "oficial" ? "ok" : "comm") + '">' + (l.s === "oficial" ? "Oficial" : "Comunidade") + "</span></div></div>" +
+        '<span class="tagc ' + (l.s === "oficial" ? "ok" : "comm") + '">' + (l.s === "oficial" ? "Oficial" : l.mine ? "Seu local" : "Comunidade") + "</span></div></div>" +
         '<button class="icon-btn glass" id="shClose" aria-label="Fechar">' + svgIcon("close") + "</button></div>" +
         '<p style="margin-top:12px">' + esc(l.d) + "</p>" +
         '<div class="row"><button class="btn primary" id="shSolo">' + svgIcon("layers") + "Só " + esc(c.nome.toLowerCase()) + '</button><button class="btn ghost" id="shFav">' + svgIcon("heart", fav ? ' fill="currentColor"' : "") + (fav ? "Salvo" : "Salvar") + "</button></div>" +
+        (editMode ? '<div class="row" style="margin-top:8px"><button class="btn ghost" id="shMove">' + svgIcon("target") + "Mover pin</button>" +
+          (l.mine ? '<button class="btn ghost" id="shDel">' + svgIcon("close") + "Apagar</button>" : "") + "</div>" : "") +
         '<div class="coord">QUADRANTE ' + quad(l.x, l.y) + " · X " + l.x + " · Y " + l.y + " · posição aproximada</div>";
       sh.classList.add("open");
+      if (editMode) {
+        $("#shMove").onclick = function () { moveIdx = l.i; $("#sheet").classList.remove("open"); toast("Toque no mapa onde o pin deve ficar"); };
+        var del = $("#shDel"), armed = false;
+        if (del) del.onclick = function () {
+          if (!armed) { armed = true; del.lastChild.textContent = "Toque de novo"; return; }
+          l.deleted = true; D.locais.splice(D.locais.indexOf(l), 1); D.locais.forEach(function (x, k) { x.i = k; });
+          favs = []; store.set("favs", favs); saveEdits(); closeSheet(); toast("Local apagado");
+        };
+      }
       $("#shClose").onclick = closeSheet;
       $("#shSolo").onclick = function () { solo(l.c); toast("Mostrando só " + c.nome.toLowerCase()); };
       $("#shFav").onclick = function () {
@@ -589,6 +505,39 @@
       };
     }
     function closeSheet() { $("#sheet").classList.remove("open"); if (sel >= 0) { sel = -1; need = true; } }
+
+    /* ---- modo editor: novo local ---- */
+    function nearestRegion(x, y) {
+      var best = D.regioes[0], bd = 1e12;
+      D.regioes.forEach(function (r) { var d = (r.x - x) * (r.x - x) + (r.y - y) * (r.y - y); if (d < bd) { bd = d; best = r; } });
+      return best.id;
+    }
+    function openAddForm(x, y) {
+      var reg = nearestRegion(x, y), cat = "marco";
+      var sh = $("#sheet");
+      sh.innerHTML = '<div class="grab"></div><div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><h3>Novo local</h3><button class="icon-btn glass" id="adClose" aria-label="Fechar">' + svgIcon("close") + "</button></div>" +
+        '<div class="coord" style="margin:4px 0 12px">QUADRANTE ' + quad(x, y) + " · X " + x + " · Y " + y + "</div>" +
+        '<div class="searchbar glass" style="height:44px;margin-bottom:8px"><input id="adName" type="text" placeholder="Nome do local" autocomplete="off"></div>' +
+        '<div class="searchbar glass" style="height:44px;margin-bottom:10px"><input id="adDesc" type="text" placeholder="Descrição curta (opcional)" autocomplete="off"></div>' +
+        '<div class="chips" id="adCats" style="margin-bottom:8px">' + cats.map(function (c) { var C = D.categorias[c]; return '<button class="chip' + (c === cat ? " on" : "") + '" data-c="' + c + '" style="--c:' + C.cor + '"><i></i>' + esc(C.nome) + "</button>"; }).join("") + "</div>" +
+        '<div class="chips" id="adRegs" style="margin-bottom:12px">' + D.regioes.map(function (r) { return '<button class="chip' + (r.id === reg ? " on" : "") + '" data-r="' + r.id + '" style="--c:' + r.cor + '"><i></i>' + esc(r.nome) + "</button>"; }).join("") + "</div>" +
+        '<div class="row"><button class="btn primary" id="adSave">' + svgIcon("pin") + "Adicionar ao mapa</button></div>";
+      sh.classList.add("open");
+      $("#adClose").onclick = closeSheet;
+      $("#adCats").onclick = function (e) { var b = e.target.closest("[data-c]"); if (!b) return; cat = b.getAttribute("data-c"); $$("#adCats .chip").forEach(function (x) { x.classList.toggle("on", x === b); }); };
+      $("#adRegs").onclick = function (e) { var b = e.target.closest("[data-r]"); if (!b) return; reg = b.getAttribute("data-r"); $$("#adRegs .chip").forEach(function (x) { x.classList.toggle("on", x === b); }); };
+      $("#adSave").onclick = function () {
+        var n = $("#adName").value.trim();
+        if (!n) { toast("Escreva o nome do local"); $("#adName").focus(); return; }
+        var l = { n: n, c: cat, r: reg, x: x, y: y, d: $("#adDesc").value.trim() || "Adicionado por você.", s: "meu", mine: true, i: D.locais.length };
+        D.locais.push(l); saveEdits(); on[cat] = true; syncFilters(); select(l.i, false); toast("Local adicionado");
+      };
+      setTimeout(function () { var i = $("#adName"); if (i) i.focus(); }, 300);
+    }
+    function exportJSON() {
+      var mine = D.locais.filter(function (l) { return l.mine; }).map(function (l) { return { n: l.n, c: l.c, r: l.r, x: l.x, y: l.y, s: "comunidade", d: l.d }; });
+      return JSON.stringify({ novos: mine, movidos: EDIT.moves }, null, 1);
+    }
 
     /* ---- chips e gaveta ---- */
     function buildChips() {
@@ -617,6 +566,14 @@
         if (f === "allon") { cats.forEach(function (c) { on[c] = true; }); fRegion = "all"; fStatus = "all"; favOnly = false; }
         if (f === "alloff") { cats.forEach(function (c) { on[c] = false; }); on.garagem = true; }
         if (f === "done") { closeDrawer(); return; }
+        if (f === "edit") { setEdit(!editMode); }
+        if (f === "export") { showExport = !showExport; }
+        if (f === "copy") {
+          var txt = exportJSON(), ta = $("#exportBox");
+          try { navigator.clipboard.writeText(txt).then(function () { toast("Copiado"); }, function () { ta.select(); toast("Selecionado: copie com o menu do teclado"); }); }
+          catch (err) { ta.select(); toast("Selecionado: copie com o menu do teclado"); }
+          return;
+        }
         syncFilters();
       });
       $("#scrim").addEventListener("click", function () { closeDrawer(); Veh.close(); });
@@ -634,7 +591,11 @@
       h += '<button class="chip ' + (fRegion === "all" ? "on" : "") + '" data-f="reg" data-v="all" style="--c:#fbefff"><i></i>Leonida inteira</button>';
       D.regioes.forEach(function (r) { h += '<button class="chip ' + (fRegion === r.id ? "on" : "") + '" data-f="reg" data-v="' + r.id + '" style="--c:' + r.cor + '"><i></i>' + esc(r.nome) + "</button>"; });
       h += '</div><div class="sub-h">Confirmação</div><div class="seg">' +
-        [["all", "Todos"], ["oficial", "Oficial"], ["comunidade", "Comunidade"]].map(function (s) { return '<button class="' + (fStatus === s[0] ? "on" : "") + '" data-f="st" data-v="' + s[0] + '">' + s[1] + "</button>"; }).join("") + "</div>";
+        [["all", "Todos"], ["oficial", "Oficial"], ["comunidade", "Comunidade"], ["meu", "Meus"]].map(function (s) { return '<button class="' + (fStatus === s[0] ? "on" : "") + '" data-f="st" data-v="' + s[0] + '">' + s[1] + "</button>"; }).join("") + "</div>";
+      var nMine = D.locais.filter(function (l) { return l.mine; }).length, nMov = Object.keys(EDIT.moves).length;
+      h += '<div class="sub-h">Editor do mapa</div><div class="info-card glass" style="padding:14px"><p class="muted" style="margin:0 0 12px;font-size:13px">Com o editor ligado, toque no mapa para criar um local ou use "Mover pin" na ficha. Você tem ' + nMine + " locais novos e " + nMov + " pins movidos.</p>" +
+        '<div class="row" style="display:flex;gap:8px"><button class="btn ' + (editMode ? "primary" : "ghost") + '" data-f="edit">' + (editMode ? "Editor ligado" : "Ligar editor") + '</button><button class="btn ghost" data-f="export">Exportar</button></div>' +
+        (showExport ? '<textarea id="exportBox" readonly style="width:100%;height:140px;margin-top:10px;border-radius:14px;background:rgba(0,0,0,.3);border:1px solid var(--glass-brd);color:var(--text);font:12px var(--mono);padding:10px;user-select:text;-webkit-user-select:text">' + esc(exportJSON()) + '</textarea><button class="btn primary" data-f="copy" style="width:100%;margin-top:8px">Copiar</button>' : "") + "</div>";
       $("#drawer").innerHTML = h;
     }
     function syncFilters() {
@@ -720,11 +681,32 @@
     var idx = D.veiculos.indexOf(v);
     return '<button class="vcard glass" data-v="' + idx + '" style="--vc:' + v.cor + ";animation-delay:" + Math.min(i, 14) * 40 + 'ms">' +
       '<span class="flag" style="background:' + (v.s === "oficial" ? "#5dff9b" : "#ffd23f") + ";box-shadow:0 0 8px " + (v.s === "oficial" ? "#5dff9b" : "#ffd23f") + '"></span>' +
-      '<div class="art">' + vArt(v) + "</div>" +
+      '<div class="art">' + photoHTML(v, false) + "</div>" +
       '<span class="mk">' + esc(v.m === "—" ? TYPE[v.t].um : v.m) + "</span><h3>" + esc(v.n) + '</h3><span class="cl">' + esc(v.cl) + "</span>" +
       (v.spd ? '<div class="bar" title="Velocidade"><i style="width:' + v.spd * 10 + '%"></i></div>' : "") + "</button>";
   }
+  /* fotos: coloque img/veiculos/<slug>.jpg (veja o README); sem foto, mostra a silhueta */
+  function slug(v) {
+    var t = ((v.m && v.m !== "—" ? v.m + " " : "") + v.n).toLowerCase();
+    if (t.normalize) t = t.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    return t.replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  }
+  function photoHTML(v, big) {
+    var src = v.foto || ("img/veiculos/" + slug(v) + ".jpg");
+    if (window.VH_PHOTOS) { if (!window.VH_PHOTOS[src]) return '<div class="ph-fallback">' + vArt(v) + '<span class="ph-soon">' + (big ? "Foto em breve" : "sem foto") + "</span></div>"; src = window.VH_PHOTOS[src]; }
+    return '<div class="ph-fallback">' + vArt(v) + '<span class="ph-soon">' + (big ? "Foto em breve" : "sem foto") + '</span></div><img class="ph" alt="' + esc(v.m + " " + v.n) + '" src="' + esc(src) + '" loading="lazy">';
+  }
+  function bindPhotos(root) {
+    Array.prototype.forEach.call(root.querySelectorAll("img.ph"), function (im) {
+      var ok = function () { im.classList.add("ok"); if (im.parentNode) im.parentNode.classList.add("has-photo"); };
+      if (im.complete && im.naturalWidth) ok();
+      im.addEventListener("load", ok);
+      im.addEventListener("error", function () { if (im.parentNode) im.parentNode.removeChild(im); });
+    });
+  }
+  window.VH_SLUG = slug;
   function bindVCards(root) {
+    bindPhotos(root);
     $$(".vcard", root).forEach(function (b) {
       attachTilt(b, 12);
       b.addEventListener("click", function () { Veh.open(+b.getAttribute("data-v")); });
@@ -763,13 +745,13 @@
       $("#vGrid").innerHTML = list.length ? list.map(vCardHTML).join("") : '<div class="empty" style="grid-column:1/-1">Nenhum veículo com esse nome.</div>';
       bindVCards($("#vGrid"));
     }
-    var stage3 = null, openIdx = -1;
+    var openIdx = -1;
     function open(i) {
       var v = D.veiculos[i]; openIdx = i;
       var where = v.t === "barco" ? ["marina"] : v.t === "aereo" ? ["aereo"] : ["garagem", "oficina"];
       var whereTxt = v.t === "barco" ? "Ver marinas no mapa" : v.t === "aereo" ? "Ver aeroportos no mapa" : "Ver garagens e oficinas";
       $("#vPanel").innerHTML =
-        '<div class="v3d" style="--vc:' + v.cor + '"><canvas id="vCanvas"></canvas><button class="icon-btn glass close" id="vClose" aria-label="Fechar">' + svgIcon("close") + '</button><div class="hint">arraste para girar</div></div>' +
+        '<div class="vphoto" style="--vc:' + v.cor + '">' + photoHTML(v, true) + '<button class="icon-btn glass close" id="vClose" aria-label="Fechar">' + svgIcon("close") + "</button></div>" +
         '<div class="vbody"><span class="eyebrow">' + esc(v.m === "—" ? TYPE[v.t].um : v.m) + "</span><h2>" + esc(v.n) + "</h2>" +
         '<div class="meta" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px"><span class="tagc">' + esc(TYPE[v.t].um) + '</span><span class="tagc">' + esc(v.cl) + '</span><span class="tagc ' + (v.s === "oficial" ? "ok" : "comm") + '">' + (v.s === "oficial" ? "Mostrado pela Rockstar" : "Lista da comunidade") + "</span></div>" +
         '<div class="spec"><div><small>Inspirado em</small><b>' + esc(v.real || "Não identificado") + "</b></div>" +
@@ -777,22 +759,15 @@
         (v.nota ? '<p class="muted" style="font-size:13.5px;margin:0 0 16px">' + esc(v.nota) + "</p>" : "") +
         '<button class="btn primary" id="vWhere" style="width:100%">' + svgIcon("pin") + whereTxt + "</button></div>";
       $("#vModal").classList.add("open"); $("#scrim").classList.add("open");
+      bindPhotos($("#vPanel"));
+      attachTilt($("#vPanel .vphoto"), 10);
       $("#vClose").onclick = close;
       $("#vWhere").onclick = function () { close(); go("map"); Map.showCats(where); };
-      if (window.THREE) {
-        setTimeout(function () {
-          if (openIdx !== i) return;
-          stage3 = new Stage($("#vCanvas"), { interactive: true });
-          stage3.setModel(v);
-        }, 60);
-      }
     }
     function close() {
       openIdx = -1;
       $("#vModal").classList.remove("open");
       if (!$("#drawer").classList.contains("open")) $("#scrim").classList.remove("open");
-      var s = stage3; stage3 = null;
-      if (s) setTimeout(function () { s.dispose(); }, 450);
     }
     return { build: build, open: open, close: close, isOpen: function () { return openIdx >= 0; } };
   })();
@@ -846,255 +821,6 @@
   }
 
   /* =========================================================
-     3D (three.js)
-     ========================================================= */
-  function Stage(canvas, opt) {
-    var T = window.THREE, self = this;
-    opt = opt || {};
-    this.active = true;
-    var renderer = new T.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-    if (renderer.outputEncoding !== undefined) renderer.outputEncoding = T.sRGBEncoding;
-    var scene = new T.Scene();
-    scene.fog = new T.Fog(0x1c0d33, 12, 42);
-    var cam = new T.PerspectiveCamera(opt.hero ? 38 : 34, 1, .1, 100);
-    cam.position.set(0, opt.hero ? 2.3 : 2.2, opt.hero ? 9.6 : 7.4);
-    cam.lookAt(0, opt.hero ? .1 : .6, 0);
-
-    scene.add(new T.HemisphereLight(0xff8ad0, 0x1b0b3a, 1.0));
-    var sunL = new T.DirectionalLight(0xffb070, 1.3); sunL.position.set(4, 6, 5); scene.add(sunL);
-    var rim = new T.PointLight(0x2de2e6, 1.6, 22); rim.position.set(-4, 2.5, -3); scene.add(rim);
-    var rim2 = new T.PointLight(0xff3d8b, 1.4, 18); rim2.position.set(4, 1.5, -2); scene.add(rim2);
-
-    // chão de grade neon
-    var grid = new T.GridHelper(60, 60, 0xff3d8b, 0x6b2fa3);
-    grid.material.transparent = true; grid.material.opacity = .55; grid.position.y = 0;
-    scene.add(grid);
-    // plataforma
-    var plat = new T.Mesh(new T.CylinderGeometry(2.6, 2.8, .14, 64), new T.MeshStandardMaterial({ color: 0x170b2c, metalness: .7, roughness: .25 }));
-    plat.position.y = .07; scene.add(plat);
-    var ring = new T.Mesh(new T.TorusGeometry(2.7, .035, 8, 96), new T.MeshBasicMaterial({ color: 0xff3d8b }));
-    ring.rotation.x = Math.PI / 2; ring.position.y = .15; scene.add(ring);
-    var ring2 = new T.Mesh(new T.TorusGeometry(2.95, .02, 8, 96), new T.MeshBasicMaterial({ color: 0x2de2e6 }));
-    ring2.rotation.x = Math.PI / 2; ring2.position.y = .05; scene.add(ring2);
-
-    if (opt.hero) {
-      // sol listrado
-      var sc = document.createElement("canvas"); sc.width = 256; sc.height = 256;
-      var sx = sc.getContext("2d"), gr = sx.createLinearGradient(0, 0, 0, 256);
-      gr.addColorStop(0, "#ffe066"); gr.addColorStop(.5, "#ff8a3d"); gr.addColorStop(1, "#ff2d7a");
-      sx.fillStyle = gr; sx.beginPath(); sx.arc(128, 128, 126, 0, Math.PI * 2); sx.fill();
-      sx.globalCompositeOperation = "destination-out";
-      for (var y = 140, h = 4; y < 256; y += 18, h += 2.2) sx.fillRect(0, y, 256, h);
-      var sunTex = new T.CanvasTexture(sc);
-      var sun = new T.Mesh(new T.PlaneGeometry(14, 14), new T.MeshBasicMaterial({ map: sunTex, transparent: true, fog: false }));
-      sun.position.set(0, 4.2, -30); scene.add(sun);
-      // palmeiras
-      var palmMat = new T.MeshStandardMaterial({ color: 0x1a0a2e, roughness: .9 });
-      var leafMat = new T.MeshStandardMaterial({ color: 0x2a0f45, roughness: .8, side: T.DoubleSide });
-      function palm(x, z, s, lean) {
-        var g = new T.Group(), px = 0, py = 0;
-        for (var i = 0; i < 9; i++) {
-          var seg = new T.Mesh(new T.CylinderGeometry(.11 - i * .006, .13 - i * .006, .5, 7), palmMat);
-          px += lean * i * .012; py += .48;
-          seg.position.set(px, py, 0); seg.rotation.z = -lean * i * .025; g.add(seg);
-        }
-        for (var k = 0; k < 8; k++) {
-          var leaf = new T.Mesh(new T.ConeGeometry(.22, 2.2, 4, 1, true), leafMat);
-          leaf.scale.set(1, 1, .2);
-          leaf.position.set(px, py + .1, 0);
-          leaf.rotation.set(0, k * Math.PI / 4, 0);
-          leaf.rotateX(Math.PI / 2.4); leaf.translateY(1.05);
-          g.add(leaf);
-        }
-        g.position.set(x, 0, z); g.scale.setScalar(s); scene.add(g); return g;
-      }
-      palm(-5.2, -4, 1.15, 1); palm(-7.5, -9, 1.4, .6); palm(5.6, -5, 1.2, -1); palm(8.5, -11, 1.5, -.5); palm(-3.4, -14, 1.3, .3); palm(3.8, -15, 1.1, -.2);
-      // estrelas
-      var sg = new T.BufferGeometry(), arr = [];
-      for (var s = 0; s < 260; s++) arr.push((Math.random() - .5) * 60, 2 + Math.random() * 14, -10 - Math.random() * 25);
-      sg.setAttribute("position", new T.Float32BufferAttribute(arr, 3));
-      scene.add(new T.Points(sg, new T.PointsMaterial({ color: 0xffd6f0, size: .06, transparent: true, opacity: .8, fog: false })));
-    }
-
-    var model = new T.Group(); scene.add(model);
-    var spin = [], bob = false;
-    var rotY = -.6, velY = opt.hero ? .0035 : .006, dragging = false, lastX = 0;
-
-    if (opt.interactive) {
-      canvas.addEventListener("pointerdown", function (e) { dragging = true; lastX = e.clientX; canvas.setPointerCapture && canvas.setPointerCapture(e.pointerId); });
-      canvas.addEventListener("pointermove", function (e) { if (!dragging) return; var dx = e.clientX - lastX; lastX = e.clientX; rotY += dx * .012; velY = dx * .0012; });
-      var end = function () { dragging = false; };
-      canvas.addEventListener("pointerup", end); canvas.addEventListener("pointercancel", end);
-    }
-
-    function M(c, o) { return new T.MeshStandardMaterial(Object.assign({ color: c, metalness: .55, roughness: .3 }, o || {})); }
-    var glassM = M(0x101830, { metalness: .9, roughness: .08 }), darkM = M(0x0e0b16, { metalness: .2, roughness: .85 }), chrome = M(0xd8dcf0, { metalness: 1, roughness: .2 });
-    var headM = new T.MeshBasicMaterial({ color: 0xfff6cc }), tailM = new T.MeshBasicMaterial({ color: 0xff2a55 });
-    function box(w, h, d, m, x, y, z) { var b = new T.Mesh(new T.BoxGeometry(w, h, d), m); b.position.set(x || 0, y || 0, z || 0); return b; }
-    function extrude(pts, depth, m) {
-      var sh = new T.Shape(); sh.moveTo(pts[0][0], pts[0][1]);
-      for (var i = 1; i < pts.length; i++) sh.lineTo(pts[i][0], pts[i][1]);
-      var g = new T.ExtrudeGeometry(sh, { depth: depth, bevelEnabled: true, bevelThickness: .06, bevelSize: .05, bevelSegments: 2 });
-      g.translate(0, 0, -depth / 2);
-      return new T.Mesh(g, m);
-    }
-    function wheel(r, w, x, y, z) {
-      var g = new T.Group();
-      var t = new T.Mesh(new T.CylinderGeometry(r, r, w, 28), darkM); t.rotation.x = Math.PI / 2; g.add(t);
-      var rim = new T.Mesh(new T.CylinderGeometry(r * .62, r * .62, w + .02, 20), chrome); rim.rotation.x = Math.PI / 2; g.add(rim);
-      g.position.set(x, y, z); return g;
-    }
-
-    function buildCar(v) {
-      var g = new T.Group(), c = new T.Color(v.cor), paint = M(c, { metalness: .65, roughness: .22 });
-      var low = /Super|Esportivo/.test(v.cl), donk = /donk/i.test(v.cl);
-      var lift = donk ? .3 : 0;
-      var prof = low
-        ? [[-2, .3], [2.05, .3], [2.1, .62], [1.25, .82], [.45, 1.22], [-.75, 1.24], [-1.55, .95], [-2.02, .9]]
-        : [[-2.1, .34], [2.12, .34], [2.15, .84], [1.15, .95], [.65, 1.48], [-.95, 1.48], [-1.45, 1.02], [-2.12, .97]];
-      var win = low ? [[1.12, .86], [.42, 1.18], [-.7, 1.2], [-1.35, .94]] : [[1.02, .98], [.6, 1.42], [-.9, 1.42], [-1.3, 1.02]];
-      var body = extrude(prof, 1.62, paint); body.position.y = lift; g.add(body);
-      var gl = extrude(win, 1.7, glassM); gl.position.y = lift + .01; g.add(gl);
-      var wr = donk ? .55 : .38, wz = .86;
-      [[1.3, wr, wz], [1.3, wr, -wz], [-1.3, wr, wz], [-1.3, wr, -wz]].forEach(function (p) { var w = wheel(wr, .3, p[0], p[1], p[2]); g.add(w); spin.push({ o: w, ax: "z", s: -.08 }); });
-      g.add(box(.06, .1, .42, headM, 2.15, .58 + lift, .55)); g.add(box(.06, .1, .42, headM, 2.15, .58 + lift, -.55));
-      g.add(box(.06, .1, .5, tailM, -2.13, .7 + lift, .5)); g.add(box(.06, .1, .5, tailM, -2.13, .7 + lift, -.5));
-      if (low) { var sp = box(.35, .05, 1.5, darkM, -1.9, 1.08, 0); g.add(sp); }
-      var glow = new T.Mesh(new T.PlaneGeometry(4.2, 1.9), new T.MeshBasicMaterial({ color: c, transparent: true, opacity: .35 }));
-      glow.rotation.x = -Math.PI / 2; glow.position.y = .17; g.add(glow);
-      return g;
-    }
-    function buildMoto(v) {
-      var g = new T.Group(), paint = M(new T.Color(v.cor));
-      [[.95], [-.95]].forEach(function (p) {
-        var w = new T.Group();
-        var tire = new T.Mesh(new T.TorusGeometry(.42, .11, 12, 36), darkM); w.add(tire);
-        var hub = new T.Mesh(new T.CylinderGeometry(.14, .14, .12, 16), chrome); hub.rotation.x = Math.PI / 2; w.add(hub);
-        w.position.set(p[0], .53, 0); g.add(w); spin.push({ o: w, ax: "z", s: -.1 });
-      });
-      var tank = box(.75, .32, .38, paint, .18, 1.08, 0); tank.rotation.z = -.12; g.add(tank);
-      g.add(box(.7, .12, .3, darkM, -.45, 1.0, 0));
-      g.add(box(.55, .42, .3, M(0x3a3550), 0, .72, 0));
-      var fork = new T.Mesh(new T.CylinderGeometry(.04, .04, .95, 8), chrome); fork.position.set(.82, .95, 0); fork.rotation.z = .35; g.add(fork);
-      var bar = new T.Mesh(new T.CylinderGeometry(.03, .03, .8, 8), darkM); bar.rotation.x = Math.PI / 2; bar.position.set(.68, 1.38, 0); g.add(bar);
-      var arm = box(.95, .07, .08, chrome, -.5, .66, 0); arm.rotation.z = .18; g.add(arm);
-      g.add(box(.08, .14, .2, headM, .9, 1.18, 0)); g.add(box(.05, .08, .16, tailM, -.85, 1.05, 0));
-      var ex = new T.Mesh(new T.CylinderGeometry(.06, .07, .9, 10), chrome); ex.rotation.z = Math.PI / 2 - .15; ex.position.set(-.45, .55, .2); g.add(ex);
-      g.scale.setScalar(1.55);
-      return g;
-    }
-    function buildBoat(v) {
-      var g = new T.Group(), paint = M(new T.Color(v.cor)), white = M(0xf4f0ff, { roughness: .4 });
-      var sh = new T.Shape(); sh.moveTo(-2, -.75); sh.lineTo(1.2, -.75); sh.quadraticCurveTo(2.3, -.4, 2.5, 0); sh.quadraticCurveTo(2.3, .4, 1.2, .75); sh.lineTo(-2, .75); sh.lineTo(-2, -.75);
-      var hg = new T.ExtrudeGeometry(sh, { depth: .55, bevelEnabled: true, bevelThickness: .08, bevelSize: .06, bevelSegments: 2 });
-      var hull = new T.Mesh(hg, paint); hull.rotation.x = -Math.PI / 2; hull.position.y = .15; g.add(hull);
-      var deck = new T.Mesh(new T.ShapeGeometry(sh), white); deck.rotation.x = -Math.PI / 2; deck.position.y = .79; deck.scale.set(.94, .9, 1); g.add(deck);
-      if (/Airboat/.test(v.cl)) {
-        var cage = new T.Mesh(new T.TorusGeometry(.62, .04, 8, 32), chrome); cage.rotation.y = Math.PI / 2; cage.position.set(-1.6, 1.55, 0); g.add(cage);
-        var prop = new T.Group(); prop.add(box(.04, 1.1, .12, darkM)); prop.add(box(.04, .12, 1.1, darkM)); prop.position.set(-1.6, 1.55, 0); g.add(prop); spin.push({ o: prop, ax: "x", s: .5 });
-        g.add(box(.4, .5, .5, darkM, -1.2, 1.05, 0));
-      } else if (/Jet ski/.test(v.cl)) {
-        g.scale.set(.55, .8, .6);
-      } else if (/Veleiro/.test(v.cl)) {
-        var mast = new T.Mesh(new T.CylinderGeometry(.04, .05, 3.4, 8), chrome); mast.position.set(.3, 2.5, 0); g.add(mast);
-        var sail = new T.Mesh(new T.ShapeGeometry(new T.Shape([new T.Vector2(0, 0), new T.Vector2(0, 3.1), new T.Vector2(-1.8, 0)])), new T.MeshStandardMaterial({ color: 0xffffff, side: T.DoubleSide, roughness: .6 }));
-        sail.position.set(.25, .95, 0); g.add(sail);
-      } else if (!/Caiaque|inflável/.test(v.cl)) {
-        g.add(box(1.2, .45, 1.05, glassM, -.1, 1.05, 0));
-        g.add(box(1.25, .06, 1.12, white, -.1, 1.3, 0));
-      }
-      var water = new T.Mesh(new T.CircleGeometry(2.6, 48), new T.MeshBasicMaterial({ color: 0x2de2e6, transparent: true, opacity: .22 }));
-      water.rotation.x = -Math.PI / 2; water.position.y = .2; g.add(water);
-      bob = true;
-      return g;
-    }
-    function buildHeli(v) {
-      var g = new T.Group(), paint = M(new T.Color(v.cor));
-      var body = new T.Mesh(new T.SphereGeometry(.9, 28, 18), paint); body.scale.set(1.45, .85, .85); g.add(body);
-      var cock = new T.Mesh(new T.SphereGeometry(.62, 24, 16), glassM); cock.scale.set(1, .8, .9); cock.position.set(.75, .1, 0); g.add(cock);
-      var boom = new T.Mesh(new T.CylinderGeometry(.1, .22, 2.4, 12), paint); boom.rotation.z = Math.PI / 2; boom.position.set(-2.1, .15, 0); g.add(boom);
-      g.add(box(.5, .7, .06, paint, -3.2, .45, 0));
-      var rotor = new T.Group(); rotor.add(box(4.6, .03, .16, darkM)); rotor.add(box(.16, .03, 4.6, darkM)); rotor.position.y = .95; g.add(rotor); spin.push({ o: rotor, ax: "y", s: .35 });
-      g.add(box(.12, .25, .12, darkM, 0, .8, 0));
-      var tr = new T.Group(); tr.add(box(.03, .8, .1, darkM)); tr.position.set(-3.25, .5, .08); g.add(tr); spin.push({ o: tr, ax: "z", s: .6 });
-      [.55, -.55].forEach(function (z) {
-        var sk = new T.Mesh(new T.CylinderGeometry(.04, .04, 2.2, 8), chrome); sk.rotation.z = Math.PI / 2; sk.position.set(0, -.85, z); g.add(sk);
-        g.add(box(.05, .4, .05, chrome, .5, -.65, z)); g.add(box(.05, .4, .05, chrome, -.5, -.65, z));
-      });
-      g.position.y = 1.35;
-      var wrapG = new T.Group(); wrapG.add(g); return wrapG;
-    }
-    function buildPlane(v) {
-      var g = new T.Group(), paint = M(new T.Color(v.cor)), white = M(0xf4f0ff);
-      var jet = /Jato|comercial/.test(v.cl);
-      var fus = new T.Mesh(new T.CylinderGeometry(.34, .26, 4.2, 20), paint); fus.rotation.z = Math.PI / 2; g.add(fus);
-      var nose = new T.Mesh(new T.SphereGeometry(.34, 20, 14), paint); nose.scale.set(1.6, 1, 1); nose.position.x = 2.1; g.add(nose);
-      var wind = new T.Mesh(new T.SphereGeometry(.26, 16, 10), glassM); wind.scale.set(1.4, .6, .9); wind.position.set(1.75, .2, 0); g.add(wind);
-      var wing = box(1.0, .06, jet ? 4.6 : 5.0, paint, .2, jet ? -.1 : .3, 0); g.add(wing);
-      g.add(box(.6, .05, 1.7, paint, -1.95, .15, 0));
-      var fin = box(.75, .85, .05, paint, -1.9, .55, 0); g.add(fin);
-      if (jet) {
-        [.55, -.55].forEach(function (z) { var e = new T.Mesh(new T.CylinderGeometry(.18, .16, .8, 14), white); e.rotation.z = Math.PI / 2; e.position.set(-1.2, .38, z); g.add(e); });
-      } else {
-        var prop = new T.Group(); prop.add(box(.04, 1.3, .12, darkM)); prop.position.x = 2.62; g.add(prop); spin.push({ o: prop, ax: "x", s: .7 });
-      }
-      if (/Hidro/.test(v.cl)) { [.8, -.8].forEach(function (z) { var f = new T.Mesh(new T.CylinderGeometry(.14, .1, 2.6, 12), white); f.rotation.z = Math.PI / 2; f.position.set(.3, -.75, z); g.add(f); g.add(box(.05, .5, .05, chrome, .3, -.45, z)); }); }
-      else { g.add(box(.05, .45, .05, chrome, .9, -.5, 0)); [.5, -.5].forEach(function (z) { g.add(box(.05, .45, .05, chrome, -.1, -.5, z)); }); }
-      g.position.y = 1.4; g.scale.setScalar(.95);
-      var wrapG = new T.Group(); wrapG.add(g); return wrapG;
-    }
-    this.setModel = function (v) {
-      while (model.children.length) model.remove(model.children[0]);
-      spin = []; bob = false;
-      var m = v.t === "carro" ? buildCar(v) : v.t === "moto" ? buildMoto(v) : v.t === "barco" ? buildBoat(v) : /Helicóptero/.test(v.cl) ? buildHeli(v) : buildPlane(v);
-      model.add(m);
-      rim2.color = new T.Color(v.cor);
-      ring.material.color = new T.Color(v.cor);
-      model.scale.setScalar(.01); grow = 0;
-    };
-    var grow = 1, t0 = performance.now(), raf = 0, alive = true;
-    function size() {
-      var w = canvas.clientWidth, h = canvas.clientHeight;
-      if (!w || !h) return;
-      if (canvas.width !== Math.floor(w * renderer.getPixelRatio()) || canvas.height !== Math.floor(h * renderer.getPixelRatio())) {
-        renderer.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix();
-      }
-    }
-    function frame() {
-      if (!alive) return;
-      raf = requestAnimationFrame(frame);
-      if (!self.active) return;
-      size();
-      var t = (performance.now() - t0) / 1000;
-      if (!dragging) { rotY += velY; velY = lerp(velY, opt.hero ? .0035 : .006, .02); }
-      model.rotation.y = rotY;
-      if (grow < 1) { grow = Math.min(1, grow + .045); var e = 1 - Math.pow(1 - grow, 3); model.scale.setScalar(e * (1 + Math.sin(grow * Math.PI) * .12)); }
-      model.position.y = bob ? Math.sin(t * 1.6) * .06 : (opt.hero ? Math.sin(t * 1.2) * .03 : 0);
-      spin.forEach(function (s) { s.o.rotation[s.ax] += s.s; });
-      grid.position.z = opt.hero ? (t * 2.2) % 1 : 0;
-      ring.scale.setScalar(1 + Math.sin(t * 2.2) * .015);
-      renderer.render(scene, cam);
-    }
-    frame();
-    this.dispose = function () {
-      alive = false; cancelAnimationFrame(raf);
-      scene.traverse(function (o) { if (o.geometry) o.geometry.dispose(); if (o.material) { (o.material.map && o.material.map.dispose()); o.material.dispose(); } });
-      renderer.dispose();
-      if (renderer.forceContextLoss) renderer.forceContextLoss();
-    };
-  }
-
-  var hero = null;
-  function buildHero() {
-    if (!window.THREE) return;
-    try {
-      hero = new Stage($("#heroCanvas"), { hero: true });
-      hero.setModel({ t: "carro", cl: "Super", cor: "#ff3d8b" });
-    } catch (e) { hero = null; }
-  }
-
-  /* =========================================================
      VOLTAR (botão do Android) E INÍCIO
      ========================================================= */
   window.ViceHub = {
@@ -1108,13 +834,18 @@
     }
   };
   document.addEventListener("keydown", function (e) { if (e.key === "Escape") window.ViceHub.back(); });
-  document.addEventListener("visibilitychange", function () { if (hero) hero.active = !document.hidden && current === 0; });
 
   buildHome();
   Veh.build();
   buildGarages();
   buildInfo();
-  buildHero();
   requestAnimationFrame(placeGlow);
-  setTimeout(function () { $("#splash").classList.add("hide"); placeGlow(); }, 1100);
+  var splash = $("#splash"), splashDone = false;
+  function endSplash() {
+    if (splashDone) return; splashDone = true;
+    splash.classList.add("hide"); placeGlow();
+    setTimeout(function () { splash.hidden = true; }, 1000);
+  }
+  splash.addEventListener("click", endSplash);
+  setTimeout(endSplash, window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 600 : 3500);
 })();
