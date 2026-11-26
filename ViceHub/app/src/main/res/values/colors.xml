@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="colorPrimary">#FF3D8B</color>
+    <color name="colorPrimaryDark">#0B0618</color>
+    <color name="colorAccent">#2DE2E6</color>
+    <color name="viceNight">#0B0618</color>
+</resources>

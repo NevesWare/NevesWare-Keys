@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0b0618">
+<title>ViceHub</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;700;800&family=Manrope:wght@500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<!--VH:BODY-->
+<div id="splash"><div><div class="sun"></div><b>VICEHUB</b></div></div>
+
+<div id="bg"><i class="blob b1"></i><i class="blob b2"></i><i class="blob b3"></i><i class="blob b4"></i><i class="grain"></i></div>
+
+<div id="app">
+  <header class="topbar">
+    <div class="logo"><b>VICEHUB</b><small id="viewTitle">Guia de Leonida</small></div>
+    <div class="spacer"></div>
+    <span class="pill glass"><span class="dot"></span>GTA VI no ar</span>
+  </header>
+
+  <main class="stage" id="stage">
+    <!-- INÍCIO -->
+    <section class="view active" id="v-home" data-title="Guia de Leonida">
+      <div class="hero glass">
+        <canvas id="heroCanvas"></canvas>
+        <div class="hero-top"><span class="pill glass">PS5 · Xbox Series X|S</span><span class="pill glass" id="heroDate">19 nov 2026</span></div>
+        <div class="hero-txt">
+          <span class="eyebrow">Estado de Leonida</span>
+          <h1>Vice City<br><em>na palma da mão</em></h1>
+          <p>Mapa, veículos, garagens e esconderijos de GTA VI em um só lugar.</p>
+        </div>
+      </div>
+      <div class="stats" id="stats"></div>
+
+      <div class="section-h"><h2>Atalhos do mapa</h2><span>abre já filtrado</span></div>
+      <div class="quick" id="quick"></div>
+
+      <div class="section-h"><h2>Regiões</h2><span id="regCount"></span></div>
+      <div class="carousel" id="regions"></div>
+
+      <div class="section-h"><h2>Em destaque</h2><span>carros com close-up oficial</span></div>
+      <div class="v-grid" id="featured"></div>
+      <p class="note">ViceHub é um guia feito por fãs e não tem ligação com a Rockstar Games ou a Take-Two. O mapa é uma ilustração própria com posições aproximadas.</p>
+    </section>
+
+    <!-- MAPA -->
+    <section class="view full" id="v-map" data-title="Mapa de Leonida">
+      <div id="mapWrap">
+        <div id="mapStage"><svg id="mapSvg" xmlns="http://www.w3.org/2000/svg"></svg></div>
+      </div>
+      <div class="map-ui-top">
+        <div class="searchbar glass">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+          <input id="mapSearch" type="search" placeholder="Buscar local em Leonida" autocomplete="off">
+          <button class="icon-btn solid" id="openFilters" aria-label="Filtros"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 6h16M7 12h10M10 18h4"/></svg><span class="badge" id="filterBadge">11</span></button>
+        </div>
+        <div class="results glass" id="results" hidden></div>
+        <div class="chips" id="mapChips"></div>
+      </div>
+      <div class="map-hud glass" id="hud"></div>
+      <div class="map-fabs">
+        <button class="fab glass" id="tilt3d" aria-label="Mapa 3D"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/></svg></button>
+        <button class="fab glass" id="zoomIn" aria-label="Aproximar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+        <button class="fab glass" id="zoomOut" aria-label="Afastar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"/></svg></button>
+        <button class="fab glass" id="recenter" aria-label="Ver Leonida inteira"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8"/></svg></button>
+      </div>
+    </section>
+
+    <!-- VEÍCULOS -->
+    <section class="view" id="v-veh" data-title="Garagem de veículos">
+      <div class="v-head">
+        <div class="seg glass" id="vSeg"></div>
+        <div class="searchbar glass">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+          <input id="vSearch" type="search" placeholder="Buscar modelo ou marca" autocomplete="off">
+        </div>
+        <div class="chips" id="vClass"></div>
+      </div>
+      <div class="v-grid" id="vGrid"></div>
+      <p class="note">Ponto verde: modelo mostrado oficialmente pela Rockstar. Ponto amarelo: lista da comunidade. As marcas reais são comparações feitas por fãs.</p>
+    </section>
+
+    <!-- GARAGENS -->
+    <section class="view" id="v-gar" data-title="Garagens e esconderijos">
+      <div class="info-card glass" id="garInfo"></div>
+      <div class="section-h"><h2>Garagens</h2><span id="garCount"></span></div>
+      <div class="list" id="garList"></div>
+      <div class="section-h"><h2>Esconderijos</h2><span id="casaCount"></span></div>
+      <div class="list" id="casaList"></div>
+      <div class="section-h"><h2>Onde pegar barcos e aviões</h2></div>
+      <div class="list" id="spotList"></div>
+    </section>
+
+    <!-- LEONIDA -->
+    <section class="view" id="v-info" data-title="Sobre o jogo">
+      <div class="duo" id="heroes"></div>
+      <div class="section-h"><h2>Ficha do jogo</h2></div>
+      <div class="info-card glass"><dl class="kv" id="gameKv"></dl></div>
+      <div class="section-h"><h2>As 6 regiões</h2></div>
+      <div class="list" id="regList"></div>
+      <p class="note">Fontes: anúncios da Rockstar e da Take-Two, reportagens de lançamento e guias da comunidade. Itens marcados como "comunidade" podem mudar conforme os jogadores confirmam.</p>
+    </section>
+  </main>
+
+  <nav class="tabbar glass" id="tabbar">
+    <span class="tab-glow" id="tabGlow"></span>
+  </nav>
+</div>
+
+<!-- ficha do local -->
+<div class="sheet glass" id="sheet"></div>
+
+<!-- filtros -->
+<div class="scrim" id="scrim"></div>
+<div class="drawer glass" id="drawer"></div>
+
+<!-- ficha do veículo -->
+<div class="modal" id="vModal"><div class="panel glass" id="vPanel"></div></div>
+
+<div class="toast glass" id="toast"></div>
+<!--VH:SCRIPTS-->
+<script src="three.min.js"></script>
+<script src="data.js"></script>
+<script src="app.js"></script>
+<!--VH:END-->
+</body>
+</html>
