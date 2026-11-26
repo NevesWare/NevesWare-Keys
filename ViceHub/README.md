@@ -13,7 +13,10 @@ O app é uma interface web (`app/src/main/assets/www`) aberta num WebView em tel
 | `app/src/main/assets/www/style.css` | Visual de vidro com as cores de Vice City |
 | `app/src/main/assets/www/app.js` | Abertura animada, navegação 3D, mapa (zoom, pinça, filtros, busca, salvos, editor), veículos com foto |
 | `app/src/main/assets/www/data.js` | **Base de dados**: regiões, locais, categorias, veículos, garagens |
-| `app/src/main/assets/www/img/mapa-leonida.jpg` | Imagem do mapa (troque por uma versão em alta com o mesmo enquadramento) |
+| `app/src/main/assets/www/tiles/` | Mapa oficial do jogo em tiles (níveis 0–5), do GTADB |
+| `app/src/main/assets/www/gtadb/` | 4.525 locais (`landmarks.js`), lista de tiles e 2.619 fotos do jogo, do GTADB |
+| `app/src/main/assets/www/img/leonida.jpg` | Mapa inteiro numa imagem (capa) |
+| `tools/import_gtadb.py` | Importa/atualiza mapa, locais e fotos do repositório do GTADB |
 | `app/src/main/assets/www/img/veiculos/` | Fotos dos veículos (veja abaixo) |
 | `tools/build_web.py` | Gera `web/vicehub.html` (site em um arquivo só) |
 
@@ -21,9 +24,18 @@ O app é uma interface web (`app/src/main/assets/www`) aberta num WebView em tel
 
 Abra a pasta `ViceHub` no AIDE ou no Android Studio e rode o módulo `app`. Não precisa de bibliotecas extras.
 
-## Como adicionar locais e veículos
+## Mapa e locais (GTADB)
 
-Edite `data.js`. Cada local tem `n` (nome), `c` (categoria), `r` (região), `x`/`y` (posição no mapa de 1000 × 1400), `s` (`oficial` ou `comunidade`) e `d` (descrição). O quadrante do mapa (A–J, 1–14) é calculado sozinho.
+O mapa, os locais e as fotos vêm do [GTADB](https://map.gtadb.org) (gtadb.org e colaboradores), licença **CC BY 4.0**: pode usar, inclusive comercialmente, desde que o crédito apareça no app (ele aparece na tela inicial e na aba Leonida). O GTADB pede para não buscar dados ao vivo do site; por isso tudo vai embutido e a atualização é pelo git:
+
+```
+git clone --depth 1 --filter=blob:none --no-checkout https://github.com/rolux/gtadb.org
+cd gtadb.org && git sparse-checkout set --no-cone /LICENSE-DATA /map/data/6/ "/map/photos/6/*,ig.jpg" \
+  /maps/tiles/6/day/0/ /maps/tiles/6/day/1/ /maps/tiles/6/day/2/ /maps/tiles/6/day/3/ /maps/tiles/6/day/4/ /maps/tiles/6/day/5/ && git checkout
+python3 ViceHub/tools/import_gtadb.py caminho/para/gtadb.org
+```
+
+Notas próprias por local ficam em `data.js` → `notas` (chave = id do GTADB, ex.: `L172`). Coordenadas em metros a partir do canto do recorte do mapa; quadrantes de 1 km.
 
 ## Editor do mapa (dentro do app)
 
@@ -95,4 +107,4 @@ python3 ViceHub/tools/build_web.py   # embute mapa e fotos num arquivo só
 
 ## Aviso
 
-Projeto de fã, sem ligação com a Rockstar Games ou a Take-Two. O mapa e as imagens do jogo pertencem aos seus donos; as posições dos locais são aproximadas. © 2026 Flow Labs Studio. Itens marcados como "comunidade" vêm de guias de jogadores e podem mudar.
+Projeto de fã, sem ligação com a Rockstar Games ou a Take-Two. Mapa, locais e fotos: GTADB (CC BY 4.0). Imagens do jogo © Rockstar Games. © 2026 Flow Labs Studio. Itens marcados como "comunidade" vêm de guias de jogadores e podem mudar.

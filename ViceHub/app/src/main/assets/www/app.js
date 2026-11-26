@@ -44,6 +44,13 @@
     heart: '<path d="M12 20s-7.5-4.6-7.5-10A4.3 4.3 0 0 1 12 7.4 4.3 4.3 0 0 1 19.5 10c0 5.4-7.5 10-7.5 10z"/>',
     target: '<circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.5"/>',
     edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>',
+    food: '<path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M16 3c-2 1.5-3 4-3 7h3v11"/>',
+    bed: '<path d="M3 18V7M3 13h18v5M21 18v-3a3 3 0 0 0-3-3h-7v1"/><circle cx="7" cy="10" r="2"/>',
+    fuel: '<path d="M4 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16M3 21h12M5 9h8M14 8l3 2v7a1.5 1.5 0 0 0 3 0V9l-3-3"/>',
+    bus: '<rect x="5" y="3" width="14" height="15" rx="3"/><path d="M5 11h14M8 21v-3M16 21v-3"/><circle cx="8.5" cy="14.5" r=".8"/><circle cx="15.5" cy="14.5" r=".8"/>',
+    gov: '<path d="M3 9l9-5 9 5M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18"/>',
+    building: '<rect x="5" y="3" width="14" height="18" rx="1.5"/><path d="M9 7h2M13 7h2M9 11h2M13 11h2M9 15h2M13 15h2"/>',
+    factory: '<path d="M3 21V10l5 3V10l5 3V5h3v16zM3 21h18M18 21V9h3v12"/>',
     layers: '<path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/>'
   };
   function svgIcon(name, extra) {
@@ -51,14 +58,29 @@
   }
   var TYPE = { carro: { nome: "Carros", um: "Carro", ic: "car" }, moto: { nome: "Motos", um: "Moto", ic: "moto" }, barco: { nome: "Barcos", um: "Barco", ic: "boat" }, aereo: { nome: "Aéreos", um: "Aeronave", ic: "heli" } };
   var REG = {}; D.regioes.forEach(function (r) { REG[r.id] = r; });
+  /* locais: base do GTADB (CC BY 4.0) + notas do ViceHub */
+  var G6 = window.VH_GTADB, MAPBOX = G6 ? G6.bbox : [0, 0, 15040, 19840];
+  var FLAGTXT = { e: "Dá para entrar", u: "A confirmar", d: "Demolido", c: "Fechado" };
+  if (G6) {
+    D.locais = G6.items.map(function (it) {
+      var cat = D.categorias[it[3]] ? it[3] : "outros";
+      var fl = it[8] || "", extra = fl.split("").map(function (f) { return FLAGTXT[f]; }).filter(Boolean);
+      return {
+        id: it[0], n: it[1] || "Prédio sem nome", nomeado: !!it[1], area: it[2], c: cat, r: it[4], x: it[5], y: it[6],
+        real: it[7], flags: fl, foto: it[9] ? "gtadb/photos/" + it[0] + ".jpg" : "",
+        s: fl.indexOf("u") >= 0 ? "comunidade" : "oficial",
+        d: (D.notas && D.notas[it[0]]) || ((it[2] ? "Fica em " + it[2] + "." : "") + (extra.length ? " " + extra.join(" · ") + "." : "")).trim() || "Local do mapa de Leonida."
+      };
+    });
+  }
   /* locais do usuário (modo editor): pins novos e pins movidos, guardados no aparelho */
-  var EDIT = { custom: store.get("custom", []), moves: store.get("moves", {}) };
-  D.locais.forEach(function (l, i) { var m = EDIT.moves[l.n]; if (m) { l.x = m[0]; l.y = m[1]; } });
+  var EDIT = { custom: store.get("custom2", []), moves: store.get("moves2", {}) };
+  D.locais.forEach(function (l, i) { var m = EDIT.moves[l.id]; if (m) { l.x = m[0]; l.y = m[1]; } });
   EDIT.custom.forEach(function (c) { c.s = "meu"; c.mine = true; D.locais.push(c); });
   D.locais.forEach(function (l, i) { l.i = i; });
   function saveEdits() {
-    store.set("custom", D.locais.filter(function (l) { return l.mine; }).map(function (l) { return { n: l.n, c: l.c, r: l.r, x: l.x, y: l.y, d: l.d }; }));
-    store.set("moves", EDIT.moves);
+    store.set("custom2", D.locais.filter(function (l) { return l.mine; }).map(function (l) { return { n: l.n, c: l.c, r: l.r, x: l.x, y: l.y, d: l.d }; }));
+    store.set("moves2", EDIT.moves);
   }
 
   var toastT;
@@ -66,7 +88,7 @@
     var t = $("#toast"); t.textContent = msg; t.classList.add("show");
     clearTimeout(toastT); toastT = setTimeout(function () { t.classList.remove("show"); }, 1800);
   }
-  function quad(x, y) { return "ABCDEFGHIJ".charAt(clamp(Math.floor(x / 100), 0, 9)) + (clamp(Math.floor(y / 100), 0, 13) + 1); }
+  function quad(x, y) { return "ABCDEFGHIJKLMNOP".charAt(clamp(Math.floor(x / 1000), 0, 15)) + (clamp(Math.floor(y / 1000), 0, 19) + 1); }
 
   /* =========================================================
      NAVEGAÇÃO COM TRANSIÇÃO 3D
@@ -145,7 +167,7 @@
 
     var quick = [
       { c: "garagem", l: "Garagens" }, { c: "casa", l: "Esconderijos" }, { c: "boate", l: "Boates" },
-      { c: "loja", l: "Lojas e armas" }, { c: "marina", l: "Marinas" }, { c: "aereo", l: "Aeroportos" }
+      { c: "armas", l: "Armas" }, { c: "marina", l: "Marinas" }, { c: "aereo", l: "Aeroportos" }
     ];
     $("#quick").innerHTML = quick.map(function (q) {
       var cat = D.categorias[q.c];
@@ -177,12 +199,13 @@
      MAPA
      ========================================================= */
   var Map = (function () {
-    var W = 1000, H = 1400;
+    var W = MAPBOX[2], H = MAPBOX[3], MAXK = 2; /* zoom máximo = 2 px por metro */
     var svg = $("#mapSvg"), wrap = $("#mapWrap"), stageEl = $("#mapStage");
     var st = { k: 1, tx: 0, ty: 0 }, fitK = 1, vw = 0, vh = 0;
     var built = false, ready = false, need = true;
     var cats = Object.keys(D.categorias);
-    var on = {}; cats.forEach(function (c) { on[c] = true; });
+    var on = {}; function allOn() { cats.forEach(function (c) { on[c] = !D.categorias[c].oculto; }); } allOn();
+    function isAll() { return cats.every(function (c) { return on[c] === !D.categorias[c].oculto; }); }
     var fRegion = "all", fStatus = "all", favOnly = false, sel = -1, query = "";
     var favs = store.get("favs", []);
     var editMode = false, moveIdx = -1, showExport = false;
@@ -195,20 +218,49 @@
     }
     var gMap, gOv;
 
-    /* imagem do mapa: posições dos locais usam a mesma grade de 1000 × 1400 */
-    var MAP_SRC = "img/mapa-leonida.jpg", MAXZ = 7;
+    /* mapa oficial do jogo em tiles (GTADB, CC BY 4.0). Sem tiles, usa uma imagem única (versão web). */
+    var TL = window.VH_TILES, TILESET = {}, tileEls = {}, gTiles, NS = "http://www.w3.org/2000/svg";
+    if (TL) Object.keys(TL.have).forEach(function (z) { var set = {}; TL.have[z].split("|").forEach(function (k) { set[k] = 1; }); TILESET[z] = set; });
+    function tileImg(key, href, x, y, w, h) {
+      var im = document.createElementNS(NS, "image");
+      im.setAttribute("href", href); im.setAttributeNS("http://www.w3.org/1999/xlink", "href", href);
+      im.setAttribute("x", x); im.setAttribute("y", y); im.setAttribute("width", w); im.setAttribute("height", h);
+      im.setAttribute("preserveAspectRatio", "none");
+      im._key = key; return im;
+    }
+    function updateTiles() {
+      if (!TL) return;
+      var dpr = Math.min(window.devicePixelRatio || 1, 2);
+      var zc = clamp(Math.ceil(Math.log(st.k * dpr) / Math.LN2 + 5 - .35), 0, TL.maxZ);
+      var tilt = stageEl.classList.contains("tilted") ? .6 : .15;
+      var vx0 = -st.tx / st.k, vy0 = -st.ty / st.k, vx1 = (vw - st.tx) / st.k, vy1 = (vh - st.ty) / st.k;
+      var mx = (vx1 - vx0) * tilt, my = (vy1 - vy0) * tilt;
+      vx0 -= mx; vx1 += mx; vy0 -= my * 2; vy1 += my;
+      var want = {}, order = [];
+      [Math.min(2, zc), zc].forEach(function (z, li) {
+        if (li === 1 && z === Math.min(2, zc)) return;
+        var size = 256 * Math.pow(2, 5 - z), set = TILESET[z] || {};
+        var tx0 = Math.floor((vx0 + TL.x0) / size), tx1 = Math.floor((vx1 + TL.x0) / size);
+        var ty0 = Math.floor((vy0 + TL.y0) / size), ty1 = Math.floor((vy1 + TL.y0) / size);
+        if ((tx1 - tx0 + 1) * (ty1 - ty0 + 1) > 140) return;
+        for (var ty = ty0; ty <= ty1; ty++) for (var tx = tx0; tx <= tx1; tx++) {
+          if (!set[ty + "," + tx]) continue;
+          var key = z + "/" + ty + "," + tx; want[key] = 1;
+          if (!tileEls[key]) tileEls[key] = tileImg(key, "tiles/" + z + "/" + z + "," + ty + "," + tx + ".jpg", tx * size - TL.x0, ty * size - TL.y0, size * 1.003, size * 1.003);
+          order.push(tileEls[key]);
+        }
+      });
+      Object.keys(tileEls).forEach(function (k) { if (!want[k]) { var e = tileEls[k]; if (e.parentNode) e.parentNode.removeChild(e); delete tileEls[k]; } });
+      order.forEach(function (e) { gTiles.appendChild(e); });
+    }
 
     function build() {
       if (built) return; built = true;
-      var NS = "http://www.w3.org/2000/svg";
       gMap = document.createElementNS(NS, "g");
       gOv = document.createElementNS(NS, "g");
-      svg.appendChild(gMap); svg.appendChild(gOv);
-      var im = document.createElementNS(NS, "image");
-      im.setAttribute("href", MAP_SRC); im.setAttributeNS("http://www.w3.org/1999/xlink", "href", MAP_SRC);
-      im.setAttribute("x", 0); im.setAttribute("y", 0); im.setAttribute("width", W); im.setAttribute("height", H);
-      im.setAttribute("preserveAspectRatio", "none");
-      gMap.appendChild(im);
+      gTiles = document.createElementNS(NS, "g");
+      svg.appendChild(gMap); svg.appendChild(gOv); gMap.appendChild(gTiles);
+      if (!TL && window.VH_MAPIMG) { var M = window.VH_MAPIMG; gTiles.appendChild(tileImg("img", M.src, M.x, M.y, M.w, M.h)); }
       ready = true;
       bindInput();
       buildChips();
@@ -231,7 +283,7 @@
       need = true;
     }
     function clampView() {
-      st.k = clamp(st.k, fitK * .8, fitK * MAXZ);
+      st.k = clamp(st.k, fitK * .8, Math.max(MAXK, fitK));
       var mw = W * st.k, mh = H * st.k, m = 80;
       st.tx = clamp(st.tx, Math.min(m - mw + 0, vw - mw - m) , Math.max(vw - m, m));
       st.ty = clamp(st.ty, Math.min(m - mh, vh - mh - m), Math.max(vh - m, m));
@@ -265,6 +317,7 @@
       if (need) { need = false; draw(); }
     }
     function draw() {
+      updateTiles();
       gMap.setAttribute("transform", "translate(" + st.tx.toFixed(2) + "," + st.ty.toFixed(2) + ") scale(" + st.k.toFixed(5) + ")");
       var z = st.k / fitK, out = "";
       // rótulos das regiões
@@ -281,16 +334,14 @@
         if (sx < -40 || sy < -40 || sx > vw + 40 || sy > vh + 40) return;
         pts.push({ l: l, x: sx, y: sy });
       });
-      var cell = 30, groups = [];
+      var cell = 38, groups = [], grid = {};
       pts.forEach(function (p) {
         if (p.l.i === sel) { groups.push({ items: [p], x: p.x, y: p.y }); return; }
-        for (var g = 0; g < groups.length; g++) {
-          var G = groups[g];
-          if (G.items[0].l.i !== sel && Math.abs(G.x - p.x) < cell && Math.abs(G.y - p.y) < cell) { G.items.push(p); return; }
-        }
-        groups.push({ items: [p], x: p.x, y: p.y });
+        var key = Math.floor(p.x / cell) + ":" + Math.floor(p.y / cell), G = grid[key];
+        if (!G) { G = grid[key] = { items: [], x: p.x, y: p.y }; groups.push(G); }
+        G.items.push(p);
       });
-      var showLabels = z > 3.2;
+      var showLabels = st.k > .45;
       groups.forEach(function (G, gi) {
         if (G.items.length > 1) {
           var cx = 0, cy = 0; G.items.forEach(function (p) { cx += p.x; cy += p.y; }); cx /= G.items.length; cy /= G.items.length;
@@ -310,7 +361,7 @@
             '<g transform="translate(-7.2,-7.2) scale(.6)" fill="none" stroke="#160a2a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">' + IC[cat.icone] + "</g>" +
             (favs.indexOf(p.l.i) >= 0 ? '<circle cx="9" cy="-9" r="4" fill="#ff3d8b" stroke="#fff" stroke-width="1.2"/>' : "") +
             "</g>";
-          if (showLabels || isSel) out += '<text class="pin-label" x="' + p.x.toFixed(1) + '" y="' + (p.y + 27).toFixed(1) + '" text-anchor="middle">' + esc(p.l.n) + "</text>";
+          if ((showLabels && p.l.nomeado !== false) || isSel) out += '<text class="pin-label" x="' + p.x.toFixed(1) + '" y="' + (p.y + 27).toFixed(1) + '" text-anchor="middle">' + esc(p.l.n) + "</text>";
         }
       });
       lastGroups = groups;
@@ -344,7 +395,7 @@
         if (ids.length >= 2 && pinch) {
           var a = ptrs[ids[0]], b = ptrs[ids[1]];
           var d = Math.hypot(a.x - b.x, a.y - b.y), cx = (a.x + b.x) / 2, cy = (a.y + b.y) / 2;
-          var nk = clamp(pinch.k * d / pinch.d, fitK * .8, fitK * MAXZ);
+          var nk = clamp(pinch.k * d / pinch.d, fitK * .8, MAXK);
           var mx = (pinch.cx - r.left - pinch.tx) / pinch.k, my = (pinch.cy - r.top - pinch.ty) / pinch.k;
           st.k = nk; st.tx = cx - r.left - mx * nk; st.ty = cy - r.top - my * nk;
           clampView(); need = true;
@@ -396,7 +447,7 @@
         var b = e.target.closest("[data-i]"); if (!b) return;
         var l = D.locais[+b.getAttribute("data-i")];
         res.hidden = true; input.blur();
-        if (!visible(l)) { cats.forEach(function (c) { on[c] = true; }); fRegion = "all"; fStatus = "all"; favOnly = false; syncFilters(); }
+        if (!visible(l)) { allOn(); fRegion = "all"; fStatus = "all"; favOnly = false; syncFilters(); }
         select(l.i, true);
       });
     }
@@ -405,16 +456,16 @@
       var res = $("#results");
       if (!query) { res.hidden = true; return; }
       var q = norm(query);
-      var list = D.locais.filter(function (l) { return norm(l.n + " " + D.categorias[l.c].nome + " " + REG[l.r].nome).indexOf(q) >= 0; }).slice(0, 12);
+      var list = D.locais.filter(function (l) { return l.nomeado !== false && norm(l.n + " " + (l.area || "") + " " + (l.real || "") + " " + D.categorias[l.c].nome + " " + REG[l.r].nome).indexOf(q) >= 0; }).slice(0, 20);
       res.hidden = false;
       res.innerHTML = list.length ? list.map(function (l) {
         var c = D.categorias[l.c];
-        return '<button class="result" data-i="' + l.i + '"><span class="dotc" style="background:' + c.cor + ";box-shadow:0 0 8px " + c.cor + '"></span><span><b>' + esc(l.n) + "</b><small>" + esc(c.nome) + " · " + esc(REG[l.r].nome) + "</small></span></button>";
+        return '<button class="result" data-i="' + l.i + '"><span class="dotc" style="background:' + c.cor + ";box-shadow:0 0 8px " + c.cor + '"></span><span><b>' + esc(l.n) + "</b><small>" + esc(c.nome) + " · " + esc(l.area || REG[l.r].nome) + "</small></span></button>";
       }).join("") : '<div class="empty" style="padding:16px">Nada encontrado para "' + esc(query) + '".</div>';
     }
 
     function zoomAt(sx, sy, f, animate) {
-      var nk = clamp(st.k * f, fitK * .8, fitK * MAXZ);
+      var nk = clamp(st.k * f, fitK * .8, MAXK);
       var mx = (sx - st.tx) / st.k, my = (sy - st.ty) / st.k;
       var b = { k: nk, tx: sx - mx * nk, ty: sy - my * nk };
       if (animate) { anim = { a: { k: st.k, tx: st.tx, ty: st.ty }, b: b, t0: performance.now(), dur: 380 }; }
@@ -442,7 +493,7 @@
           var minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
           G.items.forEach(function (p) { minX = Math.min(minX, p.l.x); maxX = Math.max(maxX, p.l.x); minY = Math.min(minY, p.l.y); maxY = Math.max(maxY, p.l.y); });
           var span = Math.max(maxX - minX, maxY - minY, 6);
-          var k = clamp(Math.min(vw, vh) * .45 / span, st.k * 1.6, fitK * MAXZ);
+          var k = clamp(Math.min(vw, vh) * .45 / span, st.k * 1.6, MAXK);
           anim = { a: { k: st.k, tx: st.tx, ty: st.ty }, b: { k: k, tx: vw / 2 - mx * k, ty: vh * .45 - my * k }, t0: now, dur: 600 };
         }
         return;
@@ -453,7 +504,7 @@
         var px = Math.round(clamp((e.clientX - rr.left - st.tx) / st.k, 0, W)), py = Math.round(clamp((e.clientY - rr.top - st.ty) / st.k, 0, H));
         if (moveIdx >= 0) {
           var ml = D.locais[moveIdx]; ml.x = px; ml.y = py;
-          if (!ml.mine) EDIT.moves[ml.n] = [px, py];
+          if (!ml.mine) EDIT.moves[ml.id] = [px, py];
           saveEdits(); moveIdx = -1; toast("Pin movido para " + quad(px, py)); select(ml.i, false); return;
         }
         openAddForm(px, py); return;
@@ -467,24 +518,27 @@
     function select(i, fly) {
       sel = i; need = true;
       var l = D.locais[i];
-      if (fly) flyTo(l.x, l.y, Math.min(MAXZ, Math.max(st.k / fitK, l.r === "vice" ? 5.5 : 3.5)));
+      if (fly) flyTo(l.x, l.y, Math.max(st.k, .9) / fitK);
       else flyTo(l.x, l.y, Math.max(st.k / fitK, 1), 500);
       openSheet(l);
     }
     function openSheet(l) {
       var c = D.categorias[l.c], r = REG[l.r], fav = favs.indexOf(l.i) >= 0;
       var sh = $("#sheet");
-      sh.innerHTML = '<div class="grab"></div><div style="display:flex;gap:12px;align-items:flex-start">' +
+      sh.innerHTML = '<div class="grab"></div>' +
+        (l.foto && !window.VH_NOPHOTOS ? '<div class="sh-photo"><img src="' + esc(l.foto) + '" alt="' + esc(l.n) + '" loading="lazy"></div>' : "") +
+        '<div style="display:flex;gap:12px;align-items:flex-start">' +
         '<span class="icon-btn" style="width:46px;height:46px;border-radius:15px;background:' + c.cor + '26;color:' + c.cor + '">' + svgIcon(c.icone) + "</span>" +
         '<div style="flex:1;min-width:0"><h3>' + esc(l.n) + '</h3><div class="meta" style="margin-bottom:0">' +
         '<span class="tagc" style="color:' + c.cor + '">' + esc(c.nome) + '</span><span class="tagc" style="color:' + r.cor + '">' + esc(r.nome) + "</span>" +
-        '<span class="tagc ' + (l.s === "oficial" ? "ok" : "comm") + '">' + (l.s === "oficial" ? "Oficial" : l.mine ? "Seu local" : "Comunidade") + "</span></div></div>" +
+        '<span class="tagc ' + (l.s === "oficial" ? "ok" : "comm") + '">' + (l.s === "oficial" ? "Confirmado" : l.mine ? "Seu local" : "A confirmar") + "</span></div></div>" +
         '<button class="icon-btn glass" id="shClose" aria-label="Fechar">' + svgIcon("close") + "</button></div>" +
         '<p style="margin-top:12px">' + esc(l.d) + "</p>" +
+        (l.real ? '<p class="sh-real">' + svgIcon("pin", ' width="14" height="14"') + "<span><b>Na vida real:</b> " + esc(l.real) + "</span></p>" : "") +
         '<div class="row"><button class="btn primary" id="shSolo">' + svgIcon("layers") + "Só " + esc(c.nome.toLowerCase()) + '</button><button class="btn ghost" id="shFav">' + svgIcon("heart", fav ? ' fill="currentColor"' : "") + (fav ? "Salvo" : "Salvar") + "</button></div>" +
         (editMode ? '<div class="row" style="margin-top:8px"><button class="btn ghost" id="shMove">' + svgIcon("target") + "Mover pin</button>" +
           (l.mine ? '<button class="btn ghost" id="shDel">' + svgIcon("close") + "Apagar</button>" : "") + "</div>" : "") +
-        '<div class="coord">QUADRANTE ' + quad(l.x, l.y) + " · X " + l.x + " · Y " + l.y + " · posição aproximada</div>";
+        '<div class="coord">QUADRANTE ' + quad(l.x, l.y) + (l.id ? " · " + l.id + " · dados GTADB (CC BY 4.0)" : " · seu local") + "</div>";
       sh.classList.add("open");
       if (editMode) {
         $("#shMove").onclick = function () { moveIdx = l.i; $("#sheet").classList.remove("open"); toast("Toque no mapa onde o pin deve ficar"); };
@@ -547,10 +601,10 @@
       box.addEventListener("click", function (e) {
         var b = e.target.closest(".chip"); if (!b) return;
         var k = b.getAttribute("data-k");
-        if (k === "all") { cats.forEach(function (c) { on[c] = true; }); favOnly = false; fRegion = "all"; fStatus = "all"; }
+        if (k === "all") { allOn(); favOnly = false; fRegion = "all"; fStatus = "all"; }
         else if (k === "fav") { favOnly = !favOnly; if (favOnly && !favs.length) { favOnly = false; toast("Toque em Salvar num local para ele aparecer aqui"); } }
-        else if (countOn() === cats.length) { solo(k); return; }
-        else { on[k] = !on[k]; if (!countOn()) cats.forEach(function (c) { on[c] = true; }); }
+        else if (isAll()) { solo(k); return; }
+        else { on[k] = !on[k]; if (!countOn()) allOn(); }
         syncFilters();
       });
       syncFilters();
@@ -563,7 +617,7 @@
         if (f === "cat") { on[v] = !on[v]; if (!countOn()) on[v] = true; }
         if (f === "reg") fRegion = v;
         if (f === "st") fStatus = v;
-        if (f === "allon") { cats.forEach(function (c) { on[c] = true; }); fRegion = "all"; fStatus = "all"; favOnly = false; }
+        if (f === "allon") { allOn(); fRegion = "all"; fStatus = "all"; favOnly = false; }
         if (f === "alloff") { cats.forEach(function (c) { on[c] = false; }); on.garagem = true; }
         if (f === "done") { closeDrawer(); return; }
         if (f === "edit") { setEdit(!editMode); }
@@ -591,7 +645,7 @@
       h += '<button class="chip ' + (fRegion === "all" ? "on" : "") + '" data-f="reg" data-v="all" style="--c:#fbefff"><i></i>Leonida inteira</button>';
       D.regioes.forEach(function (r) { h += '<button class="chip ' + (fRegion === r.id ? "on" : "") + '" data-f="reg" data-v="' + r.id + '" style="--c:' + r.cor + '"><i></i>' + esc(r.nome) + "</button>"; });
       h += '</div><div class="sub-h">Confirmação</div><div class="seg">' +
-        [["all", "Todos"], ["oficial", "Oficial"], ["comunidade", "Comunidade"], ["meu", "Meus"]].map(function (s) { return '<button class="' + (fStatus === s[0] ? "on" : "") + '" data-f="st" data-v="' + s[0] + '">' + s[1] + "</button>"; }).join("") + "</div>";
+        [["all", "Todos"], ["oficial", "Confirmados"], ["comunidade", "A confirmar"], ["meu", "Meus"]].map(function (s) { return '<button class="' + (fStatus === s[0] ? "on" : "") + '" data-f="st" data-v="' + s[0] + '">' + s[1] + "</button>"; }).join("") + "</div>";
       var nMine = D.locais.filter(function (l) { return l.mine; }).length, nMov = Object.keys(EDIT.moves).length;
       h += '<div class="sub-h">Editor do mapa</div><div class="info-card glass" style="padding:14px"><p class="muted" style="margin:0 0 12px;font-size:13px">Com o editor ligado, toque no mapa para criar um local ou use "Mover pin" na ficha. Você tem ' + nMine + " locais novos e " + nMov + " pins movidos.</p>" +
         '<div class="row" style="display:flex;gap:8px"><button class="btn ' + (editMode ? "primary" : "ghost") + '" data-f="edit">' + (editMode ? "Editor ligado" : "Ligar editor") + '</button><button class="btn ghost" data-f="export">Exportar</button></div>' +
@@ -599,7 +653,7 @@
       $("#drawer").innerHTML = h;
     }
     function syncFilters() {
-      var all = countOn() === cats.length;
+      var all = isAll();
       $$("#mapChips .chip").forEach(function (b) {
         var k = b.getAttribute("data-k");
         b.classList.toggle("on", k === "all" ? (all && !favOnly && fRegion === "all" && fStatus === "all") : k === "fav" ? favOnly : (!all && on[k]));
@@ -625,7 +679,7 @@
       resize: function () { resize(false); },
       solo: function (c) { solo(c); pendingHome = true; },
       focusRegion: function (r) {
-        cats.forEach(function (k) { on[k] = true; }); fRegion = r.id; favOnly = false;
+        allOn(); fRegion = r.id; favOnly = false;
         setTimeout(function () { syncFilters(); flyTo(r.x, r.y + (r.id === "vice" ? 80 : 0), r.id === "vice" ? 4.2 : r.id === "keys" ? 2.6 : 2.4, 900); }, 120);
       },
       showCats: function (list) {

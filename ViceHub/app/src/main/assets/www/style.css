@@ -175,7 +175,7 @@ h1, h2, h3 { font-family: var(--display); font-weight: 700; margin: 0; text-wrap
 .link-btn { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 800; padding: 8px 12px; border-radius: 12px; background: var(--glass-hi); border: 1px solid var(--glass-brd); }
 
 /* ---------- mapa ---------- */
-#mapWrap { position: absolute; inset: 0; overflow: hidden; perspective: 1000px; background: #04abcb; touch-action: none; }
+#mapWrap { position: absolute; inset: 0; overflow: hidden; perspective: 1000px; background: #2f90b0; touch-action: none; }
 #mapStage { position: absolute; inset: 0; transform-origin: 50% 60%; transition: transform .9s cubic-bezier(.2,.8,.2,1); }
 #mapStage.tilted { transform: rotateX(52deg) scale(1.25) translateY(-6%); }
 #mapSvg { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; display: block; }
@@ -230,6 +230,11 @@ h1, h2, h3 { font-family: var(--display); font-weight: 700; margin: 0; text-wrap
   max-width: 520px; margin: 0 auto; pointer-events: none;
 }
 .sheet.open { transform: none; opacity: 1; pointer-events: auto; }
+.sheet { background: rgba(24, 12, 44, .86); max-height: calc(100% - 200px - var(--safe-t) - var(--safe-b)); overflow-y: auto; }
+.sh-photo { margin: -4px -4px 14px; border-radius: 18px; overflow: hidden; aspect-ratio: 16 / 9; background: rgba(0,0,0,.3); }
+.sh-photo img { width: 100%; height: 100%; object-fit: cover; display: block; animation: kenburns 14s ease-in-out infinite alternate; }
+.sh-real { display: flex; gap: 8px; align-items: flex-start; font-size: 13px !important; color: var(--muted); margin: -4px 0 14px !important; }
+.sh-real svg { flex: none; margin-top: 2px; color: var(--aqua); }
 .sheet .grab { width: 40px; height: 4px; border-radius: 4px; background: var(--glass-brd); margin: -6px auto 12px; }
 .sheet h3 { font-size: 19px; }
 .sheet .meta { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
@@ -374,7 +379,7 @@ h1, h2, h3 { font-family: var(--display); font-weight: 700; margin: 0; text-wrap
 .copy { text-align: center; font-size: 11.5px; font-weight: 700; letter-spacing: .04em; color: var(--faint); margin: 14px 0 0; }
 
 /* mapa real na capa */
-.hero-map { position: absolute; inset: 0; perspective: 700px; overflow: hidden; background: #04abcb; }
+.hero-map { position: absolute; inset: 0; perspective: 700px; overflow: hidden; background: #2f90b0; }
 .hero-map img { position: absolute; left: 50%; top: 50%; width: 120%; max-width: none; transform-origin: 50% 50%; transform: translate(-50%, -46%) rotateX(48deg) rotateZ(-14deg); animation: heroDrift 18s ease-in-out infinite alternate; filter: saturate(1.1) contrast(1.05); }
 @keyframes heroDrift { to { transform: translate(-46%, -58%) rotateX(52deg) rotateZ(-6deg) scale(1.12); } }
 .hero-map::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(255,61,139,.15), rgba(139,92,246,.25) 50%, rgba(11,6,24,.2)); mix-blend-mode: soft-light; }

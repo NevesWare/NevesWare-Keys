@@ -67,7 +67,7 @@
     <!-- INÍCIO -->
     <section class="view active" id="v-home" data-title="Guia de Leonida">
       <div class="hero glass">
-        <div class="hero-map" aria-hidden="true"><img src="img/mapa-leonida.jpg" alt=""></div>
+        <div class="hero-map" aria-hidden="true"><img src="img/leonida.jpg" alt=""></div>
         <div class="hero-top"><span class="pill glass">PS5 · Xbox Series X|S</span><span class="pill glass" id="heroDate">19 nov 2026</span></div>
         <div class="hero-txt">
           <span class="eyebrow">Estado de Leonida</span>
@@ -85,7 +85,7 @@
 
       <div class="section-h"><h2>Em destaque</h2><span>carros com close-up oficial</span></div>
       <div class="v-grid" id="featured"></div>
-      <p class="note">ViceHub é um guia feito por fãs e não tem ligação com a Rockstar Games ou a Take-Two. Mapa e imagens do jogo pertencem aos seus donos. Posições dos locais são aproximadas.</p>
+      <p class="note">ViceHub é um guia feito por fãs e não tem ligação com a Rockstar Games ou a Take-Two. Mapa, locais e fotos: <b>GTADB</b> (gtadb.org e colaboradores), GTA VI Landmarks Data e Map Tiles, licença CC BY 4.0, map.gtadb.org. Alterações: categorias traduzidas e fotos reduzidas. Imagens do jogo © Rockstar Games.</p>
       <p class="copy">© 2026 Flow Labs Studio · Todos os direitos reservados</p>
     </section>
 
@@ -145,6 +145,11 @@
       <div class="info-card glass"><dl class="kv" id="gameKv"></dl></div>
       <div class="section-h"><h2>As 6 regiões</h2></div>
       <div class="list" id="regList"></div>
+      <div class="section-h"><h2>Créditos</h2></div>
+      <div class="info-card glass">
+        <span class="eyebrow">Mapa e locais</span>
+        <p class="muted" style="margin:8px 0 0;font-size:13.5px">Mapa oficial em tiles, landmarks e fotos do jogo: <b>GTADB</b>, gtadb.org e colaboradores. "GTA VI Landmarks Data (CC BY 4.0) — https://map.gtadb.org" e "GTA VI Map Tiles (CC BY 4.0) — https://map.gtadb.org". Licença: creativecommons.org/licenses/by/4.0. O ViceHub traduziu categorias, reduziu as fotos e juntou notas próprias.</p>
+      </div>
       <p class="note">Fontes: anúncios da Rockstar e da Take-Two, reportagens de lançamento e guias da comunidade. Itens marcados como "comunidade" podem mudar conforme os jogadores confirmam.</p>
       <p class="copy">© 2026 Flow Labs Studio · Todos os direitos reservados</p>
     </section>
@@ -167,6 +172,8 @@
 
 <div class="toast glass" id="toast"></div>
 <!--VH:SCRIPTS-->
+<script src="gtadb/tiles.js"></script>
+<script src="gtadb/landmarks.js"></script>
 <script src="data.js"></script>
 <script src="app.js"></script>
 <!--VH:END-->
