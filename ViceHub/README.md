@@ -11,10 +11,10 @@ O app é uma interface web (`app/src/main/assets/www`) aberta num WebView em tel
 | `app/src/main/java/.../MainActivity.java` | WebView em tela cheia (modo imersivo), botão voltar ligado à interface |
 | `app/src/main/assets/www/index.html` | Telas do app |
 | `app/src/main/assets/www/style.css` | Visual de vidro com as cores de Vice City |
-| `app/src/main/assets/www/app.js` | Abertura animada, navegação 3D, mapa (zoom, pinça, filtros, busca, salvos, editor), veículos com foto |
+| `app/src/main/assets/www/app.js` | Abertura animada, abas no topo (Mapa, Locais, Veículos, Guia), mapa com pins em gota, cartão com foto, visitados e filtros |
 | `app/src/main/assets/www/data.js` | **Base de dados**: regiões, locais, categorias, veículos, garagens |
 | `app/src/main/assets/www/tiles/` | Mapa oficial do jogo em tiles (níveis 0–5), do GTADB |
-| `app/src/main/assets/www/gtadb/` | 4.525 locais (`landmarks.js`), lista de tiles e 2.619 fotos do jogo, do GTADB |
+| `app/src/main/assets/www/gtadb/` | 1.123 locais com nome (`landmarks.js`), lista de tiles e 760 fotos do jogo, do GTADB |
 | `app/src/main/assets/www/img/leonida.jpg` | Mapa inteiro numa imagem (capa) |
 | `tools/import_gtadb.py` | Importa/atualiza mapa, locais e fotos do repositório do GTADB |
 | `app/src/main/assets/www/img/veiculos/` | Fotos dos veículos (veja abaixo) |

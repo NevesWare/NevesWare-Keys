@@ -55,6 +55,28 @@ PLAIN = [
     ("construction", "industria"),
 ]
 
+KEYWORDS = [  # palavras no nome (minúsculas, com espaços nas pontas quando é palavra inteira)
+    ([" bus stop", " station", " metro", " ferry", " terminal", " bridge", " parking"], "transporte"),
+    ([" gas ", " gas station", " fuel", " xero "], "posto"),
+    ([" motel", " hotel", " inn ", " resort", " suites", " hostel"], "hotel"),
+    ([" bar ", " bar,", " pub ", " lounge", " nightclub", " club ", " tavern", " saloon", " brewery", " cantina"], "boate"),
+    ([" restaurant", " cafe", " café", " diner", " grill", " pizza", " burger", " taco", " bakery", " kitchen", " bbq",
+      " seafood", " sushi", " donut", " coffee", " food", " eatery", " steakhouse", " cuban", " ice cream", " deli "], "comida"),
+    ([" customs", " auto ", " autos", " motors", " body shop", " tire", " car wash", " mechanic", " repair"], "oficina"),
+    ([" marina", " boat", " yacht", " dock", " pier"], "marina"),
+    ([" airport", " airfield", " air station", " hangar", " heliport", " helipad"], "aereo"),
+    ([" turn ", " raceway", " speedway", " racetrack", " race track", " drag strip"], "corrida"),
+    ([" police", " sheriff", " fire station", " hospital", " clinic", " medical", " school", " college", " university",
+      " courthouse", " court", " city hall", " library", " post office", " prison", " jail", " bank", " church", " chapel", " cemetery", " campus", " hall", " center", " centre", " restroom", " office", " department"], "servico"),
+    ([" farmacia", " pharmacy", " store", " shop", " mart", " market", " pawn", " mall", " boutique", " salon", " barber",
+      " tattoo", " liquor", " outlet", " plaza", " supermarket", " records", " vinyl", " jewel"], "loja"),
+    ([" park", " beach", " lake", " river", " bay ", " swamp", " island", " key ", " forest", " trail", " canal", " marsh", " creek", " sound", " bayou", " pond", " springs", " point", " reef", " cove", " lagoon", " dunes"], "natureza"),
+    ([" stadium", " arena", " museum", " theater", " theatre", " monument", " statue", " tower", " lighthouse", " sign",
+      " mural", " gallery", " zoo", " golf", " casino", " carnival", " fair", " oceanarium", " aquarium", " castle", " fountain", " memorial"], "marco"),
+    ([" apartments", " condo", " residences", " house", " estate", " villa", " homes", " tower apartments"], "residencial"),
+    ([" factory", " plant", " refinery", " mill", " warehouse", " industrial", " yard", " port ", " depot", " silo"], "industria"),
+]
+
 def category(name, tags):
     for t, c in HASH:
         if any(x == t or x.endswith("." + t) for x in tags):
@@ -62,8 +84,11 @@ def category(name, tags):
     low = name.lower()
     if "garage" in low and "parking" not in low:
         return "garagem"
-    if "ammu-nation" in low:
+    if "ammu-nation" in low or " gun" in low:
         return "armas"
+    for words, c in KEYWORDS:
+        if any(w in " " + low + " " for w in words):
+            return c
     for t, c in PLAIN:
         if t in tags:
             return c
@@ -90,7 +115,7 @@ def region(parts, wx, wy):
     return min(ANCHOR, key=lambda r: (ANCHOR[r][0] - wx) ** 2 + (ANCHOR[r][1] - wy) ** 2)
 
 def short_rl(addr):
-    if not addr:
+    if not addr or addr.strip().startswith("?"):
         return ""
     p = [s.strip() for s in addr.split(",")]
     if len(p) >= 4:  # nome, rua, cidade, estado+cep, país
@@ -113,11 +138,11 @@ for lid, v in data.items():
     area = ", ".join(parts[1:])
     named = title not in ("?", "") and not title.startswith("?")
     if not named:
-        title = ""
+        continue  # prédios sem nome ficam de fora
     mx, my = to_map(ig[0], ig[1])
-    cat = category(title, tags)
+    cat = category(title, tags) if named else "anon"
     if cat == "predio":
-        cat = "outros" if named else "anon"
+        cat = "outros"
     reg = region(parts, ig[0], ig[1])
     flags = "".join([
         "e" if "enterable" in tags else "",
@@ -142,6 +167,10 @@ for lid, v in data.items():
     items.append([lid, title, area, cat, reg, mx, my, short_rl(rl_addr), flags, has_photo])
 
 items.sort(key=lambda it: int(it[0][1:]))
+keep = {it[0] + ".jpg" for it in items if it[9]}
+for fn in os.listdir(photos_dst):  # apaga fotos geradas antes para locais que saíram
+    if fn.endswith(".jpg") and fn not in keep:
+        os.remove(os.path.join(photos_dst, fn))
 os.makedirs(os.path.join(WWW, "gtadb"), exist_ok=True)
 with open(os.path.join(WWW, "gtadb", "landmarks.js"), "w", encoding="utf-8") as f:
     f.write("/* GTA VI Landmarks Data (CC BY 4.0) — https://map.gtadb.org — gtadb.org and all contributors.\n"
