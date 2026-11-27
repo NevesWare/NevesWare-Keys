@@ -1,6 +1,6 @@
-/* ViceHub v3 — app.js
+/* ViceHub v6 — app.js
  * Abertura → contas (entrar, criar conta, convidado) → app.
- * Abas (barra embaixo): Mapa · Locais · Veículos · Guia.
+ * Barra embaixo: Início · Mapa · Chat · Locais · Mais (Garagem, Arsenal, Galeria, Guia, Controles...).
  * Mapa oficial em tiles + locais do GTADB (CC BY 4.0) + marcadores do próprio jogador.
  */
 (function () {
@@ -14,9 +14,17 @@
   var ease = function (t) { return 1 - Math.pow(1 - t, 3); };
   var fmt = function (n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, "."); };
   var norm = function (s) { s = String(s || "").toLowerCase(); return s.normalize ? s.normalize("NFD").replace(/[̀-ͯ]/g, "") : s; };
+  /* cada conta tem seus próprios dados neste aparelho (o convidado usa as chaves antigas) */
+  var USERKEYS = { visited: 1, favs: 1, mypins: 1, cards: 1, owned: 1, favw: 1, drawings: 1, settings: 1, pad: 1, sawReal: 1 };
+  var UID = (function () { try { var x = JSON.parse(localStorage.getItem("vh3:session") || "null"); return x && x.kind !== "guest" && x.id ? x.id : ""; } catch (e) { return ""; } })();
+  function skey(k) { return "vh3:" + (UID && USERKEYS[k] ? "u:" + UID + ":" : "") + k; }
   var store = {
-    get: function (k, d) { try { var v = localStorage.getItem("vh3:" + k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
-    set: function (k, v) { try { localStorage.setItem("vh3:" + k, JSON.stringify(v)); return true; } catch (e) { return false; } }
+    get: function (k, d) { try { var v = localStorage.getItem(skey(k)); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+    set: function (k, v) {
+      try { localStorage.setItem(skey(k), JSON.stringify(v)); } catch (e) { return false; }
+      if (USERKEYS[k] && window.VH_CLOUD && VH_CLOUD.on()) VH_CLOUD.queue();
+      return true;
+    }
   };
   /* ---------- preferências e temas ---------- */
   var SET = Object.assign({
@@ -131,7 +139,18 @@
     pad: '<path d="M7 7h10a5 5 0 0 1 4.8 6.4l-1 3.4a2.5 2.5 0 0 1-4.3.9L14.5 15h-5l-2 2.7a2.5 2.5 0 0 1-4.3-.9l-1-3.4A5 5 0 0 1 7 7z"/><path d="M8 10v3M6.5 11.5h3M15.5 11h.01M17.5 12.5h.01"/>',
     clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
     shuffle: '<path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/>',
-    star2: '<path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8L3.5 9.7l5.9-.9z"/>'
+    star2: '<path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8L3.5 9.7l5.9-.9z"/>',
+    chat: '<path d="M20 12a8 8 0 0 1-11.8 7L4 20l1.1-3.9A8 8 0 1 1 20 12z"/>',
+    image: '<rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/>',
+    target: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/>',
+    fist: '<path d="M7 11V7.5a1.5 1.5 0 0 1 3 0V11M10 10V6.5a1.5 1.5 0 0 1 3 0V10M13 10V7a1.5 1.5 0 0 1 3 0v3.5M16 10.5a1.5 1.5 0 0 1 3 0V14a7 7 0 0 1-7 7h-1a6 6 0 0 1-6-6v-2a2 2 0 0 1 2-2h3"/>',
+    run: '<circle cx="14" cy="4.5" r="1.8"/><path d="M6 21l3.5-6 3 2.5V21M8 10l3-3 4 2 2 3h3M11 7l-2 6"/>',
+    code: '<path d="M8 6l-6 6 6 6M16 6l6 6-6 6M14 4l-4 16"/>',
+    bug: '<rect x="7" y="8" width="10" height="12" rx="5"/><path d="M9 8V6a3 3 0 0 1 6 0v2M3 13h4M17 13h4M4 7l3 2M20 7l-3 2M4 19l3-2M20 19l-3-2M12 11v9"/>',
+    copy: '<rect x="9" y="9" width="11" height="11" rx="2.5"/><path d="M5 15V6a2 2 0 0 1 2-2h8"/>',
+    skull: '<path d="M12 3a8 8 0 0 0-5 14.2V20h10v-2.8A8 8 0 0 0 12 3z"/><circle cx="9" cy="11" r="1.6"/><circle cx="15" cy="11" r="1.6"/><path d="M10 20v-2M14 20v-2"/>',
+    money: '<rect x="2.5" y="6" width="19" height="12" rx="2"/><circle cx="12" cy="12" r="2.6"/><path d="M6 9.5v5M18 9.5v5"/>',
+    cloud: '<path d="M7 18a5 5 0 1 1 .9-9.9A6 6 0 0 1 19 10a4 4 0 0 1-1 8z"/>'
   };
   function ico(name, attrs) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"' + (attrs || "") + ">" + (IC[name] || IC.pin) + "</svg>"; }
 
@@ -189,27 +208,53 @@
      CONTAS (adaptador local; troque por Supabase/Firebase depois)
      ========================================================= */
   function hash(s) { var h = 2166136261; for (var r = 0; r < 3; r++) for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i) + r; h = Math.imul(h, 16777619) >>> 0; } return h.toString(36); }
+  var NICK = /^[A-Za-z0-9_]{3,16}$/;
+  function newId() { var a = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789", r = "VH-"; for (var i = 0; i < 6; i++) r += a.charAt(Math.floor(Math.random() * a.length)); return r; }
+  var AVCOLORS = ["#ff3d8b", "#ff9a3c", "#ffd23f", "#2de2e6", "#8b5cf6", "#3ddc97", "#2d8cff", "#ff5c5c"];
+  /* adaptador de contas: local (neste aparelho) ou Supabase quando config.js tiver a URL e a chave */
   var VH_AUTH = window.VH_AUTH = {
     current: function () { return store.get("session", null); },
-    signUp: function (name, email, pass) {
+    nickFree: function (nick, exceptEmail) {
+      var users = store.get("users", {}), n = nick.toLowerCase();
+      return !Object.keys(users).some(function (k) { return k !== exceptEmail && String(users[k].nick || users[k].name || "").toLowerCase() === n; });
+    },
+    signUp: function (nick, email, pass) {
+      if (window.VH_CLOUD && VH_CLOUD.on()) return VH_CLOUD.signUp(nick, email, pass);
       var users = store.get("users", {}), key = email.toLowerCase();
-      if (users[key]) return { error: "Já existe uma conta com esse e-mail neste aparelho. Use Entrar." };
-      users[key] = { name: name, email: key, h: hash(key + ":" + pass), created: Date.now() };
-      store.set("users", users);
-      var s = { name: name, email: key, kind: "local" }; store.set("session", s); return { user: s };
+      if (users[key]) return Promise.resolve({ error: "Já existe uma conta com esse e-mail neste aparelho. Use Entrar." });
+      if (!VH_AUTH.nickFree(nick)) return Promise.resolve({ error: "Esse nick já está em uso. Escolha outro." });
+      var u = { id: newId(), nick: nick, name: nick, email: key, h: hash(key + ":" + pass), cor: AVCOLORS[Math.floor(Math.random() * AVCOLORS.length)], bio: "", created: Date.now() };
+      users[key] = u; store.set("users", users);
+      return Promise.resolve({ user: VH_AUTH._session(u, "local") });
     },
     signIn: function (email, pass) {
+      if (window.VH_CLOUD && VH_CLOUD.on()) return VH_CLOUD.signIn(email, pass);
       var users = store.get("users", {}), u = users[email.toLowerCase()];
-      if (!u || u.h !== hash(u.email + ":" + pass)) return { error: "E-mail ou senha não conferem." };
-      var s = { name: u.name, email: u.email, kind: "local" }; store.set("session", s); return { user: s };
+      if (!u || u.h !== hash(u.email + ":" + pass)) return Promise.resolve({ error: "E-mail ou senha não conferem." });
+      if (!u.id) { u.id = newId(); u.nick = (u.name || "jogador").replace(/[^A-Za-z0-9_]/g, "").slice(0, 16) || "jogador"; u.cor = AVCOLORS[0]; users[u.email] = u; store.set("users", users); }
+      return Promise.resolve({ user: VH_AUTH._session(u, "local") });
     },
-    guest: function () { var s = { name: "Convidado", kind: "guest" }; store.set("session", s); return { user: s }; },
+    _session: function (u, kind) {
+      var x = { id: u.id, nick: u.nick, name: u.nick, email: u.email, cor: u.cor || AVCOLORS[0], bio: u.bio || "", created: u.created || Date.now(), kind: kind };
+      store.set("session", x); return x;
+    },
+    guest: function () { var x = { name: "Convidado", nick: "Convidado", kind: "guest" }; store.set("session", x); return { user: x }; },
     google: function () { return CFG.googleClientId ? { error: "Login com Google precisa do servidor de contas configurado (veja config.js)." } : { soon: true }; },
-    signOut: function () { store.set("session", null); },
-    rename: function (name) {
-      var s = store.get("session", null); if (!s) return;
-      s.name = name; store.set("session", s);
-      if (s.email) { var users = store.get("users", {}); if (users[s.email]) { users[s.email].name = name; store.set("users", users); } }
+    signOut: function () { if (window.VH_CLOUD && VH_CLOUD.on()) VH_CLOUD.signOut(); store.set("session", null); },
+    update: function (patch) {
+      var x = store.get("session", null); if (!x || x.kind === "guest") return { error: "Crie uma conta para ter perfil." };
+      if (patch.nick != null) {
+        if (!NICK.test(patch.nick)) return { error: "Nick: 3 a 16 letras, números ou _." };
+        if (!VH_AUTH.nickFree(patch.nick, x.email)) return { error: "Esse nick já está em uso." };
+        x.nick = x.name = patch.nick;
+      }
+      if (patch.bio != null) x.bio = String(patch.bio).slice(0, 140);
+      if (patch.cor != null) x.cor = patch.cor;
+      store.set("session", x);
+      var users = store.get("users", {});
+      if (x.email && users[x.email]) { users[x.email].nick = users[x.email].name = x.nick; users[x.email].bio = x.bio; users[x.email].cor = x.cor; store.set("users", users); }
+      if (window.VH_CLOUD && VH_CLOUD.on()) VH_CLOUD.saveProfile(x);
+      return { user: x };
     }
   };
   var Auth = (function () {
@@ -220,7 +265,23 @@
       $$(".au-err", el).forEach(function (x) { x.hidden = true; });
     }
     function err(id, t) { var e = $(id); e.textContent = t; e.hidden = false; buzz(20); }
-    function done(u) { el.hidden = true; startApp(u); toast(u.kind === "guest" ? "Entrou como convidado" : "Olá, " + u.name.split(" ")[0] + "!"); }
+    function done(u) {
+      var nu = u && u.kind !== "guest" && u.id ? u.id : "";
+      if (nu !== UID) {
+        /* cada conta tem os próprios dados: recarrega para abrir os dados dessa conta */
+        try { sessionStorage.setItem("vh_skip", u.kind === "guest" ? "Entrou como convidado" : "Olá, " + u.nick + "!"); } catch (e) { }
+        var go2 = function () { location.reload(); };
+        if (window.VH_CLOUD && VH_CLOUD.on() && nu) VH_CLOUD.pull().then(go2, go2); else go2();
+        return;
+      }
+      el.hidden = true; startApp(u); toast(u.kind === "guest" ? "Entrou como convidado" : "Olá, " + u.nick + "!");
+    }
+    var busy = false;
+    function run(p, errId, btn) {
+      if (busy) return; busy = true; btn.classList.add("busy");
+      p.then(function (r) { busy = false; btn.classList.remove("busy"); if (r.error) err(errId, r.error); else done(r.user); },
+        function () { busy = false; btn.classList.remove("busy"); err(errId, "Sem conexão com o servidor. Tente de novo."); });
+    }
     el.addEventListener("click", function (e) {
       var g = e.target.closest("[data-go]"); if (g) { pane(g.getAttribute("data-go")); return; }
       var eye = e.target.closest("[data-eye]");
@@ -232,9 +293,7 @@
       var email = $("#inEmail").value.trim(), pass = $("#inPass").value;
       if (!EMAIL.test(email)) return err("#inErr", "Escreva um e-mail válido.");
       if (!pass) return err("#inErr", "Escreva sua senha.");
-      var r = VH_AUTH.signIn(email, pass);
-      if (r.error) return err("#inErr", r.error);
-      done(r.user);
+      run(VH_AUTH.signIn(email, pass), "#inErr", $("#inForm [type=submit]") || this);
     });
     $("#upPass").addEventListener("input", function () {
       var p = this.value, sc = (p.length >= 6) + (p.length >= 10) + /[A-Z]/.test(p) + /\d/.test(p) + /[^A-Za-z0-9]/.test(p);
@@ -243,14 +302,12 @@
     $("#upForm").addEventListener("submit", function (e) {
       e.preventDefault();
       var name = $("#upName").value.trim(), email = $("#upEmail").value.trim(), pass = $("#upPass").value, pass2 = $("#upPass2").value;
-      if (name.length < 2) return err("#upErr", "Escreva seu nome.");
+      if (!NICK.test(name)) return err("#upErr", "Nick: 3 a 16 letras, números ou _ (sem espaço).");
       if (!EMAIL.test(email)) return err("#upErr", "Escreva um e-mail válido.");
       if (pass.length < 6) return err("#upErr", "A senha precisa de pelo menos 6 caracteres.");
       if (pass !== pass2) return err("#upErr", "As senhas não são iguais.");
       if (!$("#upTerms").checked) return err("#upErr", "Aceite os termos de uso para continuar.");
-      var r = VH_AUTH.signUp(name, email, pass);
-      if (r.error) return err("#upErr", r.error);
-      done(r.user);
+      run(VH_AUTH.signUp(name, email, pass), "#upErr", $("#upForm [type=submit]") || this);
     });
     $("#inForgot").onclick = function () { toast("Recuperar senha chega com as contas online"); };
     $("#upTermsLink").onclick = function () { toast("Termos completos em Mais → Ajustes → Termos de uso"); };
@@ -266,11 +323,14 @@
      ========================================================= */
   /* telas: as 5 primeiras ficam na barra; as outras abrem a partir de "Mais" */
   var TABS = [
+    { id: "home", label: "Início", ic: "home", view: "v-home" },
     { id: "map", label: "Mapa", ic: "map", view: "v-map" },
+    { id: "chat", label: "Chat", ic: "chat", view: "v-chat" },
     { id: "places", label: "Locais", ic: "pin", view: "v-places" },
-    { id: "veh", label: "Garagem", ic: "car", view: "v-veh" },
-    { id: "arms", label: "Arsenal", ic: "pistol", view: "v-arms" },
     { id: "more", label: "Mais", ic: "grid", view: "v-more" },
+    { id: "veh", view: "v-veh", sub: true },
+    { id: "arms", view: "v-arms", sub: true },
+    { id: "gallery", view: "v-gallery", sub: true },
     { id: "guide", view: "v-guide", sub: true },
     { id: "ctrl", view: "v-ctrl", sub: true },
     { id: "coll", view: "v-coll", sub: true },
@@ -303,10 +363,15 @@
     $$(".tab", dock).forEach(function (b, k) { b.classList.toggle("active", k === dockIndex()); });
     ink(); closeDrawer();
     var id = TABS[i].id;
-    if (id === "map") Map.show(); else Map.closePop();
+    if (id === "map") Map.show(); else { Map.closePop(); Map.stopDraw(); }
+    if (id === "home") Home.render();
+    if (id === "chat") Chat.show(); else Chat.leave();
+    if (id === "gallery") Gallery.render();
+    if (id === "veh") Veh.build();
     if (id === "places") Places.render();
     if (id === "set") Settings.render();
     if (id === "guide") buildBadges();
+    document.body.classList.toggle("on-home", id === "home");
     if (id === "coll") Coll.render();
     if (id === "ctrl") Ctrl.render();
     if (id === "arms") Arms.render();
@@ -325,7 +390,7 @@
     var st = { k: 1, tx: 0, ty: 0 }, fitK = 1, vw = 0, vh = 0, built = false, need = true, dirty = true;
     var cats = Object.keys(CAT);
     var on = {}; cats.forEach(function (c) { on[c] = true; });
-    var fRegion = "all", fVisit = "all", fFav = false, sel = -1, gMap, gTiles, gPins, adding = false;
+    var fRegion = "all", fVisit = "all", fFav = false, sel = -1, gMap, gTiles, gPins, gDraw, gDrawPts, adding = false;
     var builtK = -1, builtRect = null, shown = 0, eligible = 0;
 
     /* ---- tiles ---- */
@@ -364,8 +429,11 @@
     function build() {
       if (built) return; built = true;
       gMap = document.createElementNS(NS, "g"); gTiles = document.createElementNS(NS, "g"); gPins = document.createElementNS(NS, "g");
+      gDraw = document.createElementNS(NS, "g"); gDrawPts = document.createElementNS(NS, "g");
+      gDraw.setAttribute("pointer-events", "none"); gDrawPts.setAttribute("pointer-events", "none");
       svg.innerHTML = '<defs><linearGradient id="goldG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff1a8"/><stop offset=".45" stop-color="#f5c542"/><stop offset="1" stop-color="#b9791a"/></linearGradient></defs>';
-      gMap.appendChild(gTiles); svg.appendChild(gMap); svg.appendChild(gPins);
+      gMap.appendChild(gTiles); gMap.appendChild(gDraw); svg.appendChild(gMap); svg.appendChild(gPins); svg.appendChild(gDrawPts);
+      Draw.paint();
       if (!TL && window.VH_MAPIMG) { var M = window.VH_MAPIMG; gTiles.appendChild(img(M.src, M.x, M.y, M.w, M.h)); }
       bindInput(); buildQuick(); resize(true); loop();
       if (SET.tilt) { stageEl.classList.add("tilted"); $("#tilt3d").classList.add("on"); }
@@ -480,6 +548,7 @@
       });
       if (selL) { out += pinSVG(selL, selL.x * k, selL.y * k, true); labels += '<text class="pin-label" x="' + (selL.x * k).toFixed(1) + '" y="' + (selL.y * k + 16).toFixed(1) + '" text-anchor="middle">' + esc(selL.n) + "</text>"; }
       gPins.innerHTML = regs + out + labels;
+      Draw.paintPts(k);
       builtK = k; dirty = false;
       var hiddenN = eligible - shown;
       $("#legend").innerHTML = "<b>" + fmt(shown + (selL ? 1 : 0)) + "</b>/" + fmt(eligible + (selL ? 1 : 0)) + (hiddenN > 0 ? " · aproxime" : " locais");
@@ -490,6 +559,9 @@
       var outside = builtRect && (-st.tx < builtRect[0] + vw * .5 || -st.ty < builtRect[1] + vh * .5 || -st.tx + vw > builtRect[2] - vw * .5 || -st.ty + vh > builtRect[3] - vh * .5);
       if (dirty || Math.abs(st.k - builtK) > 1e-9 || outside) buildPins();
       gPins.setAttribute("transform", "translate(" + st.tx.toFixed(2) + "," + st.ty.toFixed(2) + ")");
+      gDrawPts.setAttribute("transform", "translate(" + st.tx.toFixed(2) + "," + st.ty.toFixed(2) + ")");
+      var zf = Math.log(st.k / (fitK * .8)) / Math.log(Math.max(MAXK, fitK) / (fitK * .8));
+      $("#zbar").style.height = (clamp(zf, 0, 1) * 100).toFixed(0) + "%";
       if (sel >= 0) placePop();
     }
 
@@ -613,8 +685,9 @@
         if (svg.setPointerCapture) svg.setPointerCapture(e.pointerId);
         ptrs[e.pointerId] = { x: e.clientX, y: e.clientY }; anim = null; vel = null;
         var ids = Object.keys(ptrs);
+        if (ids.length === 1 && Draw.stroking()) { Draw.begin(toMap(e)); drag = null; return; }
         if (ids.length === 1) drag = { x: e.clientX, y: e.clientY, t: performance.now(), moved: 0, lt: performance.now() };
-        if (ids.length === 2) { var a = ptrs[ids[0]], b = ptrs[ids[1]]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), k: st.k, cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2, tx: st.tx, ty: st.ty }; if (drag) drag.moved = 99; }
+        if (ids.length === 2) { Draw.cancel(); var a = ptrs[ids[0]], b = ptrs[ids[1]]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), k: st.k, cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2, tx: st.tx, ty: st.ty }; if (drag) drag.moved = 99; }
       });
       svg.addEventListener("pointermove", function (e) {
         if (!ptrs[e.pointerId]) return;
@@ -624,6 +697,7 @@
           var a = ptrs[ids[0]], b = ptrs[ids[1]], d = Math.hypot(a.x - b.x, a.y - b.y), cx = (a.x + b.x) / 2, cy = (a.y + b.y) / 2;
           var nk = clamp(pinch.k * d / pinch.d, fitK * .8, MAXK), mx = (pinch.cx - r.left - pinch.tx) / pinch.k, my = (pinch.cy - r.top - pinch.ty) / pinch.k;
           st.k = nk; st.tx = cx - r.left - mx * nk; st.ty = cy - r.top - my * nk; clampView(); need = true;
+        } else if (Draw.live()) { Draw.move(toMap(e), st.k);
         } else if (drag) {
           var dx = e.clientX - drag.x, dy = e.clientY - drag.y, now = performance.now();
           drag.moved += Math.abs(dx) + Math.abs(dy); st.tx += dx; st.ty += dy; drag.x = e.clientX; drag.y = e.clientY;
@@ -636,6 +710,7 @@
         delete ptrs[e.pointerId];
         var left = Object.keys(ptrs).length;
         if (left < 2) pinch = null;
+        if (left === 0 && Draw.live()) { Draw.end(); return; }
         if (left === 0 && drag) {
           if (drag.moved < 10 && performance.now() - drag.t < 450) onTap(e);
           else if (drag.vx && performance.now() - drag.lt < 80) vel = { x: drag.vx, y: drag.vy };
@@ -648,7 +723,8 @@
       $("#zoomOut").onclick = function () { zoomAt(vw / 2, vh / 2, .5, true); };
       $("#recenter").onclick = function () { closePop(); home(); };
       $("#tilt3d").onclick = function () { var t = stageEl.classList.toggle("tilted"); this.classList.toggle("on", t); need = true; toast(t ? "Mapa 3D ligado" : "Mapa 3D desligado"); };
-      $("#addPin").onclick = function () { if (adding) stopAdd(); else startAdd(); };
+      $("#addPin").onclick = function () { if (adding) stopAdd(); else { Draw.stop(); startAdd(); } };
+      $("#drawBtn").onclick = function () { if (Draw.active()) Draw.stop(); else { stopAdd(); closePop(); Draw.start(); } };
       $("#addCancel").onclick = stopAdd;
       $("#openFilters").onclick = openDrawer;
       var input = $("#mapSearch"), res = $("#results");
@@ -671,8 +747,10 @@
         return '<button class="result" data-i="' + l.i + '"><span class="rdot" style="background:' + c.cor + '33;color:' + c.cor + '">' + ico(c.icone) + "</span><span><b>" + esc(l.n) + "</b><small>" + esc(c.nome) + " · " + esc(l.area || REG[l.r].nome) + "</small></span></button>";
       }).join("") : '<div class="empty">Nada encontrado para "' + esc(q) + '".</div>';
     }
+    function toMap(e) { var wr = wrap.getBoundingClientRect(); return [(e.clientX - wr.left - st.tx) / st.k, (e.clientY - wr.top - st.ty) / st.k]; }
     function onTap(e) {
       var wr = wrap.getBoundingClientRect();
+      if (Draw.active()) { Draw.tap(toMap(e), st.k); return; }
       if (adding) {
         stopAdd();
         var mx = (e.clientX - wr.left - st.tx) / st.k, my = (e.clientY - wr.top - st.ty) / st.k;
@@ -687,6 +765,91 @@
       if (now - lastTap < 320) zoomAt(e.clientX - wr.left, e.clientY - wr.top, 2, true);
       lastTap = now;
     }
+
+    /* ---- desenho no mapa: pincel, texto, ícone, borracha, desfazer ---- */
+    var Draw = (function () {
+      var COLORS = ["#ff3d8b", "#ffd23f", "#2de2e6", "#5dff9b", "#ffffff", "#ff5c5c", "#8b5cf6", "#111111"];
+      var ICONS = ["star2", "pin", "car", "gun", "money", "skull", "flag", "garage"];
+      var items = store.get("drawings", []), on = false, tool = "pen", color = COLORS[0], width = 5, cur = null, curEl = null, iconSel = "star2";
+      function save() { store.set("drawings", items); }
+      function pathD(p) { return p.map(function (q, i) { return (i ? "L" : "M") + q[0] + " " + q[1]; }).join(""); }
+      function paint() {
+        if (!gDraw) return;
+        gDraw.innerHTML = items.filter(function (it) { return it.t === "p"; }).map(function (it) {
+          return '<path d="' + pathD(it.pts) + '" fill="none" stroke="' + it.c + '" stroke-width="' + it.w + '" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" opacity=".92"/>';
+        }).join("");
+        paintPts(st.k);
+      }
+      function paintPts(k) {
+        if (!gDrawPts) return;
+        gDrawPts.innerHTML = items.map(function (it) {
+          var x = (it.x * k).toFixed(1), y = (it.y * k).toFixed(1);
+          if (it.t === "x") return '<text class="d-text" x="' + x + '" y="' + y + '" text-anchor="middle" fill="' + it.c + '">' + esc(it.s) + "</text>";
+          if (it.t === "i") return '<g transform="translate(' + x + "," + y + ')"><circle r="15" fill="' + it.c + '" stroke="#fff" stroke-width="2"/><g transform="translate(-8.4,-8.4) scale(.7)" fill="none" stroke="' + (it.c === "#ffffff" || it.c === "#ffd23f" ? "#111" : "#fff") + '" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">' + (IC[it.ic] || IC.star2) + "</g></g>";
+          return "";
+        }).join("");
+      }
+      function ui() {
+        $$("#dbTools [data-tool]").forEach(function (b) { b.classList.toggle("on", b.getAttribute("data-tool") === tool); });
+        $("#dbColors").innerHTML = COLORS.map(function (c) { return '<button class="' + (c === color ? "on" : "") + '" data-c="' + c + '" style="background:' + c + '" aria-label="Cor"></button>'; }).join("");
+      }
+      function start() {
+        on = true; build(); $("#drawBar").hidden = false; $("#v-map").classList.add("drawing"); $("#drawBtn").classList.add("on"); ui();
+        toast("Desenhe com um dedo. Use dois dedos para mover o mapa");
+      }
+      function stop() { if (!on) return; on = false; cur = null; $("#drawBar").hidden = true; $("#v-map").classList.remove("drawing"); $("#drawBtn").classList.remove("on"); }
+      function near(p, k) {
+        var best = -1, bd = 18 / k;
+        items.forEach(function (it, i) {
+          var pts = it.t === "p" ? it.pts : [[it.x, it.y]];
+          pts.forEach(function (q) { var d = Math.hypot(q[0] - p[0], q[1] - p[1]); if (d < bd) { bd = d; best = i; } });
+        });
+        return best;
+      }
+      function tap(p, k) {
+        p = [Math.round(p[0]), Math.round(p[1])];
+        if (tool === "erase") { var i = near(p, k); if (i >= 0) { items.splice(i, 1); save(); paint(); buzz(10); } else toast("Toque em cima do que quer apagar"); return; }
+        if (tool === "text") {
+          openSheet('<span class="eyebrow">Texto no mapa</span><h2 style="margin:4px 0 12px">O que escrever?</h2><label class="field"><span>Texto</span><input id="dtText" type="text" maxlength="40" placeholder="Ex.: ponto de encontro" /></label><div class="stack"><button class="btn primary" id="dtOk">Colocar no mapa</button></div>');
+          setTimeout(function () { var i = $("#dtText"); if (i) i.focus(); }, 250);
+          $("#dtOk").onclick = function () { var t = $("#dtText").value.trim(); if (!t) return; items.push({ t: "x", c: color, x: p[0], y: p[1], s: t }); save(); paint(); closeSheet(); };
+          return;
+        }
+        if (tool === "icon") {
+          openSheet('<span class="eyebrow">Ícone no mapa</span><h2 style="margin:4px 0 12px">Escolha o ícone</h2><div class="db-icons">' + ICONS.map(function (n) { return '<button data-ic="' + n + '" style="background:' + color + '">' + ico(n) + "</button>"; }).join("") + "</div>");
+          $("#sheetPanel").onclick = function (e) { var b = e.target.closest("[data-ic]"); if (!b) return; iconSel = b.getAttribute("data-ic"); items.push({ t: "i", c: color, x: p[0], y: p[1], ic: iconSel }); save(); paint(); closeSheet(); buzz(10); };
+          return;
+        }
+      }
+      function begin(p) { cur = { t: "p", c: color, w: width, pts: [[Math.round(p[0]), Math.round(p[1])]] }; curEl = document.createElementNS(NS, "path"); curEl.setAttribute("fill", "none"); curEl.setAttribute("stroke", color); curEl.setAttribute("stroke-width", width); curEl.setAttribute("stroke-linecap", "round"); curEl.setAttribute("stroke-linejoin", "round"); curEl.setAttribute("vector-effect", "non-scaling-stroke"); gDraw.appendChild(curEl); }
+      function move(p, k) {
+        if (!cur) return;
+        var l = cur.pts[cur.pts.length - 1];
+        if (Math.hypot(p[0] - l[0], p[1] - l[1]) * k < 3) return;
+        cur.pts.push([Math.round(p[0]), Math.round(p[1])]); curEl.setAttribute("d", pathD(cur.pts));
+      }
+      function end() {
+        if (cur && cur.pts.length > 1) { items.push(cur); save(); }
+        else if (cur) { tap(cur.pts[0], st.k); }
+        cur = null; curEl = null; paint();
+      }
+      function cancel() { if (curEl && curEl.parentNode) curEl.parentNode.removeChild(curEl); cur = null; curEl = null; }
+      $("#dbTools").addEventListener("click", function (e) {
+        var b = e.target.closest("[data-tool]"); if (!b) return;
+        var t = b.getAttribute("data-tool"); buzz(6);
+        if (t === "undo") { if (items.length) { items.pop(); save(); paint(); } else toast("Nada para desfazer"); return; }
+        tool = t; ui();
+        toast({ pen: "Pincel: arraste um dedo", text: "Toque onde vai o texto", icon: "Toque onde vai o ícone", erase: "Toque no desenho para apagar" }[t]);
+      });
+      $("#dbColors").addEventListener("click", function (e) { var b = e.target.closest("[data-c]"); if (!b) return; color = b.getAttribute("data-c"); ui(); });
+      $("#dbWidth").addEventListener("input", function () { width = +this.value; });
+      $("#dbDone").onclick = function () { stop(); toast(items.length ? "Desenho salvo na sua conta" : "Modo desenho fechado"); };
+      return {
+        start: start, stop: stop, active: function () { return on; }, stroking: function () { return on && tool === "pen"; }, live: function () { return !!cur; },
+        begin: begin, move: move, end: end, cancel: cancel, tap: tap, paint: paint, paintPts: paintPts,
+        count: function () { return items.length; }
+      };
+    })();
 
     /* ---- filtros ---- */
     function hiddenCount() { return cats.filter(function (c) { return !on[c]; }).length; }
@@ -734,6 +897,7 @@
       show: function () { build(); setTimeout(function () { resize(false); }, 30); need = true; },
       resize: function () { resize(false); },
       closePop: closePop, popOpen: function () { return !pop.hidden; }, adding: function () { return adding; }, stopAdd: stopAdd, startAdd: startAdd,
+      drawing: function () { return Draw.active(); }, stopDraw: function () { Draw.stop(); }, drawCount: function () { return Draw.count(); },
       focus: function (i) { go("map"); var l = LOCS[i]; on[l.c] = true; syncBadge(); setTimeout(function () { select(i, true); }, 120); },
       region: function (r) {
         go("map"); cats.forEach(function (c) { on[c] = true; }); fRegion = r.id; syncBadge();
@@ -797,12 +961,18 @@
     return { open: open };
   })();
 
+  function avatarHTML(u, size) {
+    var guest = !u || u.kind === "guest";
+    return '<span class="avatar' + (guest ? " guest" : "") + '"' + (guest ? "" : ' style="background:' + esc(u.cor || "#ff3d8b") + (size ? ";width:" + size + "px;height:" + size + "px" : "") + '"') + (guest && size ? ' style="width:' + size + "px;height:" + size + 'px"' : "") + ">" + esc(((u && u.nick) || "C").charAt(0).toUpperCase()) + "</span>";
+  }
+  function copyText(t, ok) { try { navigator.clipboard.writeText(t).then(function () { toast(ok); }, function () { toast(t); }); } catch (e) { toast(t); } }
   function openProfile() {
     var u = VH_AUTH.current() || { name: "Convidado", kind: "guest" }, guest = u.kind === "guest";
     var nMine = LOCS.filter(function (l) { return l.mine; }).length;
-    openSheet('<div class="prof"><span class="avatar' + (guest ? " guest" : "") + '">' + esc((u.name || "?").charAt(0).toUpperCase()) + "</span><span><b>" + esc(u.name) + "</b><small>" + (guest ? "Convidado · dados salvos neste aparelho" : esc(u.email) + " · conta neste aparelho") + "</small></span></div>" +
+    openSheet('<div class="prof">' + avatarHTML(u) + "<span><b>" + esc(u.nick || u.name) + "</b><small>" + (guest ? "Convidado · dados salvos neste aparelho" : esc(u.id) + " · " + esc(u.email)) + "</small></span></div>" +
+      (u.bio ? '<p class="muted" style="margin:0 0 12px;font-size:13px">' + esc(u.bio) + "</p>" : "") +
       '<div class="pstats"><div><b>' + fmt(nVisited()) + "</b><span>visitados</span></div><div><b>" + Object.keys(favs).length + "</b><span>salvos</span></div><div><b>" + nMine + "</b><span>marcadores</span></div></div>" +
-      '<div class="stack">' + (guest ? '<button class="btn primary" data-p="login">' + ico("user") + "Entrar ou criar conta</button>" : "") +
+      '<div class="stack">' + (guest ? '<button class="btn primary" data-p="login">' + ico("user") + "Entrar ou criar conta</button>" : '<button class="btn primary" data-p="edit">' + ico("pen") + "Editar perfil</button>" + '<button class="btn ghost" data-p="id">' + ico("copy") + "Copiar meu ID</button>") +
       '<a class="btn au-discord" data-p="discord" href="' + esc(CFG.discordUrl || "#") + '"' + (CFG.discordUrl ? ' target="_blank" rel="noopener"' : "") + ">Comunidade no Discord" + (CFG.discordUrl ? "" : "<em>em breve</em>") + "</a>" +
       '<button class="btn ghost" data-p="out">' + ico("logout") + (guest ? "Sair do modo convidado" : "Sair da conta") + "</button></div>" +
       '<p class="copy">© 2026 Flow Labs Studio · Todos os direitos reservados</p>');
@@ -810,8 +980,17 @@
       var b = e.target.closest("[data-p]"); if (!b) return;
       var p = b.getAttribute("data-p");
       if (p === "discord" && !CFG.discordUrl) { e.preventDefault(); toast("Nosso Discord abre em breve"); }
-      if (p === "login" || p === "out") { if (p === "out") VH_AUTH.signOut(); closeSheet(); Auth.show(); }
+      if (p === "id") copyText(u.id, "ID copiado: " + u.id);
+      if (p === "edit") { closeSheet(); go("set"); }
+      if (p === "login" || p === "out") { closeSheet(); signOutAndShow(p === "out"); }
     };
+  }
+  function signOutAndShow(out) {
+    if (out) {
+      VH_AUTH.signOut();
+      if (UID) { try { sessionStorage.setItem("vh_auth", "1"); } catch (e) { } location.reload(); return; }
+    }
+    Auth.show();
   }
   $("#avatarBtn").onclick = openProfile;
   $("#progressBtn").onclick = openProfile;
@@ -975,11 +1154,14 @@
   var GD = window.VH_GUIDE || { armas: [], armasTipos: {}, controles: [], cartas: [], raros: [], linhaDoTempo: [] };
   function buildHub() {
     var tiles = [
-      ["guide", "book", "#ff3d8b", "Guia de Leonida", "Regiões, elenco, rádios e conquistas", true],
+      ["veh", "car", "#ff9a3c", "Garagem", "Carros, motos, barcos e aviões"],
+      ["arms", "pistol", "#ff3b3b", "Arsenal", "Catálogo de armas"],
+      ["gallery", "image", "#2de2e6", "Galeria", "Fotos do jogo e da vida real", true],
+      ["guide", "book", "#ff3d8b", "Guia de Leonida", "Regiões, elenco e rádios"],
       ["coll", "card", "#f5c542", "Colecionáveis", "Cartas douradas e carros raros"],
-      ["ctrl", "pad", "#4fa8ff", "Controles", "PS5 e Xbox: combate e luta"],
+      ["ctrl", "pad", "#4fa8ff", "Controles", "Combate, códigos e glitches"],
       ["time", "clock", "#8b5cf6", "Linha do tempo", "Trailers, adiamentos e recordes"],
-      ["set", "gear", "#3ddc97", "Ajustes", "Perfil, temas e privacidade"]
+      ["set", "gear", "#3ddc97", "Ajustes", "Perfil, temas e privacidade", true]
     ];
     $("#hub").innerHTML = tiles.map(function (t) {
       return '<button class="hub-t glass' + (t[5] ? " wide" : "") + '" data-hub="' + t[0] + '" style="--c:' + t[2] + '"><span class="hi">' + ico(t[1]) + "</span><span><b>" + t[3] + "</b><small>" + t[4] + "</small></span></button>";
@@ -1039,24 +1221,57 @@
   })();
 
   var Ctrl = (function () {
-    var pad = store.get("pad", "ps");
+    var pad = store.get("pad", "ps"), cat = "combate";
     var PSK = { "△": "tri round", "○": "cir round", "✕": "crs round", "□": "sqr round" };
     var XBK = { Y: "xy round", B: "xb round", A: "xa round", X: "xx round" };
+    var CATS = GD.controlCats || [{ id: "combate", nome: "Controles", icone: "pad", grupos: (GD.controles || []).map(function (g) { return g.grupo; }) }];
     function keys(s) {
       return '<span class="keys">' + s.split("+").map(function (k) {
         var cls = pad === "ps" ? PSK[k] : XBK[k];
         return '<span class="key ' + (cls || "") + '">' + esc(k) + "</span>";
       }).join("") + "</span>";
     }
-    function render() {
-      $$("#padSeg button").forEach(function (b) { b.classList.toggle("on", b.getAttribute("data-pad") === pad); });
-      $("#ctrlBody").innerHTML = GD.controles.map(function (g) {
+    function soon(c) {
+      return '<div class="soon-box glass"><div class="fake"><div></div><div></div><div></div><div></div></div><div class="over"><div><b>' + esc(c.nome) + "</b><span>Em breve. Esta parte entra assim que os comandos forem confirmados.</span></div></div></div>";
+    }
+    function body(c) {
+      if (c.soon) return soon(c);
+      if (c.tipo === "codigos") {
+        var como = (GD.codigosComo || {})[pad] || "";
+        return '<div class="card glass" style="margin-top:12px;padding:14px"><b style="font-size:14px">Como digitar</b><p class="muted" style="margin:6px 0 0;font-size:13px">' + esc(como) + "</p></div>" +
+          '<div style="margin-top:10px">' + (GD.codigos || []).map(function (k) {
+            return '<div class="code glass"><b>' + esc(k.n) + '</b><div class="seq">' + k.seq.split(" ").map(function (a) { return "<span>" + esc(a) + "</span>"; }).join("") + "</div><small>Libera: " + esc(k.lib) + "</small></div>";
+          }).join("") + "</div>" + (GD.codigosNota ? '<p class="note">' + esc(GD.codigosNota) + "</p>" : "");
+      }
+      if (c.tipo === "glitches") {
+        return '<div style="margin-top:12px">' + (GD.glitches || []).map(function (g) {
+          var ok = g.st === "funcionando";
+          return '<div class="gl glass"><span class="st ' + (ok ? "ok" : "no") + '">' + esc(g.st) + "</span><br><b>" + esc(g.n) + "</b><ol>" + g.passos.map(function (p) { return "<li>" + esc(p) + "</li>"; }).join("") + "</ol>" + (g.dica ? "<p>" + esc(g.dica) + "</p>" : "") + "</div>";
+        }).join("") + "</div>" + (GD.glitchesNota ? '<p class="note">' + esc(GD.glitchesNota) + "</p>" : "");
+      }
+      var groups = (GD.controles || []).filter(function (g) { return (c.grupos || []).indexOf(g.grupo) >= 0; });
+      if (!groups.length) return soon(c);
+      return groups.map(function (g) {
         return '<div class="cg"><h3>' + esc(g.grupo) + "</h3>" + (g.nota ? '<p class="nt">' + esc(g.nota) + "</p>" : "") + '<div class="card glass">' +
           g.itens.map(function (r) { return '<div class="cr"><span class="lbl">' + esc(r[0]) + (r[3] ? "<em>pode variar</em>" : "") + "</span>" + keys(pad === "ps" ? r[1] : r[2]) + "</div>"; }).join("") + "</div></div>";
-      }).join("");
-      $("#ctrlNote").textContent = GD.controlesNota || "";
+      }).join("") + '<p class="note">' + esc(GD.controlesNota || "") + "</p>";
+    }
+    function count(c) {
+      if (c.soon) return "em breve";
+      if (c.tipo === "codigos") return (GD.codigos || []).length + " códigos";
+      if (c.tipo === "glitches") return (GD.glitches || []).length + " glitches";
+      return (GD.controles || []).filter(function (g) { return (c.grupos || []).indexOf(g.grupo) >= 0; }).reduce(function (s, g) { return s + g.itens.length; }, 0) + " comandos";
+    }
+    function render() {
+      $$("#padSeg button").forEach(function (b) { b.classList.toggle("on", b.getAttribute("data-pad") === pad); });
+      var c = CATS.filter(function (x) { return x.id === cat; })[0] || CATS[0];
+      $("#ctrlBody").innerHTML = '<div class="cc-grid">' + CATS.map(function (x) {
+        return '<button class="cc glass' + (x.id === c.id ? " on" : "") + '" data-cc="' + x.id + '"><span class="ci">' + ico(x.icone) + "</span><span><b>" + esc(x.nome) + "</b><small>" + count(x) + "</small></span>" + (x.soon ? '<span class="soon">em breve</span>' : "") + "</button>";
+      }).join("") + "</div>" + body(c);
+      $("#ctrlNote").textContent = "";
     }
     $("#padSeg").onclick = function (e) { var b = e.target.closest("[data-pad]"); if (!b) return; pad = b.getAttribute("data-pad"); store.set("pad", pad); buzz(6); render(); };
+    $("#ctrlBody").addEventListener("click", function (e) { var b = e.target.closest("[data-cc]"); if (!b) return; cat = b.getAttribute("data-cc"); buzz(6); render(); });
     return { render: render };
   })();
 
@@ -1117,7 +1332,14 @@
     $("#cast").innerHTML = (D.personagens || []).map(function (p) {
       return '<div class="ch glass"><span class="av">' + esc(p.nome.charAt(0)) + "</span><b>" + esc(p.nome) + "</b><small>" + esc(p.papel) + "</small><p>" + esc(p.texto) + "</p></div>";
     }).join("");
-    $("#radios").innerHTML = (D.radios || []).map(function (r) {
+    if (GD.radios && GD.radios.length) {
+      var rEl = $("#radios"); rEl.className = "rd2-list";
+      rEl.innerHTML = GD.radios.map(function (r) {
+        return '<div class="rd2 glass" style="--c:' + r.cor + '"><span class="disc"></span><div style="min-width:0"><b>' + esc(r.nome) + "</b><small>" + esc(r.estilo) + (r.host ? " · apresentação: " + esc(r.host) : "") + "</small>" +
+          (r.artistas.length ? '<div class="art">' + r.artistas.map(function (a) { return "<span>" + esc(a) + "</span>"; }).join("") + "</div>" : '<small style="display:block;margin-top:6px">Artistas ainda não confirmados.</small>') +
+          (r.musicas.length ? "<ul>" + r.musicas.map(function (m) { return "<li>" + esc(m) + "</li>"; }).join("") + "</ul>" : "") + "</div></div>";
+      }).join("") + (GD.radiosNota ? '<p class="note">' + esc(GD.radiosNota) + "</p>" : "");
+    } else $("#radios").innerHTML = (D.radios || []).map(function (r) {
       return '<div class="rd glass" style="--c:' + r.cor + '"><span class="disc" style="display:block"></span><b>' + esc(r.nome) + "</b><small>" + esc(r.estilo) + "</small></div>";
     }).join("");
     $("#randomPlace").onclick = function () { Map.random(); };
@@ -1132,8 +1354,12 @@
       ["Colecionador", "24 cartas", Coll.have() >= 24, "card"], ["Mestre das cartas", "todas as 480", Coll.have() >= 480, "trophy"], ["Foto real", "veja 1 lugar real", !!store.get("sawReal", false), "camera"]
     ];
     var got = list.filter(function (b) { return b[2]; }).length;
+    var html = function (l) { return l.map(function (b) { return '<div class="bdg glass' + (b[2] ? " got" : "") + '"><span class="md">' + ico(b[3]) + "</span><b>" + esc(b[0]) + "</b><small>" + esc(b[1]) + "</small></div>"; }).join(""); };
     $("#badgeCount").textContent = got + " de " + list.length;
-    $("#badges").innerHTML = list.map(function (b) { return '<div class="bdg glass' + (b[2] ? " got" : "") + '"><span class="md">' + ico(b[3]) + "</span><b>" + esc(b[0]) + "</b><small>" + esc(b[1]) + "</small></div>"; }).join("");
+    $("#badges").innerHTML = html(list);
+    $("#hmTrophy").textContent = got + " de " + list.length;
+    $("#hmBadges").innerHTML = html(list.filter(function (b) { return b[2]; }).concat(list.filter(function (b) { return !b[2]; })).slice(0, 6));
+    return { got: got, total: list.length };
   }
 
   /* =========================================================
@@ -1149,9 +1375,17 @@
     function render() {
       var u = VH_AUTH.current() || { name: "Convidado", kind: "guest" }, guest = u.kind === "guest";
       var h = "";
+      var cloud = window.VH_CLOUD && VH_CLOUD.on();
       h += '<div class="set-sec"><h2>Perfil</h2><div class="set-card glass">' +
-        '<div class="set-row"><span class="avatar' + (guest ? " guest" : "") + '" style="width:44px;height:44px">' + esc((u.name || "?").charAt(0).toUpperCase()) + '</span><span class="st-t"><b>' + esc(u.name) + "</b><small>" + (guest ? "Modo convidado" : esc(u.email)) + "</small></span></div>" +
-        (guest ? row("login", "user", "Entrar ou criar conta", "Guarde seu progresso numa conta") : row("rename", "pen", "Nome de exibição", esc(u.name), ico("right", ' width="18" height="18"'))) +
+        '<div class="set-row">' + avatarHTML(u, 48) + '<span class="st-t"><b>' + esc(u.nick || u.name) + "</b><small>" + (guest ? "Modo convidado · sem ID" : esc(u.id) + " · " + esc(u.email)) + "</small></span></div>" +
+        (guest ? row("login", "user", "Entrar ou criar conta", "Ganhe um ID, nick e seus dados salvos na conta") :
+          row("nick", "pen", "Nick", esc(u.nick), ico("right", ' width="18" height="18"')) +
+          row("bio", "text", "Bio", u.bio ? esc(u.bio) : "Conte algo sobre você", ico("right", ' width="18" height="18"')) +
+          '<div class="set-row"><span class="si">' + ico("palette") + '</span><span class="st-t"><b>Cor do avatar</b></span></div><div class="swatches" style="padding-top:0">' +
+          AVCOLORS.map(function (c) { return '<button class="swatch' + (u.cor === c ? " on" : "") + '" data-k="avcor" data-v="' + c + '" style="background:' + c + '" aria-label="' + c + '"></button>'; }).join("") + "</div>" +
+          row("copyid", "copy", "Copiar meu ID", esc(u.id), "") +
+          row("since", "clock", "Conta criada", new Date(u.created || Date.now()).toLocaleDateString("pt-BR"), "")) +
+        row("sync", "cloud", "Sincronização", cloud ? (guest ? "Entre numa conta para salvar online" : "Ligada: mapa, desenhos e progresso vão para a sua conta") : "Modo local: seus dados ficam salvos na sua conta neste aparelho. Online em breve", cloud && !guest ? '<span class="val">On</span>' : '<span class="val">Local</span>') +
         row("logout", "logout", guest ? "Sair do modo convidado" : "Sair da conta", "", "") + "</div></div>";
       h += '<div class="set-sec"><h2>Aparência</h2><div class="set-card glass"><div class="themes">' + Object.keys(THEMES).map(function (id) {
         var t = THEMES[id];
@@ -1174,6 +1408,7 @@
         '<div class="set-row"><span class="si">' + ico("pin") + '</span><span class="st-t"><b>Tamanho dos ícones</b></span>' + opt3("iconSize", SET.iconSize, [["p", "P"], ["m", "M"], ["g", "G"]]) + "</div>" +
         '<div class="set-row"><span class="si">' + ico("grid") + '</span><span class="st-t"><b>Quantidade de ícones</b></span>' + opt3("density", SET.density, [["poucos", "Poucos"], ["normal", "Normal"], ["muitos", "Muitos"]]) + "</div>" +
         row("tilt", "layers", "Abrir o mapa em 3D", "", sw(SET.tilt)) +
+        row("clearDraw", "trash", armed.clearDraw ? "Toque de novo para confirmar" : "Apagar meus desenhos", Map.drawCount() + " desenhos, textos e ícones", "", "danger") +
         row("hideVisited", "eye", "Esconder visitados", "Some com os locais que você já marcou", sw(SET.hideVisited)) + "</div></div>";
       h += '<div class="set-sec"><h2>Notificações</h2><div class="set-card glass">' +
         row("n:novidades", "bell", "Novidades do ViceHub", "Atualizações e novos recursos", sw(SET.notif.novidades)) +
@@ -1213,23 +1448,42 @@
       else if (k === "motion" || k === "big" || k === "labels" || k === "tilt" || k === "hideVisited") SET[k] = !SET[k];
       else if (k === "iconSize" || k === "density") SET[k] = v;
       else if (k.indexOf("n:") === 0) { var n = k.slice(2); SET.notif[n] = !SET.notif[n]; }
-      else if (k === "login" || k === "logout") { if (k === "logout") VH_AUTH.signOut(); Auth.show(); return; }
+      else if (k === "login" || k === "logout") { signOutAndShow(k === "logout"); return; }
+      else if (k === "copyid") { copyText((VH_AUTH.current() || {}).id || "", "ID copiado"); return; }
+      else if (k === "since") return;
+      else if (k === "sync") { if (window.VH_CLOUD && VH_CLOUD.on()) { VH_CLOUD.push(true); toast("Sincronizando…"); } else toast("O servidor online entra em breve. Seus dados já ficam separados por conta"); return; }
+      else if (k === "avcor") { VH_AUTH.update({ cor: v }); startApp(VH_AUTH.current()); render(); return; }
+      else if (k === "nick" || k === "bio") {
+        var cu = VH_AUTH.current() || {}, isNick = k === "nick";
+        openSheet('<span class="eyebrow">Perfil</span><h2 style="margin:4px 0 12px">' + (isNick ? "Seu nick" : "Sua bio") + '</h2><label class="field"><span>' + (isNick ? "Nick (3 a 16 · letras, números e _)" : "Bio (até 140)") + '</span><input id="pfVal" type="text" maxlength="' + (isNick ? 16 : 140) + '" value="' + esc(isNick ? cu.nick : cu.bio || "") + '" /></label><p class="au-err" id="pfErr" hidden></p><div class="stack"><button class="btn primary" id="pfSave">Salvar</button></div>');
+        $("#pfSave").onclick = function () {
+          var val = $("#pfVal").value.trim(), patch = {}; patch[k] = val;
+          var r = VH_AUTH.update(patch);
+          if (r.error) { var pe = $("#pfErr"); pe.textContent = r.error; pe.hidden = false; return; }
+          closeSheet(); startApp(VH_AUTH.current()); render(); toast(isNick ? "Nick atualizado" : "Bio atualizada");
+        };
+        return;
+      }
       else if (k === "rename") {
         openSheet('<span class="eyebrow">Perfil</span><h2 style="margin:4px 0 12px">Nome de exibição</h2><label class="field"><span>Nome</span><input id="rnName" type="text" value="' + esc((VH_AUTH.current() || {}).name || "") + '"></label><div class="stack"><button class="btn primary" id="rnSave">Salvar</button></div>');
         $("#rnSave").onclick = function () { var nm = $("#rnName").value.trim(); if (nm.length < 2) { toast("Nome muito curto"); return; } VH_AUTH.rename(nm); closeSheet(); startApp(VH_AUTH.current()); render(); toast("Nome atualizado"); };
         return;
       }
       else if (k === "export") {
-        var data = JSON.stringify({ visitados: visited, salvos: favs, marcadores: LOCS.filter(function (l) { return l.mine; }).map(function (l) { return { n: l.n, c: l.c, x: l.x, y: l.y, d: l.d }; }), garagem: store.get("owned", {}), ajustes: SET }, null, 1);
+        var data = JSON.stringify({ perfil: VH_AUTH.current(), desenhos: store.get("drawings", []), cartas: store.get("cards", {}), visitados: visited, salvos: favs, marcadores: LOCS.filter(function (l) { return l.mine; }).map(function (l) { return { n: l.n, c: l.c, x: l.x, y: l.y, d: l.d }; }), garagem: store.get("owned", {}), ajustes: SET }, null, 1);
         try { navigator.clipboard.writeText(data).then(function () { toast("Dados copiados"); }, function () { toast("Não deu para copiar neste aparelho"); }); } catch (err) { toast("Não deu para copiar neste aparelho"); }
         return;
+      }
+      else if (k === "clearDraw") {
+        if (!armed[k]) { armed = {}; armed[k] = true; render(); return; }
+        armed = {}; store.set("drawings", []); toast("Desenhos apagados"); setTimeout(function () { location.reload(); }, 600); return;
       }
       else if (k === "clearProgress" || k === "clearPins" || k === "clearAll") {
         if (!armed[k]) { armed = {}; armed[k] = true; render(); return; }
         armed = {};
         if (k === "clearProgress" || k === "clearAll") { visited = {}; favs = {}; store.set("visited", visited); store.set("favs", favs); }
         if (k === "clearPins" || k === "clearAll") { LOCS = LOCS.filter(function (l) { return !l.mine; }); reindex(); saveMine(); }
-        if (k === "clearAll") { Veh.reset(); store.set("settings", null); store.set("users", {}); VH_AUTH.signOut(); location.reload(); return; }
+        if (k === "clearAll") { Veh.reset(); store.set("settings", null); store.set("drawings", []); store.set("cards", {}); store.set("users", {}); VH_AUTH.signOut(); location.reload(); return; }
         updateProgress(); Map.refresh(); toast("Apagado");
       }
       else if (k === "privacy") { textSheet("Política de privacidade", ["O ViceHub guarda seus visitados, salvos, marcadores, fotos que você adiciona e ajustes só neste aparelho.", "Não coletamos localização, contatos nem dados de uso. Não há anúncios rastreando você nesta versão.", "Quando as contas online chegarem, esta política será atualizada antes de qualquer dado sair do aparelho.", "Para apagar tudo, use Ajustes → Privacidade e dados → Apagar tudo e sair."]); return; }
@@ -1246,12 +1500,230 @@
   })();
 
   /* =========================================================
+     INÍCIO (estilo tela inicial de console)
+     ========================================================= */
+  var Home = (function () {
+    var HEROES = ["img/leonida.jpg", "img/regioes/vice.jpg", "img/regioes/keys.jpg", "img/regioes/gellhorn.jpg", "img/regioes/ambrosia.jpg", "img/regioes/grass.jpg"];
+    var hi = 0, timer = 0, clockT = 0;
+    function photoOf(cats, salt) {
+      var pool = LOCS.filter(function (l) { return l.foto && !l.mine && (!cats || cats.indexOf(l.c) >= 0); });
+      return pool.length ? pool[(salt * 7919) % pool.length].foto : "img/leonida.jpg";
+    }
+    function ring(pct, color, label) {
+      var R = 22, C = 2 * Math.PI * R;
+      return '<div class="ring"><svg viewBox="0 0 52 52"><circle cx="26" cy="26" r="' + R + '" fill="none" stroke="rgba(127,127,127,.2)" stroke-width="5"/><circle cx="26" cy="26" r="' + R + '" fill="none" stroke="' + color + '" stroke-width="5" stroke-linecap="round" stroke-dasharray="' + C.toFixed(1) + '" stroke-dashoffset="' + (C * (1 - clamp(pct, 0, 1))).toFixed(1) + '" transform="rotate(-90 26 26)"/></svg><b>' + label + "</b></div>";
+    }
+    function clock() {
+      var d = new Date(), h = d.getHours(), u = VH_AUTH.current() || {};
+      $("#hmClock").textContent = ("0" + h).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2);
+      $("#hmHello").textContent = (h < 5 ? "Boa madrugada" : h < 12 ? "Bom dia" : h < 18 ? "Boa tarde" : "Boa noite") + ", " + (u.kind === "guest" || !u.nick ? "convidado" : u.nick);
+    }
+    function hero() { $("#hmBg").style.backgroundImage = "url(" + HEROES[hi % HEROES.length] + ")"; hi++; }
+    function render() {
+      clock(); clearInterval(clockT); clockT = setInterval(clock, 20000);
+      if (!timer) { hero(); timer = setInterval(function () { if (TABS[current].id === "home" && !document.hidden) hero(); }, 9000); }
+      var nf = LOCS.filter(function (l) { return l.foto && !l.mine; }).length;
+      $("#hmSub").textContent = fmt(LOCS.length) + " locais no mapa oficial · " + fmt(nf) + " fotos do jogo · " + D.veiculos.length + " veículos";
+      var tiles = [
+        ["map", "Mapa", "Leonida inteira", "map", "#ff3d8b", "img/leonida.jpg"],
+        ["chat", "Chat", "Fale com a galera", "chat", "#3ddc97", photoOf(["boate", "bar"], 3)],
+        ["veh", "Garagem", D.veiculos.length + " veículos", "car", "#ff9a3c", photoOf(["oficina", "garagem", "posto"], 5)],
+        ["arms", "Arsenal", (GD.armas || []).length + " armas", "pistol", "#ff3b3b", photoOf(["armas"], 2)],
+        ["gallery", "Galeria", fmt(nf) + " fotos", "image", "#2de2e6", photoOf(["marco", "natureza"], 11)],
+        ["coll", "Colecionáveis", "Cartas e carros raros", "card", "#f5c542", photoOf(["loja", "mercado"], 13)],
+        ["ctrl", "Controles", "Códigos e glitches", "pad", "#4fa8ff", photoOf(["corrida", "aereo"], 17)],
+        ["guide", "Guia", "Regiões e rádios", "book", "#8b5cf6", "img/regioes/vice.jpg"],
+        ["time", "Linha do tempo", "Trailers e recordes", "clock", "#ffd23f", photoOf(["hotel", "residencial"], 19)]
+      ];
+      $("#hmTiles").innerHTML = tiles.map(function (t) {
+        return '<button class="tile" data-go="' + t[0] + '" style="--c:' + t[4] + '"><span class="tim" style="background-image:url(' + esc(t[5]) + ')"><i>' + ico(t[3]) + "</i></span><b>" + t[1] + "</b><small>" + esc(t[2]) + "</small></button>";
+      }).join("");
+      var v = nVisited(), cards = Coll.have(), cardsT = GD.cartas.reduce(function (a, c) { return a + c[1]; }, 0) || 1;
+      var mine = LOCS.filter(function (l) { return l.mine; }).length, owned = Veh.ownedCount(), fv = Object.keys(favs).length;
+      var regs = D.regioes.filter(function (r) { return LOCS.some(function (l) { return l.r === r.id && visited[l.id]; }); }).length;
+      var xp = v * 10 + cards * 4 + mine * 15 + owned * 6 + fv * 2 + Map.drawCount() * 3, lvl = Math.floor(Math.sqrt(xp / 40)) + 1;
+      var nextXp = Math.pow(lvl, 2) * 40, prevXp = Math.pow(lvl - 1, 2) * 40;
+      $("#hmLevel").textContent = "Nível " + lvl + " · " + fmt(xp) + " XP";
+      $("#hmStats").innerHTML = [
+        [ring(v / (LOCS.length || 1), "#ff3d8b", Math.round(v / (LOCS.length || 1) * 100) + "%"), fmt(v), "locais visitados"],
+        [ring(cards / cardsT, "#f5c542", Math.round(cards / cardsT * 100) + "%"), cards + "/" + cardsT, "cartas coletadas"],
+        [ring(regs / D.regioes.length, "#2de2e6", regs + "/" + D.regioes.length), regs, "regiões exploradas"],
+        [ring((xp - prevXp) / (nextXp - prevXp || 1), "#8b5cf6", "Nv " + lvl), fmt(nextXp - xp), "XP para o próximo nível"],
+        [ring(Math.min(owned / 20, 1), "#ff9a3c", owned), owned, "veículos na garagem"],
+        [ring(Math.min(mine / 20, 1), "#3ddc97", mine), mine + " · " + Map.drawCount(), "marcadores · desenhos"]
+      ].map(function (x) { return '<div class="hs glass">' + x[0] + "<span><b class=\"v\">" + x[1] + "</b><small>" + x[2] + "</small></span></div>"; }).join("");
+      var pool = LOCS.filter(function (l) { return l.foto && !l.mine; });
+      if (pool.length) {
+        var day = Math.floor(Date.now() / 864e5), l = pool[(day * 2654435761 >>> 0) % pool.length];
+        $("#hmDay").innerHTML = '<div class="ph" style="background-image:url(' + esc(l.foto) + ')"></div><div class="tx"><b>' + esc(l.n) + "</b><small>" + esc(CAT[l.c].nome) + " · " + esc(l.area || REG[l.r].nome) + (l.real ? " · na vida real: " + esc(l.real) : "") + "</small></div>";
+        $("#hmDay").onclick = function () { Map.focus(l.i); };
+      }
+      $("#hmStreams").innerHTML = (GD.streams || []).map(function (f) { return '<div class="fact glass"><small>' + esc(f.rotulo) + "</small><b>" + esc(f.valor) + '</b><span class="muted" style="font-size:11.5px;display:block;margin-top:4px">' + esc(f.nota) + "</span></div>"; }).join("");
+      buildBadges();
+    }
+    $("#v-home").addEventListener("click", function (e) {
+      var b = e.target.closest("[data-go]"); if (!b) return;
+      var g = b.getAttribute("data-go"); buzz(6);
+      if (g === "random") Map.random(); else go(g);
+    });
+    return { render: render };
+  })();
+
+  /* =========================================================
+     CHAT (estilo WhatsApp). Local neste aparelho; online pelo Supabase quando ligado.
+     ========================================================= */
+  var Chat = (function () {
+    var ROOMS = [
+      { id: "global", nome: "Chat global", desc: "Todo mundo do ViceHub", ic: "globe", cor: "#ff3d8b" },
+      { id: "vice", nome: "Vice City", desc: "Rolês, encontros e eventos", ic: "star2", cor: "#ff9a3c" },
+      { id: "ajuda", nome: "Ajuda e dicas", desc: "Missões, mapa e colecionáveis", ic: "info", cor: "#2de2e6" },
+      { id: "carros", nome: "Carros e garagens", desc: "Raros, customização e trocas", ic: "car", cor: "#8b5cf6" },
+      { id: "glitches", nome: "Glitches", desc: "Bugs e truques da galera", ic: "bug", cor: "#3ddc97" }
+    ];
+    var EMO = ["😀", "😂", "😎", "🔥", "💯", "👍", "🙏", "❤️", "😱", "🤯", "😡", "🥲", "🎮", "🚗", "🏎️", "🏍️", "🚁", "🔫", "💰", "💸", "🌴", "🌅", "🐊", "🏖️", "👮", "🚨", "⭐", "🏆", "🃏", "🗺️", "📍", "👀"];
+    var room = null, reply = null, msgs = {}, unsub = null;
+    var cloud = function () { return window.VH_CLOUD && VH_CLOUD.on(); };
+    function me() { return VH_AUTH.current() || { kind: "guest" }; }
+    function key(r) { return "chat:" + r; }
+    function load(r) { if (!msgs[r]) msgs[r] = store.get(key(r), null) || [{ id: "w", sys: true, t: "Bem-vindo à sala " + ROOMS.filter(function (x) { return x.id === r; })[0].nome + ". Seja gentil, sem spam e sem spoiler sem aviso.", ts: Date.now() }]; return msgs[r]; }
+    function persist(r) { if (!cloud()) store.set(key(r), msgs[r].slice(-200)); }
+    function reads() { return store.get("chatRead", {}); }
+    function time(ts) { var d = new Date(ts); return ("0" + d.getHours()).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2); }
+    function dayLabel(ts) {
+      var d = new Date(ts), t = new Date(); t.setHours(0, 0, 0, 0);
+      var diff = Math.round((t - new Date(d.getFullYear(), d.getMonth(), d.getDate())) / 864e5);
+      return diff === 0 ? "HOJE" : diff === 1 ? "ONTEM" : d.toLocaleDateString("pt-BR");
+    }
+    function status() {
+      var u = me();
+      $("#chStatus").textContent = cloud() ? (u.kind === "guest" ? "Online · entre numa conta para mandar mensagens" : "Online como " + u.nick + " · " + u.id)
+        : "Modo offline: as conversas ficam neste aparelho até o chat online ser ligado.";
+    }
+    function list() {
+      status();
+      var q = norm($("#chSearch").value.trim()), rd = reads();
+      $("#rooms").innerHTML = ROOMS.filter(function (r) { return !q || norm(r.nome + " " + r.desc).indexOf(q) >= 0; }).map(function (r) {
+        var m = load(r.id), last = m[m.length - 1], un = m.filter(function (x) { return !x.sys && !x.mine && x.ts > (rd[r.id] || 0); }).length;
+        var lastTxt = last ? (last.sys ? last.t : (last.mine ? "Você: " : last.nick + ": ") + last.t) : r.desc;
+        return '<button class="room" data-room="' + r.id + '" style="--c:' + r.cor + '"><span class="rav">' + ico(r.ic) + '</span><span class="rt"><span class="r1"><b>' + esc(r.nome) + "</b><time>" + (last ? time(last.ts) : "") + '</time></span><span class="r2"><span class="last">' + esc(lastTxt) + "</span>" + (un ? '<span class="unread">' + un + "</span>" : "") + "</span></span></button>";
+      }).join("") || '<div class="empty">Nenhuma conversa com esse nome.</div>';
+    }
+    function bubble(m) {
+      if (m.sys) return '<div class="msg sys">' + esc(m.t) + "</div>";
+      var mine = m.mine || (me().id && m.uid === me().id);
+      return '<div class="msg ' + (mine ? "me" : "them") + '" data-mid="' + esc(m.id) + '"' + (mine ? "" : ' style="--c:' + esc(m.cor || "#2de2e6") + '"') + ">" +
+        (mine ? "" : '<span class="who">' + esc(m.nick) + "</span>") + (m.re ? '<span class="q"><b>' + esc(m.re.nick) + "</b><br>" + esc(m.re.t) + "</span>" : "") + esc(m.t) +
+        '<span class="meta">' + time(m.ts) + (mine ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 13l4 4 8-9M10 17l1 0 9-10"/></svg>' : "") + "</span></div>";
+    }
+    function paint(scroll) {
+      var box = $("#crMsgs"), m = load(room.id), html = "", lastDay = "";
+      m.forEach(function (x) { var dl = dayLabel(x.ts); if (dl !== lastDay) { html += '<div class="day-sep">' + dl + "</div>"; lastDay = dl; } html += bubble(x); });
+      box.innerHTML = html;
+      if (scroll !== false) box.scrollTop = box.scrollHeight;
+      var rd = reads(); rd[room.id] = Date.now(); store.set("chatRead", rd);
+    }
+    function open(id) {
+      room = ROOMS.filter(function (r) { return r.id === id; })[0]; if (!room) return;
+      $("#chList").hidden = true; $("#chRoom").hidden = false;
+      $("#crAv").innerHTML = ico(room.ic); $("#crAv").style.setProperty("--c", room.cor);
+      $("#crName").textContent = room.nome; $("#crSub").textContent = cloud() ? "online · " + room.desc : room.desc;
+      setReply(null); $("#crEmoji").hidden = true; paint();
+      if (cloud()) {
+        VH_CLOUD.chatLoad(room.id).then(function (list) { if (!room || room.id !== id) return; msgs[id] = [load(id)[0]].concat(list); paint(); });
+        if (unsub) unsub();
+        unsub = VH_CLOUD.chatSubscribe(id, function (m) { if (!room || room.id !== id) return; var l = load(id); if (l.some(function (x) { return x.id === m.id; })) return; l.push(m); paint(); });
+      }
+      if (!store.get("chatTip", false)) { store.set("chatTip", true); setTimeout(function () { toast("Toque numa mensagem para responder"); }, 600); }
+    }
+    function leave() { if (!room) return; room = null; if (unsub) { unsub(); unsub = null; } $("#chRoom").hidden = true; $("#chList").hidden = false; list(); }
+    function setReply(m) {
+      reply = m; var el = $("#crReply");
+      if (!m) { el.hidden = true; return; }
+      el.hidden = false; el.innerHTML = "<span><b>" + esc(m.mine ? "Você" : m.nick) + "</b> · " + esc(m.t) + '</span><button class="pop-x" style="position:static;width:28px;height:28px" id="crRx" aria-label="Cancelar resposta">' + ico("close") + "</button>";
+      $("#crRx").onclick = function () { setReply(null); };
+      $("#crText").focus();
+    }
+    function send(text) {
+      var u = me();
+      if (cloud() && u.kind === "guest") { toast("Entre numa conta para mandar mensagens"); return; }
+      var m = { id: "l" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), uid: u.id || "guest", nick: u.nick || "Convidado", cor: u.cor || "#9fb0c8", t: text, ts: Date.now(), mine: true };
+      if (reply) m.re = { nick: reply.mine ? (u.nick || "Você") : reply.nick, t: reply.t.slice(0, 80) };
+      load(room.id).push(m); persist(room.id); setReply(null); paint(); buzz(8);
+      if (cloud()) VH_CLOUD.chatSend(room.id, m).then(function (r) { if (r && r.error) toast("Não foi enviada: " + r.error); });
+    }
+    $("#rooms").addEventListener("click", function (e) { var b = e.target.closest("[data-room]"); if (b) { buzz(6); open(b.getAttribute("data-room")); } });
+    $("#chSearch").addEventListener("input", list);
+    $("#crBack").onclick = leave;
+    $("#crMsgs").addEventListener("click", function (e) {
+      var b = e.target.closest("[data-mid]"); if (!b) return;
+      var id = b.getAttribute("data-mid"), m = load(room.id).filter(function (x) { return String(x.id) === id; })[0];
+      if (m) { setReply(m); buzz(6); }
+    });
+    $("#crEmoji").innerHTML = EMO.map(function (x) { return "<button type=\"button\">" + x + "</button>"; }).join("");
+    $("#crEmoji").addEventListener("click", function (e) { var b = e.target.closest("button"); if (!b) return; var i = $("#crText"); i.value += b.textContent; i.focus(); });
+    $("#crEbtn").onclick = function () { var el = $("#crEmoji"); el.hidden = !el.hidden; };
+    $("#crForm").addEventListener("submit", function (e) {
+      e.preventDefault();
+      var i = $("#crText"), t = i.value.replace(/\s+/g, " ").trim(); if (!t) return;
+      i.value = ""; $("#crEmoji").hidden = true; send(t.slice(0, 500));
+    });
+    return { init: list, show: function () { if (!room) list(); }, leave: leave, inRoom: function () { return !!room; } };
+  })();
+
+  /* =========================================================
+     GALERIA (fotos do GTADB: no jogo, na vida real e regiões) + visualizador
+     ========================================================= */
+  var Gallery = (function () {
+    var mode = "jogo", reg = "all", shownN = 36, cur = [], vi = -1;
+    var REGIMGS = [["img/leonida.jpg", "Leonida", "Mapa oficial do estado"]].concat(D.regioes.filter(function (r) { return REGIMG[r.id]; }).map(function (r) { return ["img/regioes/" + r.id + ".jpg", r.nome, "inspirado em " + r.base]; }));
+    function items() {
+      if (mode === "regioes") return REGIMGS.map(function (x) { return { src: x[0], n: x[1], s: x[2] }; });
+      return LOCS.filter(function (l) { return !l.mine && (mode === "real" ? l.fotoReal : l.foto) && (reg === "all" || l.r === reg); })
+        .map(function (l) { return { src: mode === "real" ? l.fotoReal : l.foto, n: l.n, s: mode === "real" ? (l.real || l.area || "") : (CAT[l.c].nome + " · " + (l.area || REG[l.r].nome)), i: l.i }; });
+    }
+    function render() {
+      $$("#galMode button").forEach(function (b) { b.classList.toggle("on", b.getAttribute("data-m") === mode); });
+      $("#galCats").hidden = mode === "regioes";
+      $("#galCats").innerHTML = '<button class="chip' + (reg === "all" ? " on" : "") + '" data-g="all" style="--c:#fff"><i></i>Todas</button>' +
+        D.regioes.map(function (r) { return '<button class="chip' + (reg === r.id ? " on" : "") + '" data-g="' + r.id + '" style="--c:' + r.cor + '"><i></i>' + esc(r.nome) + "</button>"; }).join("");
+      cur = items();
+      $("#galSub").textContent = fmt(cur.length) + (mode === "real" ? " fotos dos lugares reais" : mode === "regioes" ? " imagens das regiões" : " fotos tiradas dentro do jogo");
+      $("#galGrid").innerHTML = cur.length ? cur.slice(0, shownN).map(function (x, i) {
+        return '<button class="' + (mode === "regioes" || i % 9 === 0 ? "wide" : "") + '" data-vi="' + i + '" style="background-image:url(' + esc(x.src) + ");animation-delay:" + (i % 18) * 20 + 'ms" aria-label="' + esc(x.n) + '"><span>' + esc(x.n) + "</span></button>";
+      }).join("") : '<div class="empty" style="grid-column:span 3">Nenhuma foto nessa região ainda.</div>';
+      $("#galMore").hidden = cur.length <= shownN;
+    }
+    function show(i) {
+      vi = (i + cur.length) % cur.length; var x = cur[vi];
+      $("#vwImg").src = x.src; $("#vwImg").alt = x.n;
+      $("#vwCap").innerHTML = "<span><b>" + esc(x.n) + "</b><small>" + esc(x.s) + " · " + (vi + 1) + "/" + cur.length + "</small></span>" + (x.i != null ? '<button class="btn primary" id="vwMap" style="height:36px;padding:0 12px;font-size:12.5px">Ver no mapa</button>' : "");
+      var b = $("#vwMap"); if (b) b.onclick = function () { close(); Map.focus(x.i); };
+    }
+    function open(i) { $("#viewer").hidden = false; show(i); }
+    function close() { $("#viewer").hidden = true; $("#vwImg").removeAttribute("src"); vi = -1; }
+    $("#galMode").addEventListener("click", function (e) { var b = e.target.closest("[data-m]"); if (!b) return; mode = b.getAttribute("data-m"); shownN = 36; buzz(6); render(); });
+    $("#galCats").addEventListener("click", function (e) { var b = e.target.closest("[data-g]"); if (!b) return; reg = b.getAttribute("data-g"); shownN = 36; render(); });
+    $("#galMore").addEventListener("click", function () { shownN += 36; render(); });
+    $("#galGrid").addEventListener("click", function (e) { var b = e.target.closest("[data-vi]"); if (b) open(+b.getAttribute("data-vi")); });
+    $("#vwX").onclick = close;
+    $("#vwL").onclick = function () { show(vi - 1); };
+    $("#vwR").onclick = function () { show(vi + 1); };
+    var sx = null;
+    $("#viewer").addEventListener("pointerdown", function (e) { sx = e.clientX; });
+    $("#viewer").addEventListener("pointerup", function (e) { if (sx == null) return; var dx = e.clientX - sx; sx = null; if (Math.abs(dx) > 50) show(vi + (dx < 0 ? 1 : -1)); });
+    return { render: render, close: close };
+  })();
+
+  /* =========================================================
      VOLTAR (Android), ABERTURA, INÍCIO
      ========================================================= */
   window.ViceHub = {
     back: function () {
       if (!$("#auth").hidden) return false;
+      if (!$("#viewer").hidden) { Gallery.close(); return true; }
       if ($("#sheet").classList.contains("open")) { closeSheet(); return true; }
+      if (Chat.inRoom()) { Chat.leave(); return true; }
+      if (Map.drawing()) { Map.stopDraw(); return true; }
       if (Veh.isOpen()) { Veh.close(); return true; }
       if ($("#drawer").classList.contains("open")) { closeDrawer(); return true; }
       if (Map.adding()) { Map.stopAdd(); return true; }
@@ -1272,21 +1744,27 @@
   var started = false;
   function startApp(u) {
     var av = $("#avatarBtn"), guest = !u || u.kind === "guest";
-    $("#avatarTxt").textContent = guest ? "C" : (u.name || "?").charAt(0).toUpperCase();
+    $("#avatarTxt").textContent = guest ? "C" : ((u.nick || u.name || "?").charAt(0).toUpperCase());
     av.classList.toggle("guest", guest);
-    if (started) return; started = true;
-    updateProgress(); Veh.build(); buildGuide(); buildExtras(); buildBadges(); buildHub(); Places.render(); Map.show();
+    av.style.background = guest ? "" : (u.cor || "");
+    if (started) { Home.render(); return; }
+    started = true;
+    updateProgress(); buildGuide(); buildExtras(); buildBadges(); buildHub(); Home.render(); Chat.init();
+    if (window.VH_CLOUD && VH_CLOUD.on()) VH_CLOUD.resume();
     requestAnimationFrame(ink);
   }
-  var splash = $("#splash"), done = false;
+  var splash = $("#splash"), done = false, skipMsg = null, wantAuth = false;
+  try { skipMsg = sessionStorage.getItem("vh_skip"); sessionStorage.removeItem("vh_skip"); wantAuth = !!sessionStorage.getItem("vh_auth"); sessionStorage.removeItem("vh_auth"); } catch (e) { }
   function endSplash() {
     if (done) return; done = true;
     splash.classList.add("hide");
     setTimeout(function () { splash.hidden = true; }, 800);
     var u = VH_AUTH.current();
-    if (u) startApp(u); else { startApp(null); Auth.show(); }
+    if (u && !wantAuth) startApp(u); else { startApp(null); Auth.show(); }
+    if (skipMsg) toast(skipMsg);
     setTimeout(function () { ink(); Map.resize(); }, 60);
   }
+  if (skipMsg || wantAuth) { splash.hidden = true; endSplash(); }
   splash.addEventListener("click", endSplash);
   setTimeout(endSplash, window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 500 : 2800);
 })();

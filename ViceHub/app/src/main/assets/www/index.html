@@ -1,14 +1,22 @@
 <!doctype html>
 <html lang="pt-BR">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="theme-color" content="#0a0716">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#0a0716" />
 <title>ViceHub</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600;700;800&family=Manrope:wght@500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap">
-<link rel="stylesheet" href="style.css">
+<script>
+window.addEventListener("error", function (e) {
+  var d = document.getElementById("jsErr") || document.createElement("div");
+  d.id = "jsErr"; d.style.cssText = "position:fixed;left:8px;right:8px;bottom:8px;z-index:9999;padding:10px 12px;border-radius:12px;background:rgba(160,20,40,.92);color:#fff;font:12px monospace;white-space:pre-wrap";
+  d.textContent = "Erro: " + (e.message || e) + (e.filename ? "\n" + e.filename.split("/").pop() + ":" + e.lineno : "");
+  if (!d.parentNode && document.body) document.body.appendChild(d);
+});
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600;700;800&family=Manrope:wght@500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" />
+<link rel="stylesheet" href="style.css" />
 </head>
 <body>
 <!--VH:BODY-->
@@ -35,8 +43,8 @@
         <h2 class="au-h">Bem-vindo de volta</h2>
         <p class="au-sub">Entre para continuar de onde parou em Leonida.</p>
         <form id="inForm" novalidate>
-          <label class="au-f"><span>E-mail</span><input id="inEmail" type="email" autocomplete="email" placeholder="voce@email.com"></label>
-          <label class="au-f"><span>Senha</span><span class="au-pass"><input id="inPass" type="password" autocomplete="current-password" placeholder="Sua senha"><button type="button" class="au-eye" data-eye="inPass" aria-label="Mostrar senha"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button></span></label>
+          <label class="au-f"><span>E-mail</span><input id="inEmail" type="email" autocomplete="email" placeholder="voce@email.com" /></label>
+          <label class="au-f"><span>Senha</span><span class="au-pass"><input id="inPass" type="password" autocomplete="current-password" placeholder="Sua senha" /><button type="button" class="au-eye" data-eye="inPass" aria-label="Mostrar senha"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button></span></label>
           <button type="button" class="au-link au-forgot" id="inForgot">Esqueci minha senha</button>
           <p class="au-err" id="inErr" hidden></p>
           <button class="btn primary au-go" type="submit">Entrar</button>
@@ -56,12 +64,12 @@
         <h2 class="au-h">Criar conta</h2>
         <p class="au-sub">Leva menos de um minuto. Seus marcadores e progresso ficam salvos.</p>
         <form id="upForm" novalidate>
-          <label class="au-f"><span>Nome</span><input id="upName" type="text" autocomplete="nickname" placeholder="Como quer ser chamado"></label>
-          <label class="au-f"><span>E-mail</span><input id="upEmail" type="email" autocomplete="email" placeholder="voce@email.com"></label>
-          <label class="au-f"><span>Senha</span><span class="au-pass"><input id="upPass" type="password" autocomplete="new-password" placeholder="Mínimo de 6 caracteres"><button type="button" class="au-eye" data-eye="upPass" aria-label="Mostrar senha"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button></span></label>
+          <label class="au-f"><span>Nick</span><input id="upName" type="text" autocomplete="nickname" maxlength="16" placeholder="3 a 16 letras, números ou _" /></label>
+          <label class="au-f"><span>E-mail</span><input id="upEmail" type="email" autocomplete="email" placeholder="voce@email.com" /></label>
+          <label class="au-f"><span>Senha</span><span class="au-pass"><input id="upPass" type="password" autocomplete="new-password" placeholder="Mínimo de 6 caracteres" /><button type="button" class="au-eye" data-eye="upPass" aria-label="Mostrar senha"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button></span></label>
           <div class="au-meter"><i id="upMeter"></i></div>
-          <label class="au-f"><span>Confirmar senha</span><input id="upPass2" type="password" autocomplete="new-password" placeholder="Repita a senha"></label>
-          <label class="au-check"><input type="checkbox" id="upTerms"><span>Li e aceito os <button type="button" class="au-link" id="upTermsLink">termos de uso</button> e a política de privacidade.</span></label>
+          <label class="au-f"><span>Confirmar senha</span><input id="upPass2" type="password" autocomplete="new-password" placeholder="Repita a senha" /></label>
+          <label class="au-check"><input type="checkbox" id="upTerms" /><span>Li e aceito os <button type="button" class="au-link" id="upTermsLink">termos de uso</button> e a política de privacidade.</span></label>
           <p class="au-err" id="upErr" hidden></p>
           <button class="btn primary au-go" type="submit">Criar conta</button>
         </form>
@@ -88,24 +96,56 @@
   </header>
 
   <main class="stage" id="stage">
+    <!-- INÍCIO (estilo console) -->
+    <section class="view active" id="v-home">
+      <div class="hm-hero" id="hmHero"><div class="hm-bg" id="hmBg"></div>
+        <div class="hm-top"><span class="hm-clock" id="hmClock"></span><span class="hm-hello" id="hmHello"></span></div>
+        <div class="hm-txt"><span class="eyebrow">GTA VI · Leonida</span><h1 id="hmTitle">Bem-vindo a Vice City</h1><p id="hmSub"></p>
+          <div class="hm-cta"><button class="btn primary" data-go="map">Abrir o mapa</button><button class="btn ghost" data-go="random">Lugar aleatório</button></div></div>
+      </div>
+      <div class="tiles" id="hmTiles"></div>
+      <div class="sec-h"><h2>Seu progresso</h2><span id="hmLevel"></span></div>
+      <div class="hm-stats" id="hmStats"></div>
+      <div class="sec-h"><h2>Lugar do dia</h2><span>foto do jogo</span></div>
+      <div class="hm-day glass" id="hmDay"></div>
+      <div class="sec-h"><h2>Troféus</h2><span id="hmTrophy"></span></div>
+      <div class="badges" id="hmBadges"></div>
+      <div class="sec-h"><h2>Em alta na comunidade</h2><span>transmissões</span></div>
+      <div class="facts" id="hmStreams"></div>
+      <p class="copy">© 2026 Flow Labs Studio · Todos os direitos reservados</p>
+    </section>
+
     <!-- MAPA -->
-    <section class="view full active" id="v-map">
+    <section class="view full" id="v-map">
       <div id="mapWrap"><div id="mapStage"><svg id="mapSvg" xmlns="http://www.w3.org/2000/svg"></svg></div></div>
       <div class="map-top">
         <div class="search glass">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
-          <input id="mapSearch" type="search" placeholder="Buscar em Leonida" autocomplete="off">
+          <input id="mapSearch" type="search" placeholder="Buscar em Leonida" autocomplete="off" />
           <button class="filter-btn" id="openFilters" aria-label="Filtros"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 6h16M7 12h10M10 18h4"/></svg><span>Filtros</span><em id="filterCount" hidden></em></button>
         </div>
         <div class="results glass" id="results" hidden></div>
         <div class="quick" id="quick"></div>
       </div>
-      <div class="map-tools">
-        <button class="tool glass" id="zoomIn" aria-label="Aproximar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
-        <button class="tool glass" id="zoomOut" aria-label="Afastar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"/></svg></button>
-        <button class="tool glass" id="recenter" aria-label="Leonida inteira"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
-        <button class="tool glass" id="tilt3d" aria-label="Mapa 3D"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/></svg></button>
-        <button class="tool glass gold" id="addPin" aria-label="Adicionar marcador"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><path d="M12 6.5v6M9 9.5h6"/></svg></button>
+      <div class="map-tools glass" id="mapTools">
+        <button class="tool" id="zoomIn" aria-label="Aproximar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+        <div class="zbar"><i id="zbar"></i></div>
+        <button class="tool" id="zoomOut" aria-label="Afastar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"/></svg></button>
+        <span class="tsep"></span>
+        <button class="tool" id="recenter" aria-label="Leonida inteira"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+        <button class="tool" id="tilt3d" aria-label="Mapa 3D"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/></svg></button>
+        <button class="tool" id="drawBtn" aria-label="Desenhar no mapa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l3-1 11-11-2-2L5 17z"/><path d="M14 6l2-2 4 4-2 2"/></svg></button>
+        <button class="tool gold" id="addPin" aria-label="Adicionar marcador"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><path d="M12 6.5v6M9 9.5h6"/></svg></button>
+      </div>
+      <div class="draw-bar glass" id="drawBar" hidden>
+        <div class="db-tools" id="dbTools">
+          <button data-tool="pen" class="on" aria-label="Pincel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l3-1 11-11-2-2L5 17z"/></svg><span>Pincel</span></button>
+          <button data-tool="text" aria-label="Texto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7V5h16v2M9 19h6M12 5v14"/></svg><span>Texto</span></button>
+          <button data-tool="icon" aria-label="Ícone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8L3.5 9.7l5.9-.9z"/></svg><span>Ícone</span></button>
+          <button data-tool="erase" aria-label="Borracha"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 20h12M5 15l8-8 6 6-6 6H9z"/></svg><span>Apagar</span></button>
+          <button data-tool="undo" aria-label="Desfazer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></svg><span>Desfazer</span></button>
+        </div>
+        <div class="db-row"><div class="db-colors" id="dbColors"></div><input type="range" id="dbWidth" min="2" max="14" value="5" aria-label="Espessura" /><button class="btn primary" id="dbDone">Pronto</button></div>
       </div>
       <div class="add-hint glass" id="addHint" hidden>Toque no mapa onde fica o marcador <button id="addCancel">Cancelar</button></div>
       <div class="map-legend glass" id="legend"></div>
@@ -113,20 +153,37 @@
       <div class="pop" id="pop" hidden></div>
     </section>
 
+    <!-- CHAT -->
+    <section class="view full" id="v-chat">
+      <div class="ch-list" id="chList">
+        <div class="page-h"><span class="eyebrow">Comunidade</span><h1>Chat</h1><p class="muted" id="chStatus"></p></div>
+        <div class="search glass"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="chSearch" type="search" placeholder="Buscar conversa" autocomplete="off" /></div>
+        <div class="rooms" id="rooms"></div>
+      </div>
+      <div class="ch-room" id="chRoom" hidden>
+        <header class="cr-top glass"><button class="sub-back" id="crBack" aria-label="Voltar"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M15 6l-6 6 6 6"/></svg></button><span class="cr-av" id="crAv"></span><span class="cr-t"><b id="crName"></b><small id="crSub"></small></span></header>
+        <div class="cr-msgs" id="crMsgs"></div>
+        <div class="cr-reply glass" id="crReply" hidden></div>
+        <div class="cr-emoji glass" id="crEmoji" hidden></div>
+        <form class="cr-input glass" id="crForm"><button type="button" class="cr-ebtn" id="crEbtn" aria-label="Emojis"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2M9 9.5h.01M15 9.5h.01"/></svg></button><input id="crText" type="text" maxlength="500" placeholder="Mensagem" autocomplete="off" /><button class="cr-send" type="submit" aria-label="Enviar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l16-8-6 16-2-7z"/></svg></button></form>
+      </div>
+    </section>
+
     <!-- LOCAIS -->
     <section class="view" id="v-places">
       <div class="page-h"><span class="eyebrow">Banco de locais</span><h1>Lugares de Leonida</h1><p class="muted" id="placesSub"></p></div>
-      <div class="search glass"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="plSearch" type="search" placeholder="Nome, bairro ou lugar real" autocomplete="off"></div>
+      <div class="search glass"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="plSearch" type="search" placeholder="Nome, bairro ou lugar real" autocomplete="off" /></div>
       <div class="chips" id="plCats"></div>
       <div class="pl-grid" id="plGrid"></div>
       <button class="more glass" id="plMore" hidden>Mostrar mais</button>
     </section>
 
     <!-- VEÍCULOS -->
-    <section class="view" id="v-veh">
+    <section class="view sub" id="v-veh">
+      <div class="sub-top"><button class="sub-back" data-back aria-label="Voltar"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M15 6l-6 6 6 6"/></svg></button><span>Mais</span></div>
       <div class="page-h"><span class="eyebrow">Garagem</span><h1>Veículos de GTA VI</h1><p class="muted" id="vehSub"></p></div>
       <div class="seg glass" id="vSeg"></div>
-      <div class="search glass"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="vSearch" type="search" placeholder="Modelo, marca ou carro real" autocomplete="off"></div>
+      <div class="search glass"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="vSearch" type="search" placeholder="Modelo, marca ou carro real" autocomplete="off" /></div>
       <div class="chips" id="vClass"></div>
       <div class="v-list" id="vList"></div>
       <p class="note">Ponto verde: mostrado pela Rockstar. Ponto amarelo: lista da comunidade. Para pôr a foto de um carro, coloque o arquivo em img/veiculos/ com o nome do modelo (veja o README).</p>
@@ -136,7 +193,7 @@
     <section class="view sub" id="v-guide">
       <div class="sub-top"><button class="sub-back" data-back aria-label="Voltar"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M15 6l-6 6 6 6"/></svg></button><span>Mais</span></div>
       <div class="g-hero glass">
-        <div class="g-hero-map" aria-hidden="true"><img src="img/leonida.jpg" alt=""></div>
+        <div class="g-hero-map" aria-hidden="true"><img src="img/leonida.jpg" alt="" /></div>
         <div class="g-hero-txt"><span class="eyebrow">Estado de Leonida</span><h1>GTA VI em um só lugar</h1><p id="gHeroTxt"></p></div>
       </div>
       <div class="facts" id="facts"></div>
@@ -164,9 +221,10 @@
       <p class="copy">© 2026 Flow Labs Studio · Todos os direitos reservados</p>
     </section>
     <!-- ARSENAL -->
-    <section class="view" id="v-arms">
+    <section class="view sub" id="v-arms">
+      <div class="sub-top"><button class="sub-back" data-back aria-label="Voltar"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M15 6l-6 6 6 6"/></svg></button><span>Mais</span></div>
       <div class="page-h"><span class="eyebrow">Arsenal</span><h1>Armas de GTA VI</h1><p class="muted" id="armsSub"></p></div>
-      <div class="search glass"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="aSearch" type="search" placeholder="Nome ou fabricante" autocomplete="off"></div>
+      <div class="search glass"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="aSearch" type="search" placeholder="Nome ou fabricante" autocomplete="off" /></div>
       <div class="chips" id="aCats"></div>
       <div class="a-grid" id="aGrid"></div>
       <button class="btn ghost" id="aShops" style="width:100%;margin-top:12px;height:46px">Ver lojas de armas no mapa</button>
@@ -208,6 +266,17 @@
       <div class="tl2" id="timeline"></div>
     </section>
 
+    <!-- GALERIA -->
+    <section class="view sub" id="v-gallery">
+      <div class="sub-top"><button class="sub-back" data-back aria-label="Voltar"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M15 6l-6 6 6 6"/></svg></button><span>Mais</span></div>
+      <div class="page-h"><span class="eyebrow">Imagens reais do jogo</span><h1>Galeria</h1><p class="muted" id="galSub"></p></div>
+      <div class="seg glass" id="galMode"><button class="on" data-m="jogo">No jogo</button><button data-m="real">Na vida real</button><button data-m="regioes">Regiões</button></div>
+      <div class="chips" id="galCats"></div>
+      <div class="gal" id="galGrid"></div>
+      <button class="more glass" id="galMore" hidden>Mostrar mais</button>
+      <p class="note">Imagens: GTADB (gtadb.org e colaboradores), CC BY 4.0. Capturas do jogo © Rockstar Games.</p>
+    </section>
+
     <!-- AJUSTES -->
     <section class="view sub" id="v-set">
       <div class="sub-top"><button class="sub-back" data-back aria-label="Voltar"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M15 6l-6 6 6 6"/></svg></button><span>Mais</span></div>
@@ -224,7 +293,8 @@
 <aside class="drawer glass" id="drawer" aria-label="Filtros do mapa"></aside>
 <div class="modal" id="vModal"><div class="panel glass" id="vPanel"></div></div>
 <div class="modal" id="sheet"><div class="panel glass" id="sheetPanel"></div></div>
-<input type="file" id="photoInput" accept="image/*" hidden>
+<input type="file" id="photoInput" accept="image/*" hidden />
+<div class="viewer" id="viewer" hidden><button class="pop-x vw-x" id="vwX" aria-label="Fechar"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button><button class="vw-nav l" id="vwL" aria-label="Anterior"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M15 6l-6 6 6 6"/></svg></button><img id="vwImg" alt="" /><button class="vw-nav r" id="vwR" aria-label="Próxima"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button><div class="vw-cap glass" id="vwCap"></div></div>
 <div class="toast glass" id="toast"></div>
 <!--VH:SCRIPTS-->
 <script src="config.js"></script>
@@ -232,6 +302,7 @@
 <script src="gtadb/landmarks.js"></script>
 <script src="data.js"></script>
 <script src="guia.js"></script>
+<script src="cloud.js"></script>
 <script src="app.js"></script>
 <!--VH:END-->
 </body>

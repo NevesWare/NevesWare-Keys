@@ -44,7 +44,20 @@ Notas próprias por local ficam em `data.js` → `notas` (chave = id do GTADB, e
 
 ## Navegação
 
-Barra de baixo: **Mapa · Locais · Garagem · Arsenal · Mais**. Em **Mais**: Guia de Leonida, Colecionáveis (cartas com contador por coleção e veículos raros), Controles (PS5 e Xbox), Linha do tempo e Ajustes. Tema padrão: **Dark**. Entrar e Criar conta são telas separadas.
+Barra de baixo: **Início · Mapa · Chat · Locais · Mais**.
+- **Início:** tela no estilo console, com relógio, saudação, atalhos com fotos do jogo, nível/XP, estatísticas, lugar do dia, troféus e números das transmissões.
+- **Mapa:** painel de ferramentas em vidro (zoom com barra de nível, Leonida inteira, 3D, desenhar, marcador dourado). No modo desenho há pincel, texto, ícone, borracha e desfazer, além de cores e espessura. Um dedo desenha e dois dedos movem o mapa. Os desenhos ficam salvos na conta (`drawings`).
+- **Chat:** salas no estilo WhatsApp (global, Vice City, ajuda, carros, glitches), com bolhas, separador de dia, resposta tocando na mensagem e emojis. Sem servidor, as mensagens ficam no aparelho. Com Supabase, o chat funciona em tempo real.
+- **Mais:** Garagem, Arsenal, Galeria (960 fotos do jogo, 733 da vida real e as regiões, com visualizador), Guia (rádios com artistas reais), Colecionáveis, Controles, Linha do tempo e Ajustes.
+- **Controles** por console, em categorias: Combate, Luta, Movimento, Códigos (sequências e como digitar no PS5/Xbox) e Glitches. As categorias sem dados confirmados mostram "Em breve" sobre vidro desfocado.
+
+## Online (Supabase)
+
+1. Crie um projeto em supabase.com, abra o **SQL Editor**, cole `supabase/schema.sql` e rode. Isso cria os perfis (ID `VH-XXXXXX` e nick único), os dados da conta, os marcadores, os desenhos e o chat, todos com RLS e realtime.
+2. Em `www/config.js`, preencha `backend: "supabase"`, `supabaseUrl` e `supabaseAnonKey`.
+3. Pronto: `cloud.js` carrega `lib/supabase.js` (MIT), faz o cadastro e o login online, baixa os dados da conta ao entrar e envia as mudanças sozinho. O chat passa a ser em tempo real.
+
+Sem isso, as contas são locais: cada conta tem ID, nick e dados próprios neste aparelho (as chaves ficam com o prefixo `vh3:u:<ID>:`).
 
 ## Ajustes
 
@@ -57,8 +70,9 @@ O ícone padrão é o **Dark**. Em Mais → Ajustes → Ícone do app o jogador 
 ## Contas
 
 Depois da abertura aparece a tela de contas: **Entrar**, **Criar conta**, **Entrar como convidado**, **Continuar com Google** e **Discord**.
-- Hoje o servidor de contas é `local`: a conta fica salva só no aparelho (bom para testar, não para produção).
-- Para contas de verdade, ligue um servidor (Supabase ou Firebase) e troque o adaptador `VH_AUTH` em `app.js` (seção CONTAS). O resto do app não muda.
+- Cadastro: nick (3 a 16 caracteres: letras, números e _), e-mail, senha e confirmação. Cada conta ganha um ID `VH-XXXXXX`.
+- Em Ajustes → Perfil dá para trocar o nick, a bio e a cor do avatar, e copiar o ID.
+- Para contas online, veja a seção **Online (Supabase)**.
 - **Google:** preencha `googleClientId` em `config.js` e implemente o login no adaptador (no Android, pelo SDK do Google ou pelo OAuth do Supabase). Enquanto estiver vazio, o botão mostra "em breve".
 - **Discord:** coloque o convite em `discordUrl` em `config.js`. Enquanto estiver vazio, o botão mostra "em breve".
 

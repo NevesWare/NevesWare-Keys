@@ -109,3 +109,59 @@ window.VH_GUIDE = {
     { data: "em breve", t: "Futuro", texto: "Versão para PC e o novo GTA Online ainda sem data." }
   ]
 };
+
+/* ---------- CONTROLES por categoria (cada console) ---------- */
+window.VH_GUIDE.controlCats = [
+  { id: "combate", nome: "Combate", icone: "target", grupos: ["Combate e armas"] },
+  { id: "luta", nome: "Luta", icone: "fist", grupos: ["Luta corpo a corpo"] },
+  { id: "explorar", nome: "Movimento", icone: "run", grupos: ["Movimento e exploração", "Mapa"] },
+  { id: "direcao", nome: "Direção e corrida", icone: "car", soon: true },
+  { id: "codigos", nome: "Códigos", icone: "code", tipo: "codigos" },
+  { id: "glitches", nome: "Glitches e bugs", icone: "bug", tipo: "glitches" },
+  { id: "foto", nome: "Modo foto", icone: "camera", soon: true },
+  { id: "online", nome: "GTA Online", icone: "globe", soon: true }
+];
+
+/* ---------- CÓDIGOS (cheats) ---------- */
+window.VH_GUIDE.codigosComo = { ps: "Segure L1 e aperte R1, depois digite a sequência no direcional.", xb: "Segure LB e aperte RB, depois digite a sequência no direcional." };
+window.VH_GUIDE.codigos = [
+  { n: "US$ 250.000", seq: "↑ → ↓ ← ↑ ← ↓ →", lib: "Termine a história principal." },
+  { n: "Foco infinito", seq: "↓ ↑ ↑ ↓ ↑ ↓ ↑ ↓ ↑ →", lib: "Termine a história principal." },
+  { n: "Força de ataque (alvos voam)", seq: "↓ ↑ ← ← → ↓ ↓ ↑ ↓", lib: "Termine a história principal." },
+  { n: "Mudar o clima", seq: "↓ → ↑ ↓ → ↑ →", lib: "Termine a história principal." },
+  { n: "Colete à prova de balas", seq: "↓ ↑ ← ↑ ↑ ↑ ↑ ↑ ↓ ↓", lib: "Complete 100 treinos." },
+  { n: "Aumentar o calor (polícia)", seq: "← ↓ → ↓ ↑ ↓ ↑", lib: "Fuja de 3 estrelas 25 vezes." },
+  { n: "Aumentar nível de procurado", seq: "← ↓ → ↓ ↑ → ↑", lib: "Fuja de 3 estrelas 50 vezes." },
+  { n: "Munição máxima", seq: "↓ ↑ → ↓ ← ← ↑ ↑ ↓ ←", lib: "Ganhe 25 medalhas de bronze nos estandes de tiro." },
+  { n: "Tiros explosivos", seq: "↓ ↑ ← ← → ↓ ↓ ↑ →", lib: "Cause dano explosivo a 20 inimigos." }
+];
+window.VH_GUIDE.codigosNota = "Guias falam em 61 códigos no total (jogador, combate, veículos, ambiente e filtros de tela). Estes são os que têm a sequência conhecida; os outros entram aqui quando forem confirmados.";
+
+/* ---------- GLITCHES ---------- */
+window.VH_GUIDE.glitches = [
+  { n: "Celeiro vermelho (dinheiro infinito)", st: "funcionando", passos: ["Saqueie o celeiro vermelho e coloque as bolsas no porta-malas do seu carro.", "Salve e recarregue: o saque volta a aparecer e as bolsas continuam no carro.", "Repita algumas vezes e venda numa loja de receptação (Fence). Guias citam o Brian's Lockup, em Key Lento."], dica: "Use um carro seu, com porta-malas. Dinheiro do fim do capítulo 1 se perde, então vale mais depois dele.", fonte: "relatos na versão 01.002.002 (PS5 e Xbox)" },
+  { n: "Vans de pelúcia na garagem", st: "não confirmado", passos: ["Variante com as vans da Flying Teddies guardadas em garagens, para a carga voltar a aparecer.", "Ainda não há confirmação de que funciona nem de quanto rende."], dica: "Teste por sua conta e risco; pode ser corrigido em atualização.", fonte: "guias da comunidade" }
+];
+window.VH_GUIDE.glitchesNota = "Glitches podem sumir a qualquer atualização. Use no modo história; no online, a Rockstar pode punir.";
+
+/* ---------- RÁDIOS (detalhe) ---------- */
+window.VH_GUIDE.radios = [
+  { nome: "Flash FM", estilo: "Pop", cor: "#ff3d8b", artistas: ["Mariah Carey", "Kylie Minogue", "Tate McRae", "The Weeknd", "Natasha Bedingfield", "MGMT", "Olivia Rodrigo"], musicas: ["Someday — Mariah Carey", "Wanderlust — The Weeknd", "Unwritten — Natasha Bedingfield"] },
+  { nome: "Cocoteo FM", estilo: "Latina moderna", cor: "#ff9a3c", host: "Bad Bunny e RaiNao (segundo a NME)", artistas: ["Bad Bunny", "Rosalía", "Karol G", "Anuel AA", "Arca"], musicas: ["CANDY — Rosalía", "EL MAKINON — Karol G", "EoO — Bad Bunny"] },
+  { nome: "AfroBank FM", estilo: "Afrobeats e amapiano", cor: "#7be38a", artistas: ["Asake", "Fireboy DML", "Oumou Sangaré", "Hugh Masekela", "Manu Dibango"], musicas: ["Joha — Asake", "YAWA — Fireboy DML", "Sarama — Oumou Sangaré"] },
+  { nome: "Dirty South Classics", estilo: "Rap do sul dos EUA", cor: "#2de2e6", artistas: ["Outkast", "Three 6 Mafia"], musicas: [] },
+  { nome: "Emotion 98.3", estilo: "Soft rock dos anos 80", cor: "#c58cff", artistas: ["Phil Collins", "Genesis"], musicas: [] },
+  { nome: "V-Rock", estilo: "Rock", cor: "#ff5c5c", artistas: ["Tom Petty", "Van Halen"], musicas: [] },
+  { nome: "Back Country Radio", estilo: "Country", cor: "#ffd23f", artistas: [], musicas: [] },
+  { nome: "The Chamber 106.6", estilo: "Hip-hop", cor: "#8b5cf6", artistas: [], musicas: [] }
+];
+window.VH_GUIDE.radiosNota = "Guias contam 20 a 21 estações. Listas de músicas ainda estão sendo montadas pela comunidade e variam entre sites.";
+
+/* ---------- TRANSMISSÕES E COMUNIDADE ---------- */
+window.VH_GUIDE.streams = [
+  { valor: "3,29 mi", rotulo: "pico no Twitch no lançamento", nota: "Recorde de um único jogo no Twitch, acima de League of Legends e Fortnite (Stream Charts)." },
+  { valor: "7+ mi", rotulo: "pico somando Twitch, YouTube e Kick", nota: "Estimativas preliminares vão de 6,38 a 7,91 milhões ao mesmo tempo." },
+  { valor: "3,97 mi", rotulo: "no show de gameplay", nota: "A apresentação de gameplay foi a maior transmissão de games de 2026, segundo a Inven Global." },
+  { valor: "132 mi h", rotulo: "assistidas no dia do lançamento", nota: "Horas somadas de transmissões no primeiro dia (Stream Charts)." },
+  { valor: "1,74 mi", rotulo: "recorde anterior", nota: "Beta fechado de Valorant, em 2020." }
+];
