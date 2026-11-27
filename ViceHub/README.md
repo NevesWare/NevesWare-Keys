@@ -22,6 +22,7 @@ O app é uma interface web (`app/src/main/assets/www`) aberta num WebView em tel
 | `app/src/main/assets/www/img/leonida.jpg` | Mapa inteiro numa imagem (capa) |
 | `tools/import_gtadb.py` | Importa/atualiza mapa, locais e fotos do repositório do GTADB |
 | `app/src/main/assets/www/img/veiculos/` | Fotos dos veículos (veja abaixo) |
+| `tools/make_icons.py` | Gera os 6 ícones do app (Dark padrão, Vice City, Neon, Ouro, White, Oceano) em `res/mipmap-*` e as prévias em `www/img/icons/` |
 | `tools/build_web.py` | Gera `web/vicehub.html` (site em um arquivo só) |
 
 ## Como compilar o APK
@@ -48,6 +49,10 @@ Barra de baixo: **Mapa · Locais · Garagem · Arsenal · Mais**. Em **Mais**: G
 ## Ajustes
 
 Aba **Ajustes** na barra de baixo: perfil (nome, entrar/sair), aparência (7 temas: Vice City, Neon Miami, Pôr do sol, Oceano, Menta, Dark e White, mais cor de destaque livre, intensidade do vidro, animações e texto maior), mapa (nomes, tamanho e quantidade de ícones, abrir em 3D, esconder visitados), notificações, privacidade e dados (exportar, apagar progresso, marcadores ou tudo), idioma, termos e sobre. Tudo fica salvo no aparelho.
+
+## Ícone do app
+
+O ícone padrão é o **Dark**. Em Mais → Ajustes → Ícone do app o jogador escolhe entre 6 estilos. Cada estilo é um `activity-alias` no `AndroidManifest.xml`; o app liga o escolhido e desliga os outros pela ponte `window.VHNative.setIcon()` (em `MainActivity`). Alguns launchers levam alguns segundos para mostrar o novo ícone.
 
 ## Contas
 

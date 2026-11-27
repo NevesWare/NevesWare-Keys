@@ -1140,6 +1140,7 @@
      AJUSTES
      ========================================================= */
   var Settings = (function () {
+    var ICONS = [["dark", "Dark"], ["vice", "Vice City"], ["neon", "Neon"], ["gold", "Ouro"], ["white", "White"], ["ocean", "Oceano"]];
     var ACCENTS = ["#ff3d8b", "#ff9a3c", "#ffd23f", "#2de2e6", "#8b5cf6", "#3ddc97", "#2d8cff", "#ff5c5c"];
     var armed = {};
     function sw(on) { return '<span class="sw' + (on ? " on" : "") + '"></span>'; }
@@ -1163,6 +1164,11 @@
         '<div class="set-row"><span class="si">' + ico("layers") + '</span><span class="st-t"><b>Intensidade do vidro</b><small>Desfoque dos painéis</small></span><input class="range" type="range" min="6" max="40" value="' + SET.blur + '" id="blurRange"></div>' +
         row("motion", "motion", "Animações", "Transições e efeitos", sw(SET.motion)) +
         row("big", "text", "Texto maior", "Aumenta o texto das abas", sw(SET.big)) + "</div></div>";
+      var curIcon = SET.icon || "dark";
+      try { if (window.VHNative && window.VHNative.currentIcon) curIcon = window.VHNative.currentIcon(); } catch (err) { }
+      h += '<div class="set-sec"><h2>Ícone do app</h2><div class="set-card glass"><div class="icons">' + ICONS.map(function (ic) {
+        return '<button class="ic-o' + (curIcon === ic[0] ? " on" : "") + '" data-k="icon" data-v="' + ic[0] + '"><img src="img/icons/' + ic[0] + '.png" alt=""><span>' + ic[1] + (ic[0] === "dark" ? " · padrão" : "") + "</span></button>";
+      }).join("") + '</div><p class="note" style="margin:0;padding:0 14px 14px">O novo ícone pode levar alguns segundos para aparecer na tela inicial do celular.</p></div></div>';
       h += '<div class="set-sec"><h2>Mapa</h2><div class="set-card glass">' +
         row("labels", "text", "Nomes dos locais", "Aparecem ao aproximar", sw(SET.labels)) +
         '<div class="set-row"><span class="si">' + ico("pin") + '</span><span class="st-t"><b>Tamanho dos ícones</b></span>' + opt3("iconSize", SET.iconSize, [["p", "P"], ["m", "M"], ["g", "G"]]) + "</div>" +
@@ -1195,6 +1201,13 @@
     $("#setBody").addEventListener("click", function (e) {
       var b = e.target.closest("[data-k]"); if (!b) return;
       var k = b.getAttribute("data-k"), v = b.getAttribute("data-v");
+      if (k === "icon") {
+        var okIcon = false;
+        try { okIcon = !!(window.VHNative && window.VHNative.setIcon(v)); } catch (err) { okIcon = false; }
+        SET.icon = v; saveSet(); buzz(12); render();
+        toast(okIcon ? "Ícone trocado. Confira na tela inicial" : "A troca de ícone funciona no app instalado no Android");
+        return;
+      }
       if (k === "theme") { SET.theme = v; SET.accent = ""; }
       else if (k === "accent") SET.accent = v;
       else if (k === "motion" || k === "big" || k === "labels" || k === "tilt" || k === "hideVisited") SET[k] = !SET[k];
