@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Tela de abertura nativa (aparece instantaneamente antes da interface carregar) -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/bgDark"/>
+    <item android:width="112dp" android:height="112dp" android:gravity="center">
+        <bitmap android:src="@drawable/splash_logo" android:gravity="fill"/>
+    </item>
+</layer-list>
