@@ -61,6 +61,12 @@
       if (m) m.content = dark ? '#07080d' : '#eef1f7';
     },
 
+    /* Troca o ícone do app na tela inicial do Android ('default' | 'coca'). */
+    setAppIcon(name) {
+      if (!B || !B.setAppIcon) return;
+      try { if (B.getAppIcon() !== name) B.setAppIcon(name); } catch (e) { /* */ }
+    },
+
     setImmersive(on) {
       if (B && B.setImmersive) { try { B.setImmersive(!!on); } catch (e) { /* */ } }
     },

@@ -30,6 +30,9 @@ RS.config = {
   categories: ['Alimentos', 'Bebidas', 'Laticínios', 'Carnes', 'Hortifruti', 'Padaria', 'Congelados', 'Limpeza', 'Higiene', 'Medicamentos', 'Cosméticos', 'Pet', 'Outros'],
   units: ['un', 'cx', 'pct', 'kg', 'g', 'L', 'ml'],
 
+  /* Tema especial vermelho e branco (Coca) */
+  cocaAccent: { name: 'Coca', a: '#e4000f', b: '#ff4b55', rgb: '228, 0, 15' },
+
   accents: {
     violet: { name: 'Violeta', a: '#7c5cff', b: '#4cc9ff', rgb: '124, 92, 255' },
     blue:   { name: 'Azul',    a: '#3b82f6', b: '#22d3ee', rgb: '59, 130, 246' },

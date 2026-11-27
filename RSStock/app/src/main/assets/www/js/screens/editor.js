@@ -12,7 +12,7 @@
 
   function preview(iso) {
     if (!iso) return `<span class="faint">Escolha a data ou use um atalho acima.</span>`;
-    const d = u.daysUntil(iso), st = u.status(d, s.threshold());
+    const d = u.daysUntil(iso), st = u.status(d);
     return `<span class="pill s-${st}"><span class="sdot"></span>${u.esc(u.rel(d))}</span><span class="faint">${u.fmtLong(iso)}</span>`;
   }
 
@@ -85,8 +85,12 @@
     const p = RS.Product(Object.assign({}, existing || {}, preset || {}));
     if (isNew && !p.id) p.id = u.uid();
 
+    const curStore = s.stores.find(x => x.id === (p.storeId || s.settings.currentStoreId)) || s.current();
+    if (!curStore) { RS.stores.form(); return ui.toast('Crie uma loja antes de cadastrar produtos', { type: 'warn' }); }
+    p.storeId = curStore.id;
     ui.sheet({
       title: isNew ? 'Novo produto' : 'Editar produto',
+      headExtra: `<button type="button" class="chip glass-lite" data-act="store" style="height:32px;max-width:46%">${RS.storeBadge(curStore, 20)}<span data-store-name style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${u.esc(curStore.name)}</span></button>`,
       body: `<form data-form autocomplete="off" onsubmit="return false">${form(p, isNew)}</form>`,
       foot: isNew
         ? `<div class="btn-row"><button class="btn ghost" data-save="again" style="padding:0 14px">${ui.icon('plus', 18)}Salvar e novo</button><button class="btn primary" data-save="close">${ui.icon('check', 20)}Salvar</button></div>`
@@ -146,6 +150,10 @@
               b.type = 'button'; b.className = 'chip glass-lite'; b.dataset.cat = name; b.textContent = name;
               t.before(b); setCat(name);
             }
+          } else if (t.dataset.act === 'store') {
+            if (s.stores.length < 2) return ui.toast('Você tem só uma loja', { icon: 'home' });
+            const v = await ui.menu({ title: isNew ? 'Cadastrar em qual loja?' : 'Mover para a loja', value: p.storeId, options: s.stores.map(x => ({ value: x.id, label: x.name, icon: 'home', color: x.color })) });
+            if (v) { p.storeId = v; t.innerHTML = RS.storeBadge(s.stores.find(x => x.id === v), 20) + '<span data-store-name>' + u.esc(s.storeName(v)) + '</span>'; }
           } else if (t.dataset.act === 'more') {
             const m = ctl.$('[data-more]');
             m.classList.toggle('hidden');
@@ -161,7 +169,8 @@
               category: $in('category').value,
               batch: $in('batch').value.trim(),
               location: $in('location').value.trim(),
-              notes: $in('notes').value.trim()
+              notes: $in('notes').value.trim(),
+              storeId: p.storeId
             };
             let ok = true;
             if (!data.name) { ok = false; ctl.$('[data-f="name"]').classList.add('err'); ctl.$('[data-f="name"] .err-msg').classList.remove('hidden'); }
@@ -176,7 +185,7 @@
             ui.toast(isNew ? `“${data.name}” adicionado` : 'Alterações salvas', { type: 'ok' });
             if (t.dataset.save === 'again') {
               ctl.close();
-              setTimeout(() => open(null, { category: data.category, unit: data.unit, expiry: data.expiry }), 380);
+              setTimeout(() => open(null, { category: data.category, unit: data.unit, expiry: data.expiry, storeId: data.storeId }), 380);
             } else {
               t.innerHTML = prev;
               ctl.close();
@@ -208,56 +217,115 @@
   RS.askText = askText;
 
   /* ----- Detalhes ----- */
+  /* Dar baixa (saída) ou entrada, com motivo — registrado no histórico. */
+  function moveSheet(id, mode) {
+    const p = s.byId(id);
+    if (!p) return Promise.resolve(null);
+    const out = mode === 'out';
+    const reasons = out ? ['venda', 'vencido', 'avaria', 'uso', 'troca', 'ajuste'] : ['reposicao', 'ajuste', 'troca'];
+    const names = Object.assign({ reposicao: 'Reposição / compra' }, s.REASONS);
+    return new Promise(resolve => {
+      let result = null;
+      ui.sheet({
+        title: out ? 'Dar baixa' : 'Entrada no estoque',
+        body: `
+          <p class="hint" style="text-align:center;margin:0 0 6px"><b style="color:var(--text)">${u.esc(p.name)}</b> · em estoque: ${u.esc(u.fmtQty(p.quantity, p.unit))}</p>
+          <div class="big-qty">
+            <button data-st="-1" aria-label="Menos">${ui.icon('minus', 22)}</button>
+            <input data-q type="number" inputmode="decimal" min="0" step="any" value="1">
+            <button data-st="1" aria-label="Mais">${ui.icon('plus', 22)}</button></div>
+          <div class="chips tight" style="justify-content:center;flex-wrap:wrap;margin:0;padding:0 0 10px">
+            ${out ? `<button class="chip glass-lite" data-all>Tudo (${u.esc(u.fmtQty(p.quantity, p.unit))})</button>` : ''}
+            ${[5, 10].map(n => `<button class="chip glass-lite" data-n="${n}">${n} ${u.esc(p.unit)}</button>`).join('')}</div>
+          <p class="after-qty" data-after></p>
+          <div class="label" style="margin-top:4px">Motivo</div>
+          <div class="chips tight" style="flex-wrap:wrap;margin:0;padding:0">${reasons.map((r, i) => `<button class="chip glass-lite ${i === 0 ? 'on' : ''}" data-r="${r}">${names[r]}</button>`).join('')}</div>
+          <div class="field" style="margin-top:14px"><div class="input"><span class="lead">${ui.icon('note', 18)}</span><input data-note placeholder="Observação (opcional)" maxlength="80" autocomplete="off"></div></div>`,
+        foot: `<button class="btn ${out ? 'danger' : 'primary'} block" data-go style="${out ? 'background:var(--c-soon);color:#fff' : ''}">${ui.icon(out ? 'upload' : 'download', 20)}${out ? 'Confirmar baixa' : 'Confirmar entrada'}</button>`,
+        onMount(el, ctl) {
+          const q = ctl.$('[data-q]');
+          let reason = reasons[0];
+          const upd = () => {
+            const v = Math.max(0, parseFloat(q.value) || 0);
+            const after = out ? Math.max(0, (Number(p.quantity) || 0) - v) : (Number(p.quantity) || 0) + v;
+            ctl.$('[data-after]').innerHTML = `Ficará com <b style="color:var(--text)">${u.esc(u.fmtQty(Math.round(after * 1000) / 1000, p.unit))}</b>` + (out && v > p.quantity ? ' <span style="color:var(--c-danger)">(maior que o estoque)</span>' : '');
+          };
+          upd();
+          q.addEventListener('input', upd);
+          el.addEventListener('click', async e => {
+            const t = e.target.closest('[data-st],[data-all],[data-n],[data-r],[data-go]');
+            if (!t) return;
+            ui.tap();
+            if (t.dataset.st) { q.value = Math.max(0, (parseFloat(q.value) || 0) + Number(t.dataset.st)); upd(); }
+            else if (t.dataset.all != null) { q.value = p.quantity; upd(); }
+            else if (t.dataset.n) { q.value = t.dataset.n; upd(); }
+            else if (t.dataset.r) { reason = t.dataset.r; ctl.$$('[data-r]').forEach(x => x.classList.toggle('on', x === t)); }
+            else if (t.dataset.go != null) {
+              const v = Math.max(0, parseFloat(q.value) || 0);
+              if (!v) return ui.toast('Informe a quantidade', { type: 'warn' });
+              result = await s.move(id, out ? -v : v, reason === 'reposicao' ? 'Reposição / compra' : reason, ctl.$('[data-note]').value.trim());
+              ctl.close();
+              ui.toast(out ? `Baixa registrada · restam ${u.fmtQty(result.quantity, result.unit)}` : `Entrada registrada · total ${u.fmtQty(result.quantity, result.unit)}`, { type: 'ok', icon: out ? 'upload' : 'download' });
+              if (RS.fx) RS.fx.burst(innerWidth / 2, innerHeight - 120);
+              if (out && result.quantity === 0) {
+                const rm = await ui.confirm({ title: 'Estoque zerado', message: `“${u.esc(result.name)}” ficou com 0. Deseja remover o produto da lista?`, confirm: 'Remover', cancel: 'Manter', icon: 'box' });
+                if (rm) await s.remove(id, 'Removido após zerar o estoque');
+              }
+            }
+          });
+        },
+        onClose() { resolve(result); }
+      });
+    });
+  }
+  RS.moveSheet = moveSheet;
+
+  /* ----- Detalhes ----- */
   function detail(id) {
     const p = s.byId(id);
     if (!p) return;
     const kv = (label, value, wide) => value ? `<div class="${wide ? 'wide' : ''}"><small>${label}</small><b>${u.esc(value)}</b></div>` : '';
+    const logs = s.history.filter(e => e.name === p.name && e.storeId === p.storeId).slice(0, 3);
     ui.sheet({
       title: 'Detalhes',
       body: `
         <div class="detail-top s-${p.status}">
           <span class="ic">${u.esc(u.initials(p.name))}</span>
           <div style="min-width:0"><h2>${u.esc(p.name)}</h2>
-            <div style="margin-top:6px"><span class="pill s-${p.status}"><span class="sdot"></span>${u.statusName[p.status]} · ${u.esc(u.rel(p.days))}</span></div></div>
+            <div style="margin-top:6px">${p.status === 'expired' ? `<span class="tag-exp">Vencido</span> <span class="faint" style="font-size:.8rem">${u.esc(u.rel(p.days))}</span>` : `<span class="pill s-${p.status}"><span class="sdot"></span>${u.esc(u.rel(p.days))}</span>`}</div></div>
         </div>
         <div class="kv">
           ${kv('Validade', u.fmtDate(p.expiry))}
-          <div><small>Quantidade</small><div style="display:flex;align-items:center;gap:8px">
-            <button class="icon-btn" data-q="-1" style="width:30px;height:30px;border-radius:10px;background:var(--glass-2)">${ui.icon('minus', 16)}</button>
-            <b class="num" data-qv>${u.esc(u.fmtQty(p.quantity, p.unit))}</b>
-            <button class="icon-btn" data-q="1" style="width:30px;height:30px;border-radius:10px;background:var(--glass-2)">${ui.icon('plus', 16)}</button></div></div>
+          ${kv('Em estoque', u.fmtQty(p.quantity, p.unit))}
+          ${kv('Loja', s.storeName(p.storeId))}
           ${kv('Categoria', p.category)}
           ${kv('Código de barras', p.barcode)}
           ${kv('Lote', p.batch)}
           ${kv('Local', p.location)}
           ${kv('Observações', p.notes, true)}
-          ${kv('Atualizado em', u.fmtDate((p.updatedAt || '').slice(0, 10)), true)}
-        </div>`,
+        </div>
+        <div class="btn-row" style="margin-top:12px">
+          <button class="btn sm" data-a="out" style="background:color-mix(in srgb,var(--c-soon) 16%,transparent);color:var(--c-soon)">${ui.icon('upload', 18)}Dar baixa</button>
+          <button class="btn ghost sm" data-a="in">${ui.icon('download', 18)}Entrada</button></div>
+        ${logs.length ? `<div class="group-label">Últimas movimentações</div><div class="card glass-lite" style="padding:4px 14px">${logs.map(e => `<div class="log"><span class="lt"><small>${u.esc(e.detail)}</small></span><time>${new Date(e.t).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</time></div>`).join('')}</div>` : ''}`,
       foot: `<div class="btn-row">
-          <button class="btn danger sm" data-a="del" aria-label="Excluir">${ui.icon('trash', 18)}</button>
+          <button class="btn danger sm" data-a="del" aria-label="Excluir" style="flex:.6">${ui.icon('trash', 18)}</button>
           <button class="btn ghost sm" data-a="dup">${ui.icon('copy', 18)}Duplicar</button>
           <button class="btn primary sm" data-a="edit" style="flex:1.4">${ui.icon('edit', 18)}Editar</button></div>`,
       onMount(el, ctl) {
         el.addEventListener('click', async e => {
-          const q = e.target.closest('[data-q]');
-          if (q) {
-            ui.tap();
-            const cur = s.byId(id);
-            const n = Math.max(0, (Number(cur.quantity) || 0) + Number(q.dataset.q));
-            await s.save({ id, quantity: n });
-            ctl.$('[data-qv]').textContent = u.fmtQty(n, cur.unit);
-            return;
-          }
           const b = e.target.closest('[data-a]');
           if (!b) return;
           ui.tap();
-          if (b.dataset.a === 'edit') { ctl.close(); setTimeout(() => open(s.products.find(x => x.id === id)), 300); }
-          else if (b.dataset.a === 'dup') {
+          const a = b.dataset.a;
+          if (a === 'out' || a === 'in') { ctl.close(); setTimeout(() => moveSheet(id, a), 280); }
+          else if (a === 'edit') { ctl.close(); setTimeout(() => open(s.products.find(x => x.id === id)), 300); }
+          else if (a === 'dup') {
             ctl.close();
             const src = s.products.find(x => x.id === id);
             setTimeout(() => open(null, { name: src.name, barcode: src.barcode, category: src.category, unit: src.unit, quantity: src.quantity, location: src.location, expiry: '' }), 300);
-          } else if (b.dataset.a === 'del') {
-            const yes = await ui.confirm({ title: 'Excluir produto?', message: `“${u.esc(p.name)}” será removido do estoque.`, confirm: 'Excluir', danger: true });
+          } else if (a === 'del') {
+            const yes = await ui.confirm({ title: 'Excluir produto?', message: `“${u.esc(p.name)}” será removido do estoque de ${u.esc(s.storeName(p.storeId))}.`, confirm: 'Excluir', danger: true });
             if (!yes) return;
             const removed = await s.remove(id);
             ctl.close();

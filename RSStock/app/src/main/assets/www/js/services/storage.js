@@ -1,51 +1,90 @@
 /* ==========================================================================
-   Camada de dados (Repository).
-   Hoje: LocalRepository (localStorage do WebView).
-   Amanhã: SupabaseRepository com a MESMA interface — basta trocar em RS.repo.
+   Camada de dados (Repository) — pensada para o Supabase.
+   Cada conta tem seus próprios dados: lojas → produtos (estoque) → movimentações.
+   Hoje: LocalRepository (no aparelho, separado por conta).
+   Amanhã: SupabaseRepository com a MESMA interface (load / save / wipe).
+   Tabelas equivalentes em docs/supabase-schema.sql: stores, products, movements.
    ========================================================================== */
 (function () {
-  const KEY = 'rs.products.v1';
+  const ns = () => {
+    const s = RS.auth.session();
+    return 'rs.data.' + (s && s.kind !== 'guest' ? s.id : 'guest') + '.v2';
+  };
 
   const LocalRepository = {
     name: 'local',
-    async list() {
-      try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch (e) { return []; }
+    async load() {
+      let data = null;
+      try { data = JSON.parse(localStorage.getItem(ns()) || 'null'); } catch (e) { data = null; }
+      if (!data) {
+        // Migração da versão anterior (uma loja só)
+        let products = [], history = [];
+        try { products = JSON.parse(localStorage.getItem('rs.products.v1') || '[]'); } catch (e) { /* */ }
+        try { history = JSON.parse(localStorage.getItem('rs.history.v1') || '[]'); } catch (e) { /* */ }
+        data = { stores: [], products, history };
+      }
+      return data;
     },
-    async saveAll(items) { localStorage.setItem(KEY, JSON.stringify(items)); return true; },
-    async upsert(item, all) { await this.saveAll(all); return item; },
-    async remove(id, all) { await this.saveAll(all); return true; }
+    async save(data) {
+      localStorage.setItem(ns(), JSON.stringify({ stores: data.stores, products: data.products, history: data.history, savedAt: new Date().toISOString() }));
+      localStorage.removeItem('rs.products.v1');
+      localStorage.removeItem('rs.history.v1');
+      return true;
+    },
+    async wipe() { localStorage.removeItem(ns()); }
   };
 
   /*
-   * Esboço do repositório Supabase (ativar quando RS.config.features.cloudSync = true).
-   * Tabela sugerida em docs/supabase-schema.sql (mesmos campos do modelo Product).
+   * Esboço do SupabaseRepository (ativar com RS.config.features.cloudSync):
    *
    * const SupabaseRepository = {
    *   name: 'supabase',
-   *   async list() {
-   *     const { data, error } = await RS.auth.client.from('products').select('*').order('expiry');
-   *     if (error) throw error; return data.map(fromRow);
+   *   async load() {
+   *     const db = RS.auth.client;
+   *     const [st, pr, mv] = await Promise.all([
+   *       db.from('stores').select('*').order('created_at'),
+   *       db.from('products').select('*'),
+   *       db.from('movements').select('*').order('created_at', { ascending: false }).limit(1000)
+   *     ]);
+   *     return { stores: st.data.map(fromStoreRow), products: pr.data.map(fromProductRow), history: mv.data.map(fromMoveRow) };
    *   },
-   *   async upsert(item) { await RS.auth.client.from('products').upsert(toRow(item)); return item; },
-   *   async remove(id)   { await RS.auth.client.from('products').delete().eq('id', id); return true; },
-   *   async saveAll(items) { await RS.auth.client.from('products').upsert(items.map(toRow)); return true; }
+   *   async save(data) {
+   *     // upsert das lojas e produtos alterados + insert das novas movimentações
+   *   },
+   *   async wipe() { }
    * };
    */
 
   RS.repo = LocalRepository;
 
-  /* Modelo de produto (compatível com a futura tabela "products"). */
+  /* Loja (tabela "stores") */
+  RS.Store = function (data) {
+    const now = new Date().toISOString();
+    return Object.assign({
+      id: RS.u.uid(),
+      userId: null,
+      name: 'Nova loja',
+      address: '',
+      color: '#7c5cff',
+      notes: '',
+      createdAt: now,
+      updatedAt: now
+    }, data || {});
+  };
+
+  /* Produto (tabela "products") — pertence a uma loja */
   RS.Product = function (data) {
     const now = new Date().toISOString();
     return Object.assign({
       id: RS.u.uid(),
-      userId: null,         // preenchido quando houver conta
+      userId: null,
+      storeId: '',
       name: '',
       barcode: '',
       category: '',
       quantity: 1,
       unit: 'un',
-      expiry: '',           // AAAA-MM-DD
+      expiry: '',
       batch: '',
       location: '',
       notes: '',

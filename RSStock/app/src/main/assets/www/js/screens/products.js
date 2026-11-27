@@ -11,7 +11,7 @@
 
   function chips() {
     const c = s.counts();
-    const items = [['all', 'Todos', c.total], ['expired', 'Vencidos', c.expired], ['today', 'Hoje', c.today], ['soon', 'Próximos', c.soon], ['ok', 'Em dia', c.ok]];
+    const items = [['all', 'Todos', c.total]].concat(u.STATUSES.map(k => [k, u.statusShort[k], c[k]]));
     let html = '';
     if (state.date) html += `<button class="chip on filter-tag" data-clear="date">${ui.icon('calendar', 14)}${u.fmtShort(state.date)} ${ui.icon('x', 14)}</button>`;
     html += `<button class="chip glass-lite ${state.category ? 'on' : ''}" data-act="cat">${ui.icon('tag', 14)}${state.category ? u.esc(state.category) + ' ' + ui.icon('x', 14) : 'Categoria'}</button>`;
@@ -43,7 +43,9 @@
         <button class="btn ghost sm" data-act="sel-all">Todos</button>
         <button class="btn danger sm" data-act="sel-del" ${state.sel.size ? '' : 'disabled'}>${ui.icon('trash', 18)}</button></div>`;
     }
-    return `<header class="topbar"><div class="grow"><p class="eyebrow">Estoque</p><h1 class="h1">Produtos</h1></div>
+    const st = s.current();
+    return `<header class="topbar"><button class="grow store-switch" data-act="stores"><span class="eyebrow">Estoque de</span>
+          <span class="store-title">${st ? RS.storeBadge(st, 26) + '<b>' + u.esc(st.name) + '</b>' : '<b>Produtos</b>'}${ui.icon('down', 18, 2.4)}</span></button>
         <button class="icon-btn glass" data-act="sort" aria-label="Ordenar">${ui.icon('sort')}</button>
         <button class="icon-btn glass" data-act="scan" aria-label="Buscar por código">${ui.icon('scan')}</button></header>`;
   }
@@ -113,6 +115,7 @@
         const a = t.dataset.act;
         if (a === 'clear') { input.value = ''; state.text = ''; clearBtn.classList.add('hidden'); refresh(); }
         else if (a === 'add') RS.editor.open();
+        else if (a === 'stores') RS.stores.picker();
         else if (a === 'exit-sel') { state.select = false; state.sel.clear(); refresh(); }
         else if (a === 'sel-all') { const l = current(); state.sel = state.sel.size === l.length ? new Set() : new Set(l.map(p => p.id)); refresh(); }
         else if (a === 'sel-del') {
@@ -146,7 +149,7 @@
         }
       });
 
-      this._off = s.on(what => { if (what === 'products') refresh(); });
+      this._off = s.on(what => { if (what === 'products' || what === 'store' || what === 'stores') refresh(); });
     },
 
     onBack() {

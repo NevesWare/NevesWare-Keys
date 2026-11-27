@@ -1,11 +1,14 @@
-/* Estado global: produtos + configurações, com persistência e eventos. */
+/* ==========================================================================
+   Estado global: lojas, produtos (estoque de cada loja), histórico e ajustes.
+   Os dados ficam separados por conta (convidado = este aparelho) e passam
+   pelo RS.repo — hoje local, futuramente Supabase com a mesma interface.
+   ========================================================================== */
 (function () {
   const u = RS.u;
   const SKEY = 'rs.settings.v1';
-  const HKEY = 'rs.history.v1';
 
   const DEFAULTS = {
-    theme: 'dark',            // 'dark' | 'light' | 'system'
+    theme: 'dark',            // 'dark' | 'light' | 'system' | 'coca'
     accent: 'violet',
     blur: 24,
     bg: 'aurora',             // 'aurora' | 'gradient' | 'solid'
@@ -13,13 +16,20 @@
     haptics: true,
     fullscreen: true,
     introSeen: false,
-    profile: { name: '', store: '', color: 'violet' },
-    notif: { enabled: true, daysBefore: 7, hour: 9, minute: 0, notifyExpired: true, inAppBadge: true },
+    currentStoreId: '',
+    profile: { name: '', color: 'violet' },
+    notif: { enabled: true, daysBefore: 7, hour: 9, minute: 0, notifyExpired: true, inAppBadge: true, allStores: true },
     a11y: { fontScale: 1, contrast: false, reduceMotion: false, solid: false, bold: false, large: false },
     security: { pin: '', lockOnResume: false },
-    export: { format: 'pdf', filter: 'all', sort: 'expiry', include: { barcode: true, category: true, qty: true } },
+    export: { format: 'pdf', filter: 'all', sort: 'expiry', scope: 'current', include: { barcode: true, category: true, qty: true } },
     productsSort: 'expiry',
     onboarded: false
+  };
+
+  const STORE_COLORS = ['#7c5cff', '#e4000f', '#10b981', '#3b82f6', '#f59e0b', '#ec4899', '#06b6d4', '#64748b'];
+
+  const REASONS = {
+    venda: 'Venda', vencido: 'Vencido / descarte', avaria: 'Avaria', uso: 'Uso interno', troca: 'Troca', ajuste: 'Ajuste de contagem', outro: 'Outro'
   };
 
   function merge(base, over) {
@@ -35,55 +45,77 @@
   const listeners = new Set();
 
   const store = {
-    products: [],
-    settings: merge(DEFAULTS, null),
-    DEFAULTS,
-
+    stores: [],
+    products: [],      // produtos de TODAS as lojas (cada um com storeId)
     history: [],
-
-    /* Histórico de movimentações (adicionado, editado, baixa, removido…) */
-    log(type, name, detail = '') {
-      this.history.unshift({ t: Date.now(), type, name, detail });
-      if (this.history.length > 300) this.history.length = 300;
-      try { localStorage.setItem(HKEY, JSON.stringify(this.history)); } catch (e) { /* */ }
-    },
-    clearHistory() { this.history = []; localStorage.removeItem(HKEY); this.emit('history'); },
+    settings: merge(DEFAULTS, null),
+    DEFAULTS, STORE_COLORS, REASONS,
 
     async load() {
-      try { this.history = JSON.parse(localStorage.getItem(HKEY) || '[]'); } catch (e) { this.history = []; }
       try { this.settings = merge(DEFAULTS, JSON.parse(localStorage.getItem(SKEY) || 'null')); } catch (e) { this.settings = merge(DEFAULTS, null); }
-      this.products = (await RS.repo.list()).map(p => RS.Product(p));
+      if (this.settings.theme === 'coca') { /* tema especial mantém tudo vermelho */ }
+      await this.loadAccount();
       this.applyAppearance();
-      this.syncNative();
     },
+
+    /* Carrega os dados da conta atual (troca de conta = troca de dados). */
+    async loadAccount() {
+      const data = await RS.repo.load();
+      this.stores = (data.stores || []).map(x => RS.Store(x));
+      this.products = (data.products || []).map(p => RS.Product(p));
+      this.history = data.history || [];
+
+      // Migração: produtos antigos sem loja vão para uma "Loja principal"
+      const orphans = this.products.filter(p => !p.storeId || !this.stores.find(x => x.id === p.storeId));
+      if (orphans.length && !this.stores.length) this.stores.push(RS.Store({ name: 'Loja principal' }));
+      orphans.forEach(p => { p.storeId = this.stores[0].id; });
+      if (orphans.length) await this.persist();
+
+      if (!this.stores.find(x => x.id === this.settings.currentStoreId)) {
+        this.settings.currentStoreId = this.stores[0] ? this.stores[0].id : '';
+        this.saveSettings();
+      }
+      this.syncNative();
+      this.emit('all');
+    },
+
+    async persist() { await RS.repo.save({ stores: this.stores, products: this.products, history: this.history }); },
 
     on(fn) { listeners.add(fn); return () => listeners.delete(fn); },
     emit(what) { listeners.forEach(fn => { try { fn(what); } catch (e) { console.error(e); } }); },
 
     /* ----- Configurações ----- */
+    saveSettings() { localStorage.setItem(SKEY, JSON.stringify(this.settings)); },
     set(path, value) {
       const keys = path.split('.');
       let o = this.settings;
       for (let i = 0; i < keys.length - 1; i++) o = o[keys[i]];
       o[keys[keys.length - 1]] = value;
-      localStorage.setItem(SKEY, JSON.stringify(this.settings));
+      this.saveSettings();
       if (/^(theme|accent|blur|bg|compact|a11y|fullscreen)/.test(path)) this.applyAppearance();
       if (/^notif/.test(path)) this.syncNative();
       this.emit('settings');
     },
     get(path) { return path.split('.').reduce((o, k) => (o == null ? o : o[k]), this.settings); },
 
+    isCoca() { return this.settings.theme === 'coca'; },
     isDark() {
       const t = this.settings.theme;
+      if (t === 'coca') return false;
       if (t === 'system') return !window.matchMedia || window.matchMedia('(prefers-color-scheme: dark)').matches;
       return t !== 'light';
+    },
+
+    accent() {
+      if (this.isCoca()) return RS.config.cocaAccent;
+      return RS.config.accents[this.settings.accent] || RS.config.accents.violet;
     },
 
     applyAppearance() {
       const s = this.settings, root = document.documentElement;
       const dark = this.isDark();
-      root.dataset.theme = dark ? 'dark' : 'light';
-      const ac = RS.config.accents[s.accent] || RS.config.accents.violet;
+      root.dataset.theme = this.isCoca() ? 'coca' : dark ? 'dark' : 'light';
+      const ac = this.accent();
       root.style.setProperty('--accent', ac.a);
       root.style.setProperty('--accent-2', ac.b);
       root.style.setProperty('--accent-rgb', ac.rgb);
@@ -99,26 +131,97 @@
       flag('data-large', s.a11y.large);
       RS.native.setSystemBars(dark);
       RS.native.setImmersive(s.fullscreen !== false);
+      RS.native.setAppIcon(this.isCoca() ? 'coca' : 'default');
+      if (RS.fx) RS.fx.update();
     },
 
-    /* ----- Produtos ----- */
-    threshold() { return Number(this.settings.notif.daysBefore) || 7; },
-
-    enrich(p) {
-      const days = u.daysUntil(p.expiry);
-      return Object.assign({}, p, { days, status: u.status(days, this.threshold()) });
+    /* ----- Lojas ----- */
+    current() { return this.stores.find(x => x.id === this.settings.currentStoreId) || this.stores[0] || null; },
+    storeName(id) { const st = this.stores.find(x => x.id === id); return st ? st.name : '—'; },
+    setCurrent(id) {
+      if (!this.stores.find(x => x.id === id)) return;
+      this.settings.currentStoreId = id;
+      this.saveSettings();
+      this.emit('store');
     },
 
-    all() { return this.products.map(p => this.enrich(p)); },
-    byId(id) { const p = this.products.find(x => x.id === id); return p ? this.enrich(p) : null; },
-    byBarcode(code) { return code ? this.products.find(x => x.barcode && x.barcode === code) : null; },
+    async saveStore(data) {
+      const now = new Date().toISOString();
+      const idx = this.stores.findIndex(x => x.id === data.id);
+      let st;
+      if (idx >= 0) {
+        const before = this.stores[idx];
+        st = Object.assign({}, before, data, { updatedAt: now });
+        this.stores[idx] = st;
+        this.log('store-edit', st.name, before.name !== st.name ? 'Renomeada de “' + before.name + '”' : 'Dados da loja atualizados', st.id);
+      } else {
+        st = RS.Store(Object.assign({ color: STORE_COLORS[this.stores.length % STORE_COLORS.length] }, data, { createdAt: now, updatedAt: now }));
+        const ses = RS.auth.session();
+        if (ses && ses.kind !== 'guest') st.userId = ses.id;
+        this.stores.push(st);
+        this.log('store-add', st.name, 'Loja criada', st.id);
+        if (!this.settings.currentStoreId) this.settings.currentStoreId = st.id;
+      }
+      this.saveSettings();
+      await this.persist();
+      this.syncNative();
+      this.emit('stores');
+      return st;
+    },
 
-    counts() {
-      const c = { total: 0, expired: 0, today: 0, soon: 0, ok: 0, units: 0 };
-      this.all().forEach(p => { c.total++; c[p.status]++; c.units += Number(p.quantity) || 0; });
-      c.alerts = c.expired + c.today + c.soon;
+    async removeStore(id) {
+      const st = this.stores.find(x => x.id === id);
+      if (!st) return;
+      const n = this.products.filter(p => p.storeId === id).length;
+      this.stores = this.stores.filter(x => x.id !== id);
+      this.products = this.products.filter(p => p.storeId !== id);
+      this.log('store-remove', st.name, 'Loja excluída com ' + u.plural(n, 'produto', 'produtos'), id, st.name);
+      if (this.settings.currentStoreId === id) this.settings.currentStoreId = this.stores[0] ? this.stores[0].id : '';
+      this.saveSettings();
+      await this.persist();
+      this.syncNative();
+      this.emit('stores');
+    },
+
+    storeCounts(id) {
+      const c = { total: 0, expired: 0, soon: 0, mid: 0, ok: 0, units: 0 };
+      this.products.forEach(p => {
+        if (id && p.storeId !== id) return;
+        const st = u.status(u.daysUntil(p.expiry));
+        c.total++; c[st]++; c.units += Number(p.quantity) || 0;
+      });
+      c.alerts = c.expired + c.soon;
       return c;
     },
+
+    /* ----- Histórico (log de tudo que foi feito) ----- */
+    log(type, name, detail = '', storeId, storeName) {
+      const ses = RS.auth.session();
+      this.history.unshift({
+        id: u.uid(), t: Date.now(), type, name, detail,
+        storeId: storeId || this.settings.currentStoreId,
+        storeName: storeName || this.storeName(storeId || this.settings.currentStoreId),
+        user: (ses && (ses.nick || ses.email)) || this.settings.profile.name || 'Convidado'
+      });
+      if (this.history.length > 1000) this.history.length = 1000;
+    },
+    async clearHistory() { this.history = []; await this.persist(); this.emit('history'); },
+
+    /* ----- Produtos (sempre da loja atual, salvo quando indicado) ----- */
+    enrich(p) {
+      const days = u.daysUntil(p.expiry);
+      return Object.assign({}, p, { days, status: u.status(days) });
+    },
+    all(storeId) {
+      const id = storeId === undefined ? this.settings.currentStoreId : storeId;
+      return this.products.filter(p => !id || p.storeId === id).map(p => this.enrich(p));
+    },
+    byId(id) { const p = this.products.find(x => x.id === id); return p ? this.enrich(p) : null; },
+    byBarcode(code) {
+      if (!code) return null;
+      return this.products.find(x => x.barcode === code && x.storeId === this.settings.currentStoreId) || this.products.find(x => x.barcode === code);
+    },
+    counts() { return this.storeCounts(this.settings.currentStoreId); },
 
     async save(data) {
       const now = new Date().toISOString();
@@ -128,29 +231,51 @@
         const before = this.products[idx];
         item = Object.assign({}, before, data, { updatedAt: now });
         this.products[idx] = item;
-        const keys = Object.keys(data).filter(k => k !== 'id');
-        if (keys.length === 1 && keys[0] === 'quantity') {
-          const diff = (Number(item.quantity) || 0) - (Number(before.quantity) || 0);
-          this.log(diff < 0 ? 'out' : 'in', item.name, (diff > 0 ? '+' : '') + RS.u.fmtQty(diff, item.unit) + ' → ' + RS.u.fmtQty(item.quantity, item.unit));
-        } else this.log('edit', item.name, 'Validade ' + RS.u.fmtDate(item.expiry));
+        const changes = [];
+        if (before.name !== item.name) changes.push('nome');
+        if (before.expiry !== item.expiry) changes.push('validade ' + u.fmtDate(before.expiry) + ' → ' + u.fmtDate(item.expiry));
+        if (Number(before.quantity) !== Number(item.quantity)) changes.push('qtd ' + u.fmtQty(before.quantity, item.unit) + ' → ' + u.fmtQty(item.quantity, item.unit));
+        if (before.barcode !== item.barcode) changes.push('código');
+        if (before.category !== item.category) changes.push('categoria');
+        if (before.storeId !== item.storeId) changes.push('movido para ' + this.storeName(item.storeId));
+        if (changes.length) this.log('edit', item.name, 'Editado: ' + changes.join(' · '), item.storeId);
       } else {
-        item = RS.Product(Object.assign({}, data, { createdAt: now, updatedAt: now }));
-        const s = RS.auth.session();
-        if (s && s.kind !== 'guest') item.userId = s.id;
+        item = RS.Product(Object.assign({ storeId: this.settings.currentStoreId }, data, { createdAt: now, updatedAt: now }));
+        const ses = RS.auth.session();
+        if (ses && ses.kind !== 'guest') item.userId = ses.id;
         this.products.unshift(item);
-        this.log('add', item.name, RS.u.fmtQty(item.quantity, item.unit) + ' · vence ' + RS.u.fmtDate(item.expiry));
+        this.log('add', item.name, u.fmtQty(item.quantity, item.unit) + ' · vence ' + u.fmtDate(item.expiry), item.storeId);
       }
-      await RS.repo.upsert(item, this.products);
+      await this.persist();
       this.syncNative();
       this.emit('products');
       return item;
     },
 
-    async remove(id) {
+    /* Baixa (saída) ou entrada de estoque, com motivo — tudo registrado. */
+    async move(id, delta, reason = '', note = '') {
+      const p = this.products.find(x => x.id === id);
+      if (!p) return null;
+      const before = Number(p.quantity) || 0;
+      const after = Math.max(0, Math.round((before + delta) * 1000) / 1000);
+      p.quantity = after;
+      p.updatedAt = new Date().toISOString();
+      const real = after - before;
+      const why = REASONS[reason] || reason;
+      this.log(real < 0 ? 'out' : 'in', p.name,
+        (real < 0 ? 'Baixa de ' : 'Entrada de ') + u.fmtQty(Math.abs(real), p.unit) + (why ? ' · ' + why : '') + ' · ' + u.fmtQty(before, p.unit) + ' → ' + u.fmtQty(after, p.unit) + (note ? ' · “' + note + '”' : ''),
+        p.storeId);
+      await this.persist();
+      this.syncNative();
+      this.emit('products');
+      return this.enrich(p);
+    },
+
+    async remove(id, why) {
       const removed = this.products.find(p => p.id === id);
       this.products = this.products.filter(p => p.id !== id);
-      if (removed) this.log('remove', removed.name);
-      await RS.repo.remove(id, this.products);
+      if (removed) this.log('remove', removed.name, why || 'Removido do estoque · tinha ' + u.fmtQty(removed.quantity, removed.unit), removed.storeId);
+      await this.persist();
       this.syncNative();
       this.emit('products');
       return removed;
@@ -160,8 +285,8 @@
       const set = new Set(ids);
       const removed = this.products.filter(p => set.has(p.id));
       this.products = this.products.filter(p => !set.has(p.id));
-      removed.forEach(p => this.log('remove', p.name));
-      await RS.repo.saveAll(this.products);
+      removed.forEach(p => this.log('remove', p.name, 'Removido (seleção múltipla)', p.storeId));
+      await this.persist();
       this.syncNative();
       this.emit('products');
       return removed;
@@ -170,29 +295,48 @@
     async restore(item) {
       const list = Array.isArray(item) ? item : [item];
       this.products.unshift(...list);
-      list.forEach(p => this.log('add', p.name, 'restaurado'));
-      await RS.repo.saveAll(this.products);
+      list.forEach(p => this.log('add', p.name, 'Restaurado (desfazer)', p.storeId));
+      await this.persist();
       this.syncNative();
       this.emit('products');
     },
 
-    async replaceAll(items) {
-      this.products = items.map(p => RS.Product(p));
-      await RS.repo.saveAll(this.products);
+    /* Substitui o estoque inteiro (backup). */
+    async replaceAll(data) {
+      if (Array.isArray(data)) data = { products: data };
+      if (data.stores) this.stores = data.stores.map(x => RS.Store(x));
+      if (!this.stores.length) this.stores.push(RS.Store({ name: 'Loja principal' }));
+      this.products = (data.products || []).map(p => RS.Product(Object.assign({ storeId: this.stores[0].id }, p)));
+      this.products.forEach(p => { if (!this.stores.find(x => x.id === p.storeId)) p.storeId = this.stores[0].id; });
+      if (data.history) this.history = data.history;
+      if (!this.stores.find(x => x.id === this.settings.currentStoreId)) this.settings.currentStoreId = this.stores[0].id;
+      this.saveSettings();
+      await this.persist();
+      this.syncNative();
+      this.emit('all');
+    },
+
+    async clearStoreProducts(storeId) {
+      const n = this.products.filter(p => p.storeId === storeId).length;
+      this.products = this.products.filter(p => p.storeId !== storeId);
+      this.log('remove', 'Todos os produtos', u.plural(n, 'produto apagado', 'produtos apagados'), storeId);
+      await this.persist();
       this.syncNative();
       this.emit('products');
     },
 
     syncNative() {
-      const lite = this.products.map(p => ({ id: p.id, name: p.name, expiry: p.expiry, quantity: p.quantity, unit: p.unit }));
+      const names = {};
+      this.stores.forEach(x => { names[x.id] = x.name; });
+      const lite = this.products.map(p => ({ id: p.id, name: p.name, expiry: p.expiry, quantity: p.quantity, unit: p.unit, store: names[p.storeId] || '' }));
       RS.native.sync(lite, this.settings.notif);
     },
 
-    /* ----- Filtros / ordenação compartilhados ----- */
-    query({ text = '', status = 'all', sort = 'expiry', date = '', category = '' } = {}) {
+    /* ----- Filtros / ordenação ----- */
+    query({ text = '', status = 'all', sort = 'expiry', date = '', category = '', storeId } = {}) {
       const q = u.norm(text.trim());
-      let list = this.all();
-      if (status === 'alerts') list = list.filter(p => p.status !== 'ok');
+      let list = this.all(storeId);
+      if (status === 'alerts') list = list.filter(p => p.status === 'expired' || p.status === 'soon');
       else if (status !== 'all') list = list.filter(p => p.status === status);
       if (date) list = list.filter(p => p.expiry === date);
       if (category) list = list.filter(p => p.category === category);
@@ -207,11 +351,10 @@
     },
 
     async resetAll() {
+      await RS.repo.wipe();
       localStorage.clear();
-      this.history = [];
       this.settings = merge(DEFAULTS, null);
-      this.products = [];
-      await RS.repo.saveAll([]);
+      this.stores = []; this.products = []; this.history = [];
       this.applyAppearance();
       this.syncNative();
     }

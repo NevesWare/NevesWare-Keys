@@ -74,13 +74,16 @@
       return 'vence em ' + (days / 365).toFixed(1).replace('.0', '').replace('.', ',') + ' anos';
     },
 
-    status(days, threshold) {
+    /* Faixas de cor: vencido (preto) · < 7 dias (vermelho) · 7 a 30 dias (amarelo) · > 30 dias (verde) */
+    status(days) {
       if (days < 0) return 'expired';
-      if (days === 0) return 'today';
-      if (days <= threshold) return 'soon';
+      if (days < 7) return 'soon';
+      if (days <= 30) return 'mid';
       return 'ok';
     },
-    statusName: { expired: 'Vencido', today: 'Vence hoje', soon: 'Próximo', ok: 'Em dia' },
+    statusName: { expired: 'Vencido', soon: 'Menos de 7 dias', mid: '7 a 30 dias', ok: 'Mais de 30 dias' },
+    statusShort: { expired: 'Vencidos', soon: '< 7 dias', mid: '7–30 dias', ok: '+30 dias' },
+    STATUSES: ['expired', 'soon', 'mid', 'ok'],
 
     greet() {
       const h = new Date().getHours();
