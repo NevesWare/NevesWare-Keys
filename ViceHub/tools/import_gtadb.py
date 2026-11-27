@@ -83,6 +83,13 @@ KEYWORDS = [  # palavras no nome (minúsculas, com espaços nas pontas quando é
     ([" factory", " plant", " refinery", " mill", " warehouse", " industrial", " yard", " port ", " depot", " silo"], "industria"),
 ]
 
+UNNAMED_LABEL = {
+    "loja": "Loja", "hotel": "Hotel", "marco": "Ponto turístico", "transporte": "Ponto de transporte", "comida": "Restaurante",
+    "roupas": "Loja de roupas", "marina": "Marina", "barbearia": "Barbearia", "mercado": "Mercado", "oficina": "Oficina",
+    "seguranca": "Polícia", "posto": "Posto", "saude": "Clínica", "corrida": "Pista", "armas": "Loja de armas",
+    "tatuagem": "Estúdio de tatuagem", "servico": "Prédio público", "natureza": "Área natural", "bar": "Bar", "boate": "Boate",
+}
+
 def category(name, tags):
     for t, c in HASH:
         if any(x == t or x.endswith("." + t) for x in tags):
@@ -143,10 +150,16 @@ for lid, v in data.items():
     title = parts[0] if parts else "?"
     area = ", ".join(parts[1:])
     named = title not in ("?", "") and not title.startswith("?")
-    if not named:
-        continue  # prédios sem nome ficam de fora
+    if named:
+        cat = category(title, tags)
+    else:
+        # sem nome: só entra se o tipo for útil no mapa (loja, hotel, transporte...); ganha um nome descritivo
+        cat = category("", tags)
+        if cat not in UNNAMED_LABEL:
+            continue
+        where = parts[1] if len(parts) > 1 else ""
+        title = UNNAMED_LABEL[cat] + (" em " + where if where else "")
     mx, my = to_map(ig[0], ig[1])
-    cat = category(title, tags) if named else "anon"
     if cat == "predio":
         cat = "outros"
     reg = region(parts, ig[0], ig[1])

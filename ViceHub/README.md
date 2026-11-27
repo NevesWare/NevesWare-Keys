@@ -16,7 +16,7 @@ O app é uma interface web (`app/src/main/assets/www`) aberta num WebView em tel
 | `app/src/main/assets/www/img/regioes/` | Fotos das regiões (imagens do GTADB) |
 | `app/src/main/assets/www/data.js` | **Base de dados**: regiões, locais, categorias, veículos, garagens |
 | `app/src/main/assets/www/tiles/` | Mapa oficial do jogo em tiles (níveis 0–5), do GTADB |
-| `app/src/main/assets/www/gtadb/` | 1.123 locais com nome (`landmarks.js`), lista de tiles e 760 fotos do jogo, do GTADB |
+| `app/src/main/assets/www/gtadb/` | 1.454 locais (`landmarks.js`), lista de tiles e 960 fotos do jogo, do GTADB |
 | `app/src/main/assets/www/img/leonida.jpg` | Mapa inteiro numa imagem (capa) |
 | `tools/import_gtadb.py` | Importa/atualiza mapa, locais e fotos do repositório do GTADB |
 | `app/src/main/assets/www/img/veiculos/` | Fotos dos veículos (veja abaixo) |
@@ -38,6 +38,10 @@ python3 ViceHub/tools/import_gtadb.py caminho/para/gtadb.org
 ```
 
 Notas próprias por local ficam em `data.js` → `notas` (chave = id do GTADB, ex.: `L172`). Coordenadas em metros a partir do canto do recorte do mapa; quadrantes de 1 km.
+
+## Ajustes
+
+Aba **Ajustes** na barra de baixo: perfil (nome, entrar/sair), aparência (7 temas: Vice City, Neon Miami, Pôr do sol, Oceano, Menta, Dark e White, mais cor de destaque livre, intensidade do vidro, animações e texto maior), mapa (nomes, tamanho e quantidade de ícones, abrir em 3D, esconder visitados), notificações, privacidade e dados (exportar, apagar progresso, marcadores ou tudo), idioma, termos e sobre. Tudo fica salvo no aparelho.
 
 ## Contas
 

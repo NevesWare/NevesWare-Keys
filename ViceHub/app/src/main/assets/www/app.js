@@ -18,6 +18,50 @@
     get: function (k, d) { try { var v = localStorage.getItem("vh3:" + k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
     set: function (k, v) { try { localStorage.setItem("vh3:" + k, JSON.stringify(v)); return true; } catch (e) { return false; } }
   };
+  /* ---------- preferências e temas ---------- */
+  var SET = Object.assign({
+    theme: "vice", accent: "", blur: 24, motion: true, big: false,
+    labels: true, iconSize: "m", density: "normal", tilt: false,
+    notif: { novidades: true, locais: true, discord: false, lembretes: false },
+    history: true, lang: "pt-BR"
+  }, store.get("settings", {}));
+  function saveSet() { store.set("settings", SET); }
+  var THEMES = {
+    vice:   { nome: "Vice City", a: "#ff3d8b", b: "#ff9a3c", aqua: "#2de2e6", bg: ["#0a0716", "#150a2a", "#220b33", "#2e0f40"], shade: "10, 7, 22", panel: "18, 11, 36", text: "#f7f1ff", light: false },
+    neon:   { nome: "Neon Miami", a: "#ff2ec4", b: "#7a5cff", aqua: "#00f0ff", bg: ["#05040f", "#0d0a24", "#1a0f3a", "#2a0f4a"], shade: "5, 4, 15", panel: "16, 12, 40", text: "#f2f0ff", light: false },
+    sunset: { nome: "Pôr do sol", a: "#ff6a3d", b: "#ffc15e", aqua: "#ffd166", bg: ["#140806", "#24100b", "#341611", "#4a1d12"], shade: "20, 8, 6", panel: "36, 16, 11", text: "#fff4ec", light: false },
+    ocean:  { nome: "Oceano", a: "#2d8cff", b: "#2de2e6", aqua: "#7be38a", bg: ["#030b16", "#071a2e", "#0b2742", "#0e3352"], shade: "3, 11, 22", panel: "8, 24, 42", text: "#eef7ff", light: false },
+    mint:   { nome: "Menta", a: "#3ddc97", b: "#2de2e6", aqua: "#ffd23f", bg: ["#04100c", "#08201a", "#0c2e25", "#103a2f"], shade: "4, 16, 12", panel: "9, 30, 24", text: "#effff8", light: false },
+    dark:   { nome: "Dark", a: "#f2f2f2", b: "#a8a8a8", aqua: "#d9d9d9", bg: ["#000000", "#050505", "#0a0a0a", "#111111"], shade: "0, 0, 0", panel: "16, 16, 18", text: "#f5f5f5", light: false, onAccent: "#000" },
+    white:  { nome: "White", a: "#16131f", b: "#4a4458", aqua: "#2d6cdf", bg: ["#f6f5fa", "#eeedf4", "#e7e5f0", "#e2dfee"], shade: "246, 245, 250", panel: "255, 255, 255", text: "#16131f", light: true, onAccent: "#fff" }
+  };
+  function lighten(hex, amt) {
+    var n = parseInt(hex.slice(1), 16), r = n >> 16, g = (n >> 8) & 255, b = n & 255;
+    r = Math.round(r + (255 - r) * amt); g = Math.round(g + (255 - g) * amt); b = Math.round(b + (255 - b) * amt);
+    return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+  }
+  function lum(hex) { var n = parseInt(hex.slice(1), 16); return (.299 * (n >> 16) + .587 * ((n >> 8) & 255) + .114 * (n & 255)) / 255; }
+  function applyTheme() {
+    var t = THEMES[SET.theme] || THEMES.vice, s = document.documentElement.style;
+    var a = SET.accent || t.a, b = SET.accent ? lighten(SET.accent, .35) : t.b;
+    var txt = t.text, rgbTxt = t.light ? "22, 19, 31" : "247, 241, 255";
+    s.setProperty("--pink", a); s.setProperty("--sun", SET.accent ? a : t.b); s.setProperty("--aqua", t.aqua);
+    s.setProperty("--grad", "linear-gradient(100deg, " + a + ", " + b + ")");
+    s.setProperty("--on-accent", SET.accent ? (lum(a) > .6 ? "#120b1e" : "#fff") : (t.onAccent || "#1a0726"));
+    s.setProperty("--text", txt); s.setProperty("--muted", "rgba(" + rgbTxt + ", .64)"); s.setProperty("--faint", "rgba(" + rgbTxt + ", .42)");
+    s.setProperty("--line", t.light ? "rgba(20, 16, 32, .1)" : "rgba(255, 255, 255, .12)");
+    s.setProperty("--glass-2", t.light ? "rgba(20, 16, 32, .04)" : "rgba(255, 255, 255, .07)");
+    s.setProperty("--shade", t.shade); s.setProperty("--panel", t.panel);
+    s.setProperty("--night", t.bg[0]); s.setProperty("--bg1", t.bg[0]); s.setProperty("--bg2", t.bg[1]); s.setProperty("--bg3", t.bg[2]); s.setProperty("--bg4", t.bg[3]);
+    s.setProperty("--frost", "blur(" + SET.blur + "px) saturate(150%)");
+    s.colorScheme = t.light ? "light" : "dark";
+    document.documentElement.classList.toggle("rm", !SET.motion);
+    document.documentElement.classList.toggle("big", !!SET.big);
+    document.body.style.background = t.bg[0];
+    var m = document.querySelector('meta[name="theme-color"]'); if (m) m.setAttribute("content", t.bg[0]);
+  }
+  applyTheme();
+
   var toastT;
   function toast(msg) { var t = $("#toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toastT); toastT = setTimeout(function () { t.classList.remove("show"); }, 1900); }
 
@@ -67,7 +111,23 @@
     camera: '<path d="M4 8h3l2-2h6l2 2h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
     trash: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',
     user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
-    logout: '<path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10"/>'
+    logout: '<path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10"/>',
+    gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
+    bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0"/>',
+    lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+    palette: '<path d="M12 3a9 9 0 0 0 0 18c1 0 1.5-.8 1.5-1.5 0-.9-.7-1.3-.7-2.2 0-1 .8-1.8 1.8-1.8H17a4 4 0 0 0 4-4c0-4.7-4-8.5-9-8.5z"/><circle cx="7.5" cy="11" r="1.2"/><circle cx="10.5" cy="7" r="1.2"/><circle cx="15" cy="7.5" r="1.2"/>',
+    globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
+    info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/>',
+    download: '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>',
+    eye: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+    text: '<path d="M4 7V5h16v2M9 19h6M12 5v14"/>',
+    motion: '<path d="M3 12h4l3-8 4 16 3-8h4"/>',
+    layers: '<path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/>',
+    trophy: '<path d="M8 4h8v5a4 4 0 0 1-8 0zM8 6H4a4 4 0 0 0 4 4M16 6h4a4 4 0 0 1-4 4M12 13v4M8 21h8M9 17h6v4H9z"/>',
+    radio: '<rect x="3" y="8" width="18" height="12" rx="2"/><path d="M7 8l10-5"/><circle cx="8" cy="14" r="2.5"/><path d="M14 12h4M14 16h4"/>',
+    grid: '<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>',
+    shuffle: '<path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/>',
+    star2: '<path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8L3.5 9.7l5.9-.9z"/>'
   };
   function ico(name, attrs) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"' + (attrs || "") + ">" + (IC[name] || IC.pin) + "</svg>"; }
 
@@ -140,7 +200,12 @@
     },
     guest: function () { var s = { name: "Convidado", kind: "guest" }; store.set("session", s); return { user: s }; },
     google: function () { return CFG.googleClientId ? { error: "Login com Google precisa do servidor de contas configurado (veja config.js)." } : { soon: true }; },
-    signOut: function () { store.set("session", null); }
+    signOut: function () { store.set("session", null); },
+    rename: function (name) {
+      var s = store.get("session", null); if (!s) return;
+      s.name = name; store.set("session", s);
+      if (s.email) { var users = store.get("users", {}); if (users[s.email]) { users[s.email].name = name; store.set("users", users); } }
+    }
   };
   var Auth = (function () {
     var mode = "in", el = $("#auth");
@@ -180,7 +245,8 @@
     { id: "map", label: "Mapa", ic: "map", view: "v-map" },
     { id: "places", label: "Locais", ic: "pin", view: "v-places" },
     { id: "veh", label: "Veículos", ic: "car", view: "v-veh" },
-    { id: "guide", label: "Guia", ic: "book", view: "v-guide" }
+    { id: "guide", label: "Guia", ic: "book", view: "v-guide" },
+    { id: "set", label: "Ajustes", ic: "gear", view: "v-set" }
   ];
   var current = 0, dock = $("#dock");
   TABS.forEach(function (t, i) {
@@ -207,6 +273,8 @@
     ink(); closeDrawer();
     if (TABS[i].id === "map") Map.show(); else Map.closePop();
     if (TABS[i].id === "places") Places.render();
+    if (TABS[i].id === "set") Settings.render();
+    if (TABS[i].id === "guide") buildBadges();
   }
   window.addEventListener("resize", function () { ink(); Map.resize(); });
 
@@ -263,6 +331,7 @@
       gMap.appendChild(gTiles); svg.appendChild(gMap); svg.appendChild(gPins);
       if (!TL && window.VH_MAPIMG) { var M = window.VH_MAPIMG; gTiles.appendChild(img(M.src, M.x, M.y, M.w, M.h)); }
       bindInput(); buildQuick(); resize(true); loop();
+      if (SET.tilt) { stageEl.classList.add("tilted"); $("#tilt3d").classList.add("on"); }
     }
     function topSpace() { var t = $(".map-top"); return t ? t.getBoundingClientRect().bottom + 6 : 170; }
     function botSpace() { var d = $("#dock"); return d ? vh - (d.getBoundingClientRect().top - wrap.getBoundingClientRect().top) + 40 : 120; }
@@ -283,6 +352,7 @@
     }
     function visible(l) {
       if (!on[l.c]) return false;
+      if (SET.hideVisited && visited[l.id] && l.i !== sel) return false;
       if (fRegion !== "all" && l.r !== fRegion) return false;
       if (fVisit === "yes" && !visited[l.id]) return false;
       if (fVisit === "no" && visited[l.id]) return false;
@@ -308,7 +378,8 @@
     }
     function pinSVG(l, x, y, isSel) {
       var c = CAT[l.c], v = visited[l.id], gold = c.ouro;
-      return '<g class="pin' + (isSel ? " sel" : "") + (gold ? " gold" : "") + '" data-i="' + l.i + '" transform="translate(' + x.toFixed(1) + "," + y.toFixed(1) + ")" + (isSel ? " scale(1.28)" : "") + '">' +
+      var sc = ({ p: .82, m: 1, g: 1.2 }[SET.iconSize] || 1) * (isSel ? 1.28 : 1);
+      return '<g class="pin' + (isSel ? " sel" : "") + (gold ? " gold" : "") + '" data-i="' + l.i + '" transform="translate(' + x.toFixed(1) + "," + y.toFixed(1) + ")" + (sc !== 1 ? " scale(" + sc + ")" : "") + '">' +
         (isSel ? '<circle class="pulse" r="6" fill="none" stroke="' + c.cor + '" stroke-width="2.5"/>' : "") +
         '<ellipse rx="5" ry="2" fill="rgba(0,0,0,.4)"/>' +
         '<path d="M-5 -7L0 0L5 -7Z" fill="rgba(14,9,30,.92)"/>' +
@@ -320,11 +391,12 @@
     }
     function buildPins() {
       var k = st.k, z = k / fitK;
-      var minD = k < .05 ? 62 : k < .12 ? 50 : k < .35 ? 40 : k < .9 ? 33 : 29;
+      var dens = { poucos: 1.45, normal: 1, muitos: .8 }[SET.density] || 1, isz = { p: .82, m: 1, g: 1.2 }[SET.iconSize] || 1;
+      var minD = (k < .05 ? 62 : k < .12 ? 50 : k < .35 ? 40 : k < .9 ? 33 : 29) * dens * Math.max(1, isz);
       var cull = k > .25;
       var rx0 = -st.tx - vw, ry0 = -st.ty - vh, rx1 = -st.tx + 2 * vw, ry1 = -st.ty + 2 * vh;
       builtRect = cull ? [rx0, ry0, rx1, ry1] : null;
-      var grid = {}, out = "", labels = "", lgrid = {}, showLab = k >= .75, cell = minD;
+      var grid = {}, out = "", labels = "", lgrid = {}, showLab = SET.labels && k >= .75, cell = minD;
       shown = 0; eligible = 0;
       function free(x, y) {
         var cx = Math.floor(x / cell), cy = Math.floor(y / cell);
@@ -615,6 +687,7 @@
       },
       solo: function (list) { go("map"); cats.forEach(function (c) { on[c] = list.indexOf(c) >= 0; }); fRegion = "all"; syncBadge(); setTimeout(home, 120); },
       added: function (l) { on[l.c] = true; dirty = true; syncBadge(); select(l.i, false); },
+      random: function () { var pool = LOCS.filter(function (l) { return l.foto && !visited[l.id]; }); if (!pool.length) pool = LOCS; var l = pool[Math.floor(Math.random() * pool.length)]; this.focus(l.i); },
       refresh: function () { dirty = true; need = true; }
     };
   })();
@@ -723,13 +796,31 @@
      ========================================================= */
   var TYPE = { carro: "Carro", moto: "Moto", barco: "Barco", aereo: "Aeronave" };
   function slug(v) { return norm((v.m && v.m !== "—" ? v.m + " " : "") + v.n).replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""); }
+  var artN = 0;
+  function wheel(cx, cy, r) {
+    var sp = "";
+    for (var a = 0; a < 5; a++) { var t = a * Math.PI * 2 / 5; sp += "M" + cx + " " + cy + "L" + (cx + Math.cos(t) * r * .5).toFixed(1) + " " + (cy + Math.sin(t) * r * .5).toFixed(1); }
+    return '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="#0d0816"/><circle cx="' + cx + '" cy="' + cy + '" r="' + (r * .62).toFixed(1) + '" fill="#c9cde0"/><path d="' + sp + '" stroke="#6b6f85" stroke-width="2.2"/><circle cx="' + cx + '" cy="' + cy + '" r="' + (r * .16).toFixed(1) + '" fill="#3a3d4f"/>';
+  }
   function vArt(v) {
     var c = v.cor, dk = "#140a26", gl = "rgba(120,220,255,.55)";
     if (v.t === "carro") {
-      var low = /Super|Esportivo/.test(v.cl);
-      var body = low ? "M12 54 C14 46 26 43 44 41 L74 29 C88 23 118 23 134 29 L160 40 C178 42 190 46 190 55 L190 60 L12 60 Z" : "M10 52 C10 44 22 42 38 41 L60 24 C72 20 118 20 130 24 L150 40 C172 41 190 44 190 52 L190 60 L10 60 Z";
-      var win = low ? "M80 31 L100 31 L100 40 L60 41 Z M106 31 L128 31 L150 40 L106 40 Z" : "M66 27 L94 26 L94 40 L50 41 Z M100 26 L126 27 L144 40 L100 40 Z";
-      return '<svg viewBox="0 0 200 80"><path d="' + body + '" fill="' + c + '"/><path d="' + win + '" fill="' + gl + '"/><circle cx="52" cy="60" r="13" fill="' + dk + '"/><circle cx="52" cy="60" r="6" fill="#cfd3e6"/><circle cx="150" cy="60" r="13" fill="' + dk + '"/><circle cx="150" cy="60" r="6" fill="#cfd3e6"/></svg>';
+      var id = "va" + (artN++), dark = "#0000", cl = v.cl;
+      var kind = /Picape/.test(cl) ? "truck" : /donk/i.test(cl) ? "donk" : /Super/.test(cl) ? "super" : /Esportivo|Cupê/.test(cl) ? "sport" : /Muscle/.test(cl) ? "muscle" : "sedan";
+      var P = {
+        super: ["M10 56 C12 50 24 47 40 45 L70 33 C86 26 116 26 132 32 L162 44 C180 46 192 50 192 57 L192 62 L10 62 Z", "M78 35 L100 34 L100 44 L60 45 Z M106 34 L128 34 L150 44 L106 44 Z", 46, 154, 13, 62],
+        sport: ["M10 55 C12 47 24 44 42 42 L66 30 C82 24 118 24 134 30 L158 42 C178 44 192 48 192 56 L192 62 L10 62 Z", "M72 33 L98 31 L98 42 L54 43 Z M104 31 L128 32 L148 42 L104 42 Z", 50, 152, 13, 62],
+        muscle: ["M8 53 C8 46 18 44 34 43 L62 30 C74 25 112 25 126 30 L146 42 C170 43 192 45 192 53 L192 62 L8 62 Z", "M70 32 L96 31 L96 42 L54 42 Z M102 31 L122 32 L140 42 L102 42 Z", 48, 156, 14, 62],
+        sedan: ["M8 52 C8 44 20 42 36 41 L58 24 C70 20 118 20 130 24 L150 40 C172 41 192 44 192 52 L192 62 L8 62 Z", "M64 27 L94 26 L94 40 L48 41 Z M100 26 L126 27 L144 40 L100 40 Z", 50, 152, 13, 62],
+        donk: ["M8 46 C8 38 20 36 36 35 L58 18 C70 14 118 14 130 18 L150 34 C172 35 192 38 192 46 L192 54 L8 54 Z", "M64 21 L94 20 L94 34 L48 35 Z M100 20 L126 21 L144 34 L100 34 Z", 50, 150, 17, 60],
+        truck: ["M8 50 C8 44 16 42 28 42 L44 24 C50 20 84 20 90 24 L100 40 L192 40 L192 62 L8 62 Z", "M50 27 L82 26 L88 38 L40 39 Z", 46, 156, 14, 62]
+      }[kind];
+      return '<svg viewBox="0 0 200 80"><defs><linearGradient id="' + id + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="' + lighten(c, .35) + '"/><stop offset=".5" stop-color="' + c + '"/><stop offset="1" stop-color="' + c + '" stop-opacity=".75"/></linearGradient></defs>' +
+        '<ellipse cx="100" cy="' + (P[5] + 12) + '" rx="92" ry="5" fill="rgba(0,0,0,.45)"/>' +
+        '<path d="' + P[0] + '" fill="url(#' + id + ')"/><path d="' + P[1] + '" fill="' + gl + '"/>' +
+        '<path d="' + P[0] + '" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="1" />' +
+        '<rect x="184" y="' + (P[5] - 14) + '" width="7" height="4" rx="2" fill="#fff8c9"/><rect x="9" y="' + (P[5] - 13) + '" width="6" height="4" rx="2" fill="#ff3355"/>' +
+        wheel(P[2], P[5], P[4]) + wheel(P[3], P[5], P[4]) + '<path d="M0 0" fill="' + dark + '"/></svg>';
     }
     if (v.t === "moto") return '<svg viewBox="0 0 200 80"><circle cx="48" cy="56" r="18" fill="none" stroke="' + dk + '" stroke-width="7"/><circle cx="152" cy="56" r="18" fill="none" stroke="' + dk + '" stroke-width="7"/><path d="M48 56 L84 36 L124 34 L152 56" fill="none" stroke="#cfd3e6" stroke-width="4"/><path d="M96 24 C108 18 128 20 134 28 L126 36 L96 36 Z" fill="' + c + '"/><path d="M62 30 L96 28 L96 34 L58 36 Z" fill="' + dk + '"/></svg>';
     if (v.t === "barco") return '<svg viewBox="0 0 200 80"><path d="M8 42 L188 38 L168 62 L32 62 Z" fill="' + c + '"/><path d="M66 40 L82 22 L128 22 L140 39 Z" fill="' + gl + '"/><path d="M0 68 Q 12 63 24 68 T 48 68 T 72 68 T 96 68 T 120 68 T 144 68 T 168 68 T 192 68" stroke="#2de2e6" stroke-width="2.5" fill="none" opacity=".7"/></svg>';
@@ -742,22 +833,22 @@
     return '<img src="' + src + '" alt="" onerror="this.parentNode.removeChild(this)">';
   }
   var Veh = (function () {
-    var type = "all", cls = "all", q = "", openI = -1;
+    var type = "all", cls = "all", q = "", openI = -1, owned = store.get("owned", {});
     function render() {
-      var base = D.veiculos.filter(function (v) { return type === "all" || v.t === type; }), classes = [];
+      var base = D.veiculos.filter(function (v) { return type === "all" || (type === "mine" ? owned[slug(v)] : v.t === type); }), classes = [];
       base.forEach(function (v) { if (classes.indexOf(v.cl) < 0) classes.push(v.cl); });
       $("#vClass").innerHTML = '<button class="chip' + (cls === "all" ? " on" : "") + '" data-c="all" style="--c:#fff"><i></i>Todas <small>' + base.length + "</small></button>" +
         classes.map(function (c) { return '<button class="chip' + (cls === c ? " on" : "") + '" data-c="' + esc(c) + '"><i></i>' + esc(c) + "</button>"; }).join("");
       var nq = norm(q), list = base.filter(function (v) { return (cls === "all" || v.cl === cls) && (!nq || norm(v.n + " " + v.m + " " + v.cl + " " + (v.real || "")).indexOf(nq) >= 0); });
       $("#vList").innerHTML = list.length ? list.map(function (v, i) {
         var k = D.veiculos.indexOf(v), ok = v.s === "oficial" ? "#5dff9b" : "#ffd23f";
-        return '<button class="vc glass" data-v="' + k + '" style="--vc:' + v.cor + ";animation-delay:" + Math.min(i, 16) * 30 + 'ms"><span class="flag" style="background:' + ok + '"></span><div class="art">' + vArt(v) + vPhoto(v) + "</div>" +
+        return '<button class="vc glass" data-v="' + k + '" style="--vc:' + v.cor + ";animation-delay:" + Math.min(i, 16) * 30 + 'ms"><span class="flag" style="background:' + ok + '"></span>' + (owned[slug(v)] ? '<span class="owned">Na garagem</span>' : "") + '<div class="art">' + vArt(v) + vPhoto(v) + "</div>" +
           '<span class="mk">' + esc(v.m === "—" ? TYPE[v.t] : v.m) + "</span><b>" + esc(v.n) + "</b><small>" + esc(v.cl) + "</small>" + (v.spd ? '<div class="bar"><i style="width:' + v.spd * 10 + '%"></i></div>' : "") + "</button>";
-      }).join("") : '<div class="empty">Nenhum veículo com esse nome.</div>';
-      $("#vehSub").textContent = D.veiculos.length + " modelos · carros, motos, barcos e aeronaves";
+      }).join("") : '<div class="empty">' + (type === "mine" ? "Sua garagem está vazia. Abra um veículo e toque em \"Tenho este veículo\"." : "Nenhum veículo com esse nome.") + "</div>";
+      $("#vehSub").textContent = D.veiculos.length + " modelos · " + Object.keys(owned).length + " na sua garagem";
     }
     function build() {
-      $("#vSeg").innerHTML = [["all", "Todos"], ["carro", "Carros"], ["moto", "Motos"], ["barco", "Barcos"], ["aereo", "Aéreos"]].map(function (s) { return '<button data-t="' + s[0] + '" class="' + (s[0] === type ? "on" : "") + '">' + s[1] + "</button>"; }).join("");
+      $("#vSeg").innerHTML = [["all", "Todos"], ["carro", "Carros"], ["moto", "Motos"], ["barco", "Barcos"], ["aereo", "Aéreos"], ["mine", "Meus"]].map(function (s) { return '<button data-t="' + s[0] + '" class="' + (s[0] === type ? "on" : "") + '">' + s[1] + "</button>"; }).join("");
       $("#vSeg").onclick = function (e) { var b = e.target.closest("[data-t]"); if (!b) return; type = b.getAttribute("data-t"); cls = "all"; $$("#vSeg button").forEach(function (x) { x.classList.toggle("on", x === b); }); render(); };
       $("#vClass").onclick = function (e) { var b = e.target.closest("[data-c]"); if (!b) return; cls = b.getAttribute("data-c"); render(); };
       $("#vSearch").oninput = function () { q = this.value.trim(); render(); };
@@ -773,12 +864,19 @@
         "<div><small>Inspirado em</small><b>" + esc(v.real || "Não identificado") + "</b></div><div><small>Velocidade</small><b>" + (v.spd ? v.spd.toFixed(1) + " / 10" : "Não publicada") + "</b></div></div>" +
         (v.nota ? '<p class="muted" style="font-size:13.5px;margin:0 0 14px">' + esc(v.nota) + "</p>" : "") +
         '<p class="muted" style="font-size:12px;margin:0 0 14px">' + (v.s === "oficial" ? "Mostrado oficialmente pela Rockstar." : "Da lista da comunidade.") + "</p>" +
+        '<button class="own' + (owned[slug(v)] ? " on" : "") + '" data-a="own"><span>' + (owned[slug(v)] ? "Está na sua garagem" : "Tenho este veículo") + '</span><span class="sw' + (owned[slug(v)] ? " on" : "") + '"></span></button>' +
         '<button class="btn primary" data-a="where" style="width:100%">' + ico("map") + (v.t === "barco" ? "Ver marinas no mapa" : v.t === "aereo" ? "Ver aeroportos no mapa" : "Ver carros lendários, garagens e oficinas") + "</button></div>";
       $("#vModal").classList.add("open"); $("#scrim").classList.add("open");
-      $("#vPanel").onclick = function (e) { var b = e.target.closest("[data-a]"); if (!b) return; if (b.getAttribute("data-a") === "close") close(); else { close(); Map.solo(where); } };
+      $("#vPanel").onclick = function (e) {
+        var b = e.target.closest("[data-a]"); if (!b) return;
+        var a = b.getAttribute("data-a");
+        if (a === "close") close();
+        else if (a === "own") { var s = slug(v); if (owned[s]) delete owned[s]; else owned[s] = 1; store.set("owned", owned); open(i); render(); toast(owned[s] ? "Adicionado à sua garagem" : "Removido da garagem"); }
+        else { close(); Map.solo(where); }
+      };
     }
     function close() { openI = -1; $("#vModal").classList.remove("open"); if (!$("#drawer").classList.contains("open") && !$("#sheet").classList.contains("open")) $("#scrim").classList.remove("open"); }
-    return { build: build, close: close, isOpen: function () { return openI >= 0; } };
+    return { build: build, close: close, isOpen: function () { return openI >= 0; }, ownedCount: function () { return Object.keys(owned).length; }, reset: function () { owned = {}; store.set("owned", owned); render(); } };
   })();
 
   /* =========================================================
@@ -815,6 +913,126 @@
     $("#homes").onclick = function (e) { var b = e.target.closest("[data-i]"); if (b) Map.focus(+b.getAttribute("data-i")); };
   }
 
+  /* ---------- guia: elenco, rádios, linha do tempo, conquistas ---------- */
+  function buildExtras() {
+    $("#cast").innerHTML = (D.personagens || []).map(function (p) {
+      return '<div class="ch glass"><span class="av">' + esc(p.nome.charAt(0)) + "</span><b>" + esc(p.nome) + "</b><small>" + esc(p.papel) + "</small><p>" + esc(p.texto) + "</p></div>";
+    }).join("");
+    $("#radios").innerHTML = (D.radios || []).map(function (r) {
+      return '<div class="rd glass" style="--c:' + r.cor + '"><span class="disc" style="display:block"></span><b>' + esc(r.nome) + "</b><small>" + esc(r.estilo) + "</small></div>";
+    }).join("");
+    $("#timeline").innerHTML = (D.linhaDoTempo || []).map(function (t) { return '<div class="tl-i"><b>' + esc(t.data) + "</b><span>" + esc(t.texto) + "</span></div>"; }).join("");
+    $("#randomPlace").onclick = function () { Map.random(); };
+  }
+  function buildBadges() {
+    var v = nVisited(), mine = LOCS.filter(function (l) { return l.mine; }), gold = mine.filter(function (l) { return CAT[l.c].ouro; }).length;
+    var regs = D.regioes.filter(function (r) { return LOCS.some(function (l) { return l.r === r.id && visited[l.id]; }); }).length;
+    var list = [
+      ["Primeiro passo", "1 local visitado", v >= 1, "pin"], ["Explorador", "10 locais", v >= 10, "map"], ["Turista", "50 locais", v >= 50, "star2"],
+      ["Lenda de Leonida", "250 locais", v >= 250, "trophy"], ["Cartógrafo", "1º marcador seu", mine.length >= 1, "pin"], ["Caçador de ouro", "3 colecionáveis", gold >= 3, "card"],
+      ["Garagem cheia", "5 veículos seus", Veh.ownedCount() >= 5, "garage"], ["Todas as regiões", "visite as 6", regs >= 6, "globe"], ["Fã de carteirinha", "10 locais salvos", Object.keys(favs).length >= 10, "heart"]
+    ];
+    var got = list.filter(function (b) { return b[2]; }).length;
+    $("#badgeCount").textContent = got + " de " + list.length;
+    $("#badges").innerHTML = list.map(function (b) { return '<div class="bdg glass' + (b[2] ? " got" : "") + '"><span class="md">' + ico(b[3]) + "</span><b>" + esc(b[0]) + "</b><small>" + esc(b[1]) + "</small></div>"; }).join("");
+  }
+
+  /* =========================================================
+     AJUSTES
+     ========================================================= */
+  var Settings = (function () {
+    var ACCENTS = ["#ff3d8b", "#ff9a3c", "#ffd23f", "#2de2e6", "#8b5cf6", "#3ddc97", "#2d8cff", "#ff5c5c"];
+    var armed = {};
+    function sw(on) { return '<span class="sw' + (on ? " on" : "") + '"></span>'; }
+    function row(k, icn, title, sub, right, cls) { return '<button class="set-row' + (cls ? " " + cls : "") + '" data-k="' + k + '"><span class="si">' + ico(icn) + '</span><span class="st-t"><b>' + title + "</b>" + (sub ? "<small>" + sub + "</small>" : "") + "</span>" + (right || "") + "</button>"; }
+    function opt3(k, cur, opts) { return '<span class="opt3">' + opts.map(function (o) { return '<button data-k="' + k + '" data-v="' + o[0] + '" class="' + (cur === o[0] ? "on" : "") + '">' + o[1] + "</button>"; }).join("") + "</span>"; }
+    function render() {
+      var u = VH_AUTH.current() || { name: "Convidado", kind: "guest" }, guest = u.kind === "guest";
+      var h = "";
+      h += '<div class="set-sec"><h2>Perfil</h2><div class="set-card glass">' +
+        '<div class="set-row"><span class="avatar' + (guest ? " guest" : "") + '" style="width:44px;height:44px">' + esc((u.name || "?").charAt(0).toUpperCase()) + '</span><span class="st-t"><b>' + esc(u.name) + "</b><small>" + (guest ? "Modo convidado" : esc(u.email)) + "</small></span></div>" +
+        (guest ? row("login", "user", "Entrar ou criar conta", "Guarde seu progresso numa conta") : row("rename", "pen", "Nome de exibição", esc(u.name), ico("right", ' width="18" height="18"'))) +
+        row("logout", "logout", guest ? "Sair do modo convidado" : "Sair da conta", "", "") + "</div></div>";
+      h += '<div class="set-sec"><h2>Aparência</h2><div class="set-card glass"><div class="themes">' + Object.keys(THEMES).map(function (id) {
+        var t = THEMES[id];
+        return '<button class="th-o' + (SET.theme === id ? " on" : "") + '" data-k="theme" data-v="' + id + '"><i style="background:linear-gradient(160deg,' + t.bg[0] + "," + t.bg[3] + ");--sw:linear-gradient(90deg," + t.a + "," + t.b + ')"></i>' + t.nome + "</button>";
+      }).join("") + "</div>" +
+        '<div class="st-t" style="padding:0 14px 6px"><small class="muted" style="font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase">Cor de destaque</small></div>' +
+        '<div class="swatches"><button class="swatch' + (!SET.accent ? " on" : "") + '" data-k="accent" data-v="" style="background:var(--grad)" aria-label="Cor do tema"></button>' +
+        ACCENTS.map(function (c) { return '<button class="swatch' + (SET.accent === c ? " on" : "") + '" data-k="accent" data-v="' + c + '" style="background:' + c + '" aria-label="' + c + '"></button>'; }).join("") +
+        '<label class="swatch pick" aria-label="Escolher outra cor"><input type="color" id="accentPick" value="' + (SET.accent || "#ff3d8b") + '"></label></div>' +
+        '<div class="set-row"><span class="si">' + ico("layers") + '</span><span class="st-t"><b>Intensidade do vidro</b><small>Desfoque dos painéis</small></span><input class="range" type="range" min="6" max="40" value="' + SET.blur + '" id="blurRange"></div>' +
+        row("motion", "motion", "Animações", "Transições e efeitos", sw(SET.motion)) +
+        row("big", "text", "Texto maior", "Aumenta o texto das abas", sw(SET.big)) + "</div></div>";
+      h += '<div class="set-sec"><h2>Mapa</h2><div class="set-card glass">' +
+        row("labels", "text", "Nomes dos locais", "Aparecem ao aproximar", sw(SET.labels)) +
+        '<div class="set-row"><span class="si">' + ico("pin") + '</span><span class="st-t"><b>Tamanho dos ícones</b></span>' + opt3("iconSize", SET.iconSize, [["p", "P"], ["m", "M"], ["g", "G"]]) + "</div>" +
+        '<div class="set-row"><span class="si">' + ico("grid") + '</span><span class="st-t"><b>Quantidade de ícones</b></span>' + opt3("density", SET.density, [["poucos", "Poucos"], ["normal", "Normal"], ["muitos", "Muitos"]]) + "</div>" +
+        row("tilt", "layers", "Abrir o mapa em 3D", "", sw(SET.tilt)) +
+        row("hideVisited", "eye", "Esconder visitados", "Some com os locais que você já marcou", sw(SET.hideVisited)) + "</div></div>";
+      h += '<div class="set-sec"><h2>Notificações</h2><div class="set-card glass">' +
+        row("n:novidades", "bell", "Novidades do ViceHub", "Atualizações e novos recursos", sw(SET.notif.novidades)) +
+        row("n:locais", "map", "Novos locais no mapa", "Quando a base do GTADB crescer", sw(SET.notif.locais)) +
+        row("n:lembretes", "trophy", "Lembretes de progresso", "Conquistas perto de liberar", sw(SET.notif.lembretes)) +
+        row("n:discord", "user", "Avisos da comunidade", "Eventos no Discord", sw(SET.notif.discord)) +
+        '<p class="note" style="margin:0;padding:10px 14px 14px">As notificações no celular chegam quando o servidor do app estiver no ar. Suas escolhas já ficam salvas.</p></div></div>';
+      h += '<div class="set-sec"><h2>Privacidade e dados</h2><div class="set-card glass">' +
+        row("export", "download", "Exportar meus dados", "Copia visitados, salvos, marcadores e ajustes", "") +
+        row("clearProgress", "trash", armed.clearProgress ? "Toque de novo para confirmar" : "Apagar progresso", "Visitados e salvos", "", "danger") +
+        row("clearPins", "trash", armed.clearPins ? "Toque de novo para confirmar" : "Apagar meus marcadores", LOCS.filter(function (l) { return l.mine; }).length + " marcadores", "", "danger") +
+        row("clearAll", "trash", armed.clearAll ? "Toque de novo para confirmar" : "Apagar tudo e sair", "Conta local, progresso e ajustes deste aparelho", "", "danger") +
+        row("privacy", "lock", "Política de privacidade", "", ico("right", ' width="18" height="18"')) + "</div></div>";
+      h += '<div class="set-sec"><h2>Geral</h2><div class="set-card glass">' +
+        row("lang", "globe", "Idioma", "Português (Brasil)", '<span class="val">PT-BR</span>') +
+        row("discord", "user", "Comunidade no Discord", CFG.discordUrl ? "Entrar no servidor" : "Em breve", "") +
+        row("rate", "star2", "Avaliar o ViceHub", "Em breve na Play Store", "") +
+        row("terms", "book", "Termos de uso", "", ico("right", ' width="18" height="18"')) +
+        row("about", "info", "Sobre", "Versão 1.0 · dados do GTADB (CC BY 4.0)", ico("right", ' width="18" height="18"')) + "</div></div>";
+      $("#setBody").innerHTML = h;
+      var bl = $("#blurRange"); if (bl) bl.oninput = function () { SET.blur = +bl.value; saveSet(); applyTheme(); };
+      var ap = $("#accentPick"); if (ap) ap.oninput = function () { SET.accent = ap.value; saveSet(); applyTheme(); }, ap.onchange = render;
+    }
+    function textSheet(title, body) { openSheet('<span class="eyebrow">ViceHub</span><h2 style="margin:4px 0 12px">' + title + "</h2>" + body.map(function (p) { return '<p class="muted" style="font-size:13.5px;line-height:1.55;margin:0 0 10px">' + p + "</p>"; }).join("") + '<button class="btn ghost" style="width:100%;margin-top:6px" onclick="window.ViceHub.back()">Fechar</button>'); }
+    $("#setBody").addEventListener("click", function (e) {
+      var b = e.target.closest("[data-k]"); if (!b) return;
+      var k = b.getAttribute("data-k"), v = b.getAttribute("data-v");
+      if (k === "theme") { SET.theme = v; SET.accent = ""; }
+      else if (k === "accent") SET.accent = v;
+      else if (k === "motion" || k === "big" || k === "labels" || k === "tilt" || k === "hideVisited") SET[k] = !SET[k];
+      else if (k === "iconSize" || k === "density") SET[k] = v;
+      else if (k.indexOf("n:") === 0) { var n = k.slice(2); SET.notif[n] = !SET.notif[n]; }
+      else if (k === "login" || k === "logout") { if (k === "logout") VH_AUTH.signOut(); Auth.show(); return; }
+      else if (k === "rename") {
+        openSheet('<span class="eyebrow">Perfil</span><h2 style="margin:4px 0 12px">Nome de exibição</h2><label class="field"><span>Nome</span><input id="rnName" type="text" value="' + esc((VH_AUTH.current() || {}).name || "") + '"></label><div class="stack"><button class="btn primary" id="rnSave">Salvar</button></div>');
+        $("#rnSave").onclick = function () { var nm = $("#rnName").value.trim(); if (nm.length < 2) { toast("Nome muito curto"); return; } VH_AUTH.rename(nm); closeSheet(); startApp(VH_AUTH.current()); render(); toast("Nome atualizado"); };
+        return;
+      }
+      else if (k === "export") {
+        var data = JSON.stringify({ visitados: visited, salvos: favs, marcadores: LOCS.filter(function (l) { return l.mine; }).map(function (l) { return { n: l.n, c: l.c, x: l.x, y: l.y, d: l.d }; }), garagem: store.get("owned", {}), ajustes: SET }, null, 1);
+        try { navigator.clipboard.writeText(data).then(function () { toast("Dados copiados"); }, function () { toast("Não deu para copiar neste aparelho"); }); } catch (err) { toast("Não deu para copiar neste aparelho"); }
+        return;
+      }
+      else if (k === "clearProgress" || k === "clearPins" || k === "clearAll") {
+        if (!armed[k]) { armed = {}; armed[k] = true; render(); return; }
+        armed = {};
+        if (k === "clearProgress" || k === "clearAll") { visited = {}; favs = {}; store.set("visited", visited); store.set("favs", favs); }
+        if (k === "clearPins" || k === "clearAll") { LOCS = LOCS.filter(function (l) { return !l.mine; }); reindex(); saveMine(); }
+        if (k === "clearAll") { Veh.reset(); store.set("settings", null); store.set("users", {}); VH_AUTH.signOut(); location.reload(); return; }
+        updateProgress(); Map.refresh(); toast("Apagado");
+      }
+      else if (k === "privacy") { textSheet("Política de privacidade", ["O ViceHub guarda seus visitados, salvos, marcadores, fotos que você adiciona e ajustes só neste aparelho.", "Não coletamos localização, contatos nem dados de uso. Não há anúncios rastreando você nesta versão.", "Quando as contas online chegarem, esta política será atualizada antes de qualquer dado sair do aparelho.", "Para apagar tudo, use Ajustes → Privacidade e dados → Apagar tudo e sair."]); return; }
+      else if (k === "terms") { textSheet("Termos de uso", ["O ViceHub é um guia feito por fãs, sem ligação com a Rockstar Games ou a Take-Two Interactive. Grand Theft Auto e as imagens do jogo pertencem aos seus donos.", "Mapa, locais e fotos dos locais: GTADB (gtadb.org e colaboradores), licença CC BY 4.0.", "Marcadores e fotos que você cria são seus e ficam no seu aparelho.", "© 2026 Flow Labs Studio. Todos os direitos reservados."]); return; }
+      else if (k === "about") { textSheet("Sobre o ViceHub", ["Versão 1.0 · " + fmt(LOCS.length) + " locais · " + D.veiculos.length + " veículos.", "Mapa oficial em tiles, landmarks e fotos: GTA VI Landmarks Data e Map Tiles (CC BY 4.0) — https://map.gtadb.org.", "Feito com carinho pela Flow Labs Studio."]); return; }
+      else if (k === "discord") { if (CFG.discordUrl) { var a = document.createElement("a"); a.href = CFG.discordUrl; a.target = "_blank"; a.rel = "noopener"; a.click(); } else toast("Nosso Discord abre em breve"); return; }
+      else if (k === "rate") { toast("Avaliação na Play Store em breve"); return; }
+      else if (k === "lang") { toast("Inglês e espanhol em breve"); return; }
+      else return;
+      saveSet(); applyTheme(); Map.refresh(); render();
+      if (k === "tilt") toast(SET.tilt ? "O mapa vai abrir em 3D" : "O mapa vai abrir plano");
+    });
+    return { render: render };
+  })();
+
   /* =========================================================
      VOLTAR (Android), ABERTURA, INÍCIO
      ========================================================= */
@@ -844,7 +1062,7 @@
     $("#avatarTxt").textContent = guest ? "C" : (u.name || "?").charAt(0).toUpperCase();
     av.classList.toggle("guest", guest);
     if (started) return; started = true;
-    updateProgress(); Veh.build(); buildGuide(); Places.render(); Map.show();
+    updateProgress(); Veh.build(); buildGuide(); buildExtras(); buildBadges(); Places.render(); Map.show();
     requestAnimationFrame(ink);
   }
   var splash = $("#splash"), done = false;

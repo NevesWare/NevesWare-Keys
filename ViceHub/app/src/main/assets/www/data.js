@@ -24,6 +24,36 @@ window.VH_DATA = {
     ]
   },
 
+  personagens: [
+    { nome: "Lucia Caminos", papel: "Protagonista", texto: "Começa a história na Penitenciária de Leonida e quer uma vida melhor para ela e a família." },
+    { nome: "Jason Duval", papel: "Protagonista", texto: "Ex-militar que vive nas Leonida Keys e faz trabalhos para gente perigosa da região." },
+    { nome: "Cal Hampton", papel: "Aliado", texto: "Amigo de Jason, desconfiado de tudo e de todos." },
+    { nome: "Boobie Ike", papel: "Empresário", texto: "Dono de imóveis, de um clube de strip e de uma gravadora em Vice City." },
+    { nome: "Dre'Quan Priest", papel: "Produtor", texto: "Quer transformar a gravadora num império da música." },
+    { nome: "Real Dimez", papel: "Dupla de rap", texto: "Bae-Luxe e Roxy, artistas que estouram nas redes de Leonida." },
+    { nome: "Raul Bautista", papel: "Assaltante", texto: "Veterano de golpes que está sempre atrás do próximo grande roubo." },
+    { nome: "Brian Heder", papel: "Contrabandista", texto: "Dono da marina em Key Lento, mexe com contrabando há décadas." }
+  ],
+
+  radios: [
+    { nome: "Flash FM", estilo: "Pop", cor: "#ff3d8b" },
+    { nome: "Cocoteo FM", estilo: "Latina moderna", cor: "#ff9a3c" },
+    { nome: "Back Country Radio", estilo: "Country", cor: "#ffd23f" },
+    { nome: "AfroBank FM", estilo: "Afrobeats", cor: "#7be38a" },
+    { nome: "The Chamber 106.6", estilo: "Hip-hop", cor: "#8b5cf6" },
+    { nome: "Dirty South Classics", estilo: "Rap do sul dos EUA", cor: "#2de2e6" }
+  ],
+
+  linhaDoTempo: [
+    { data: "4 fev 2022", texto: "Rockstar confirma que o próximo GTA está em desenvolvimento." },
+    { data: "5 dez 2023", texto: "Trailer 1 sai e revela Vice City, Leonida e Lucia." },
+    { data: "2 mai 2025", texto: "Lançamento adiado para 26 de maio de 2026." },
+    { data: "6 mai 2025", texto: "Trailer 2 mostra Jason, Lucia e o elenco de apoio." },
+    { data: "6 nov 2025", texto: "Novo adiamento: 19 de novembro de 2026." },
+    { data: "19 nov 2026", texto: "GTA VI chega ao PS5 e ao Xbox Series X|S." },
+    { data: "20 nov 2026", texto: "Take-Two anuncia US$ 3,79 bilhões em vendas no primeiro dia." }
+  ],
+
   regioes: [
     { id: "vice", nome: "Vice City", base: "Miami", cor: "#ff3d8b", x: 10124, y: 10224,
       texto: "A metrópole de Leonida: praias, arranha-céus, vida noturna e o porto. Centro da maior parte da ação." },
@@ -116,6 +146,10 @@ window.VH_DATA = {
     { n: "Banshee", m: "Bravado", t: "carro", cl: "Esportivo", real: "Dodge Viper", spd: null, cor: "#ffd23f", s: "comunidade", nota: "Motor V10 dianteiro." },
     { n: "Stanier", m: "Vapid", t: "carro", cl: "Sedã", real: "Ford Crown Victoria", spd: null, cor: "#cfd3e6", s: "comunidade", nota: "Sedã clássico, comum nas ruas e na polícia." },
     { n: "Sabre Turbo", m: "Declasse", t: "carro", cl: "Muscle", real: "Oldsmobile 442 / Buick GSX", spd: null, cor: "#ff6a3d", s: "comunidade", nota: "Muscle car dos anos 70." },
+    { n: "8F Drafter", m: "Obey", t: "carro", cl: "Cupê", real: null, spd: null, cor: "#6f8dff", s: "comunidade", nota: null },
+    { n: "Akane", m: "Declasse", t: "carro", cl: "Cupê", real: null, spd: null, cor: "#ff7ab8", s: "comunidade", nota: null },
+    { n: "Tsunami Zorrusso", m: "Granforma", t: "carro", cl: "Super", real: null, spd: null, cor: "#2de2e6", s: "comunidade", nota: "Adicionado em listas da comunidade em novembro de 2026." },
+    { n: "Trash Rebel", m: "Karin", t: "carro", cl: "Picape", real: null, spd: null, cor: "#a7a29a", s: "comunidade", nota: null },
     { n: "Intruder", m: "Karin", t: "carro", cl: "Sedã", real: "Nissan Sentra", spd: null, cor: "#8fa3b8", s: "comunidade", nota: "Sedã compacto do dia a dia." },
 
     { n: "Alvino V1", m: "Principe", t: "moto", cl: "Clássica", real: null, spd: null, cor: "#ff9a3c", s: "comunidade", nota: "Marca nova na série." },
