@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ValiStock</string>
+    <string name="channel_alerts">Alertas de validade</string>
+    <string name="channel_alerts_desc">Avisa quando produtos estão perto de vencer ou vencidos.</string>
+</resources>
