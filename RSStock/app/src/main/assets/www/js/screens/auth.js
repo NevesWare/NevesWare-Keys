@@ -40,7 +40,7 @@
       return `<div class="scroll" style="-webkit-mask-image:none;mask-image:none;padding-top:0"><div class="auth">
         ${fromSettings ? `<div><button class="icon-btn glass" data-back aria-label="Voltar">${I('back')}</button></div>` : ''}
         <div class="auth-brand">
-          <img class="app-logo" src="img/logo.png" alt="">
+          <img class="app-logo" src="${RS.logoSrc()}" alt="">
           <h1>${cfg.appName}</h1>
           <p>${tab === 'signin' ? 'Entre para acompanhar suas validades' : 'Crie sua conta em segundos'}</p>
         </div>
@@ -87,7 +87,8 @@
         if (t.dataset.act === 'guest') {
           const L = ui.loading('Preparando seu estoque', 'Configurando o modo convidado…');
           RS.auth.signInGuest();
-          L.step('Carregando produtos…', 50);
+          L.step('Carregando lojas e estoques…', 50);
+          await RS.store.loadAccount();
           await u.sleep(500);
           L.step('Tudo pronto!', 100);
           await L.done(1100);
@@ -153,7 +154,7 @@
       let value = '';
       const html = `
         <div style="text-align:center;padding-top:${fullscreen ? '12vh' : '8px'}">
-          ${fullscreen ? `<img class="app-logo" src="img/logo.png" alt="" style="margin:0 auto 18px">` : ''}
+          ${fullscreen ? `<img class="app-logo" src="${RS.logoSrc()}" alt="" style="margin:0 auto 18px">` : ''}
           <h2 class="h2" data-pt>${u.esc(title)}</h2>
           <p class="hint" data-ps style="text-align:center">${u.esc(subtitle)}</p>
           <div class="pin-dots" data-dots>${'<i></i>'.repeat(4)}</div>

@@ -14,7 +14,7 @@
       idx = 0;
       return `
         <header class="topbar" style="justify-content:space-between">
-          <div style="display:flex;align-items:center;gap:10px"><img class="app-logo sm" src="img/logo.png" alt="" style="width:36px;height:36px;border-radius:11px;box-shadow:none"><b>${cfg.appName}</b></div>
+          <div style="display:flex;align-items:center;gap:10px"><img class="app-logo sm" src="${RS.logoSrc()}" alt="" style="width:36px;height:36px;border-radius:11px;box-shadow:none"><b>${cfg.appName}</b></div>
           <button class="btn sm" data-skip style="color:var(--text-2)">Pular</button>
         </header>
         <div class="intro"><div class="slides" data-slides>

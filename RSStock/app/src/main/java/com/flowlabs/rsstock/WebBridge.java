@@ -122,6 +122,17 @@ public class WebBridge {
         });
     }
 
+    /** Troca o ícone da tela inicial: "default" ou "coca" (activity-alias). */
+    @JavascriptInterface
+    public void setAppIcon(String name) {
+        IconSwitcher.apply(a, name);
+    }
+
+    @JavascriptInterface
+    public String getAppIcon() {
+        return IconSwitcher.current(a);
+    }
+
     @JavascriptInterface
     public boolean isImmersive() {
         return a.immersive;

@@ -46,26 +46,26 @@
     tab: 'settings',
     render() {
       const pr = s.settings.profile, c = s.counts();
-      const themeName = { dark: 'Escuro', light: 'Claro', system: 'Sistema' }[s.settings.theme];
+      const themeName = { dark: 'Escuro', light: 'Claro', system: 'Sistema', coca: 'Coca' }[s.settings.theme];
       return `
         <header class="topbar"><div class="grow"><p class="eyebrow">Preferências</p><h1 class="h1">Ajustes</h1></div></header>
         <button class="card glass profile-card compact" data-go="settings.profile" style="width:100%;text-align:left">
           <span class="avatar" style="--av:${(cfg.accents[pr.color] || {}).a}">${u.esc(u.initials(pr.name || 'R S'))}</span>
-          <span class="ct"><b>${u.esc(pr.name || 'Seu perfil')}</b><small class="muted" style="font-size:.78rem;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${u.esc(pr.store || userLabel())}</small></span>
+          <span class="ct"><b>${u.esc(pr.name || 'Seu perfil')}</b><small class="muted" style="font-size:.78rem;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${u.esc(s.current() ? s.current().name + ' · ' + u.plural(s.stores.length, 'loja', 'lojas') : userLabel())}</small></span>
           ${RS.auth.isGuest() ? `<span class="soon-tag">Convidado</span>` : ''}${I('chev', 20)}
         </button>
         <div class="tiles stagger">
+          ${tile('stores', 'home', '#e4000f', 'Lojas', u.plural(s.stores.length, 'loja', 'lojas'))}
           ${tile('settings.appearance', 'moon', '#8b5cf6', 'Aparência', themeName)}
           ${tile('settings.notifications', 'bell', '#f43f5e', 'Notificações', s.settings.notif.enabled ? s.settings.notif.daysBefore + ' dias antes' : 'Desligadas')}
           ${tile('settings.a11y', 'a11y', '#10b981', 'Acessibilidade', 'Texto e contraste')}
           ${tile('settings.security', 'lock', '#0ea5e9', 'Segurança', s.settings.security.pin ? 'PIN ativo' : 'PIN e senha')}
-          ${tile('settings.data', 'db', '#f59e0b', 'Backup', u.plural(c.total, 'produto', 'produtos'))}
-          ${tile('settings.history', 'clock', '#6366f1', 'Histórico', u.plural(s.history.length, 'registro', 'registros'))}
+          ${tile('settings.data', 'db', '#f59e0b', 'Backup', u.plural(s.products.length, 'produto', 'produtos'))}
+          ${tile('history', 'clock', '#6366f1', 'Histórico', u.plural(s.history.length, 'registro', 'registros'))}
           ${tile('account', 'cloud', '#3b82f6', 'Conta', RS.auth.isGuest() ? 'Em breve' : 'Conectada')}
           ${tile('settings.credits', 'heart', '#ec4899', 'Créditos', cfg.studio)}
           ${tile('settings.about', 'info', '#64748b', 'Sobre', 'v' + cfg.version)}
           ${tile('site', 'globe', '#06b6d4', 'Site', cfg.features.site && cfg.siteUrl ? 'Abrir' : 'Em breve')}
-          ${tile('export', 'export', '#14b8a6', 'Exportar', 'PDF · Imagem')}
           ${tile('logout', 'logout', '#ff5470', 'Sair', RS.auth.isGuest() ? 'Convidado' : 'Da conta', 'danger')}
         </div>`;
     },
@@ -115,9 +115,6 @@
         <div style="margin-top:18px">
           <div class="field"><label>Seu nome</label><div class="input"><span class="lead">${I('user', 18)}</span>
             <input data-k="profile.name" value="${u.esc(pr.name)}" placeholder="Como devemos te chamar?" maxlength="40" autocomplete="off"></div></div>
-          <div class="field"><label class="label">Estabelecimento <span class="opt">opcional</span></label><div class="input"><span class="lead">${I('home', 18)}</span>
-            <input data-k="profile.store" value="${u.esc(pr.store)}" placeholder="Ex.: Mercadinho São José" maxlength="60" autocomplete="off"></div>
-            <p class="hint">Aparece no topo da tela inicial e nos relatórios exportados.</p></div>
           <div class="field"><label>Cor do avatar</label>
             <div class="swatches">${Object.entries(cfg.accents).map(([k, a]) => `<button class="swatch ${pr.color === k ? 'on' : ''}" data-color="${k}" style="--a:${a.a};--b:${a.b}" aria-label="${a.name}"></button>`).join('')}</div></div>
         </div>
@@ -156,13 +153,16 @@
       return sub('Aparência', `
         <div class="group-label" style="margin-top:4px">Tema</div>
         <div class="theme-cards">
-          ${[['dark', 'Escuro'], ['light', 'Claro'], ['system', 'Sistema']].map(([k, l]) => `<button class="theme-card ${st.theme === k ? 'on' : ''}" data-theme-pick="${k}"><div class="pv ${k}"><i></i></div>${l}</button>`).join('')}
+          ${[['dark', 'Escuro'], ['light', 'Claro'], ['system', 'Sistema'], ['coca', 'Coca']].map(([k, l]) => `<button class="theme-card ${st.theme === k ? 'on' : ''}" data-theme-pick="${k}"><div class="pv ${k}"><i></i></div>${l}</button>`).join('')}
         </div>
+        ${st.theme === 'coca' ? `<p class="hint">Tema especial vermelho e branco: muda as cores, o fundo com bolhas, as transições e também o ícone do app na tela inicial do celular.</p>` : ''}
 
+        <div class="${st.theme === 'coca' ? 'hidden' : ''}">
         <div class="group-label">Cor de destaque</div>
         <div class="card glass-lite"><div class="swatches">
           ${Object.entries(cfg.accents).map(([k, a]) => `<button class="swatch ${st.accent === k ? 'on' : ''}" data-accent="${k}" style="--a:${a.a};--b:${a.b}" aria-label="${a.name}"></button>`).join('')}
         </div><p class="hint" data-accent-name style="margin-top:14px">${cfg.accents[st.accent].name}</p></div>
+        </div>
 
         <div class="group-label">Efeito vidro</div>
         <div class="group glass-lite">
@@ -190,8 +190,12 @@
         if (!t) return;
         ui.tap();
         if (t.dataset.themePick) {
+          const was = s.settings.theme;
           s.set('theme', t.dataset.themePick);
-          root.querySelectorAll('[data-theme-pick]').forEach(x => x.classList.toggle('on', x === t));
+          if (RS.fx) RS.fx.burst(innerWidth / 2, innerHeight / 3);
+          RS.app.refresh();
+          if (t.dataset.themePick === 'coca' && was !== 'coca') ui.toast('Tema Coca ativado · o ícone do app também muda', { type: 'ok', icon: 'sparkle', duration: 3800 });
+          else if (was === 'coca' && t.dataset.themePick !== 'coca') ui.toast('Ícone do app voltou ao padrão', { icon: 'sparkle' });
         } else if (t.dataset.accent) {
           s.set('accent', t.dataset.accent);
           root.querySelectorAll('[data-accent]').forEach(x => x.classList.toggle('on', x === t));
@@ -231,7 +235,7 @@
 
         <div class="group-label">Avisar com antecedência de</div>
         <div class="chips" style="padding-top:0">${DAYS.map(d => `<button class="chip glass-lite ${n.daysBefore === d ? 'on' : ''}" data-days="${d}">${u.plural(d, 'dia', 'dias')}</button>`).join('')}</div>
-        <p class="hint">Produtos que vencem dentro desse período aparecem como “Próximos”.</p>
+        <p class="hint">Você é avisado dos produtos que vencem dentro desse prazo (de todas as lojas). Cores: ⚫ vencido · 🔴 menos de 7 dias · 🟡 7 a 30 dias · 🟢 mais de 30 dias.</p>
 
         <div class="group-label">Horário</div>
         <div class="group glass-lite">
@@ -388,7 +392,7 @@
         </div>
         <div class="group-label">Zona de perigo</div>
         <div class="group glass-lite">
-          <button class="cell danger" data-clear-products><span class="ci" style="--cc:#ff8a3d">${I('trash', 18)}</span><span class="ct"><b>Apagar todos os produtos</b><small>Mantém suas configurações</small></span></button>
+          <button class="cell danger" data-clear-products><span class="ci" style="--cc:#ff8a3d">${I('trash', 18)}</span><span class="ct"><b>Apagar produtos desta loja</b><small>${u.esc(s.current() ? s.current().name : '')} · mantém as outras lojas</small></span></button>
           <button class="cell danger" data-reset-all><span class="ci" style="--cc:#ff5470">${I('refresh', 18)}</span><span class="ct"><b>Restaurar o app</b><small>Apaga produtos, ajustes e sessão</small></span></button>
         </div>`);
     },
@@ -398,16 +402,19 @@
         if (e.target.closest('[data-backup]')) {
           ui.tap();
           const L = ui.loading('Criando backup', 'Empacotando dados…');
-          const data = { app: 'RS Stock', version: cfg.version, exportedAt: new Date().toISOString(), products: s.products, settings: Object.assign({}, s.settings, { security: { pin: '', lockOnResume: false } }) };
+          const data = { app: 'RS Stock', version: cfg.version, schema: 2, exportedAt: new Date().toISOString(), stores: s.stores, products: s.products, history: s.history, settings: Object.assign({}, s.settings, { security: { pin: '', lockOnResume: false } }) };
           const json = JSON.stringify(data, null, 2);
           await L.done(600);
           const r = await RS.native.exportFile(btoa(unescape(encodeURIComponent(json))), 'application/json', 'RSStock-backup-' + u.stamp() + '.json', 'save');
           if (r.ok) ui.toast('Backup salvo', { type: 'ok' });
           else if (!r.cancelled) ui.toast(r.error || 'Falha ao salvar', { type: 'err' });
         } else if (e.target.closest('[data-clear-products]')) {
-          const ok = await ui.confirm({ title: 'Apagar todos os produtos?', message: `${u.plural(s.products.length, 'produto será removido', 'produtos serão removidos')}. Essa ação não pode ser desfeita.`, confirm: 'Apagar', danger: true });
+          const cur = s.current();
+          if (!cur) return;
+          const n = s.storeCounts(cur.id).total;
+          const ok = await ui.confirm({ title: `Apagar o estoque de ${u.esc(cur.name)}?`, message: `${u.plural(n, 'produto será removido', 'produtos serão removidos')}. As outras lojas não são afetadas.`, confirm: 'Apagar', danger: true });
           if (!ok) return;
-          await s.replaceAll([]);
+          await s.clearStoreProducts(cur.id);
           ui.toast('Produtos apagados', { icon: 'trash' });
           RS.app.refresh();
         } else if (e.target.closest('[data-reset-all]')) {
@@ -426,10 +433,10 @@
         try {
           const data = JSON.parse(await file.text());
           if (!data || !Array.isArray(data.products)) throw new Error('formato');
-          const ok = await ui.confirm({ title: 'Restaurar backup?', message: `${u.plural(data.products.length, 'produto', 'produtos')} serão importados e substituirão a lista atual.`, confirm: 'Restaurar', icon: 'upload' });
+          const ok = await ui.confirm({ title: 'Restaurar backup?', message: `${data.stores ? u.plural(data.stores.length, 'loja', 'lojas') + ' e ' : ''}${u.plural(data.products.length, 'produto', 'produtos')} substituirão os dados atuais.`, confirm: 'Restaurar', icon: 'upload' });
           if (!ok) return;
           const L = ui.loading('Restaurando backup', 'Importando produtos…');
-          await s.replaceAll(data.products);
+          await s.replaceAll(data);
           if (data.settings) {
             const keep = s.settings.security;
             Object.keys(data.settings).forEach(k => { if (k !== 'security' && k in s.settings) s.set(k, data.settings[k]); });
@@ -519,7 +526,7 @@
       const info = RS.native.info();
       return sub('Sobre o app', `
         <div class="card glass" style="text-align:center;padding:30px 18px">
-          <img class="app-logo" src="img/logo.png" alt="" style="margin:0 auto 14px">
+          <img class="app-logo" src="${RS.logoSrc()}" alt="" style="margin:0 auto 14px">
           <h2 class="h2" style="font-size:1.4rem">${cfg.appName}</h2>
           <p class="muted" style="margin-top:4px">Versão ${u.esc(info.version || cfg.version)}</p>
         </div>
@@ -532,9 +539,9 @@
         </div>
         <div class="group-label">Como funciona</div>
         <div class="card glass-lite"><p class="muted" style="font-size:.88rem;line-height:1.6">
-          Cadastre produtos com nome e validade (o código de barras é opcional). O RS Stock classifica cada item como <b style="color:var(--c-ok)">em dia</b>,
-          <b style="color:var(--c-soon)">próximo</b>, <b style="color:var(--c-today)">vence hoje</b> ou <b style="color:var(--c-expired)">vencido</b>, envia um resumo diário por notificação
-          e exporta tudo em PDF, imagem ou texto.</p></div>`);
+          Crie suas lojas (ex.: Mercado Rio Sul, Guanabara) — cada uma tem o próprio estoque. Cadastre produtos com nome e validade; as cores mostram a situação:
+          <span class="tag-exp">Vencido</span> <b style="color:var(--c-soon)">menos de 7 dias</b>, <b style="color:var(--c-mid)">7 a 30 dias</b> e <b style="color:var(--c-ok)">mais de 30 dias</b>.
+          Dê baixa ou entrada no estoque, acompanhe tudo no histórico e exporte em PDF, imagem, texto ou planilha com o nome da loja.</p></div>`);
     },
     mount(root) { bindCommon(root); }
   };

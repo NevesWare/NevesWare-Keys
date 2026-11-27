@@ -29,18 +29,19 @@ final class PdfExporter {
     private PdfExporter() {
     }
 
+    /* vencido = preto · < 7 dias = vermelho · 7 a 30 = amarelo · > 30 = verde */
     static int statusColor(String status) {
-        if ("expired".equals(status)) return Color.parseColor("#E5484D");
-        if ("today".equals(status)) return Color.parseColor("#F76B15");
-        if ("soon".equals(status)) return Color.parseColor("#E2A336");
-        return Color.parseColor("#12A594");
+        if ("expired".equals(status)) return Color.parseColor("#050507");
+        if ("soon".equals(status)) return Color.parseColor("#E5162B");
+        if ("mid".equals(status)) return Color.parseColor("#E2A100");
+        return Color.parseColor("#12A36B");
     }
 
     static String statusName(String status) {
-        if ("expired".equals(status)) return "Vencido";
-        if ("today".equals(status)) return "Vence hoje";
-        if ("soon".equals(status)) return "Próximo";
-        return "Em dia";
+        if ("expired".equals(status)) return "VENCIDO";
+        if ("soon".equals(status)) return "< 7 dias";
+        if ("mid".equals(status)) return "7 a 30 dias";
+        return "+30 dias";
     }
 
     static byte[] build(android.content.Context ctx, JSONObject r) throws Exception {
@@ -123,16 +124,16 @@ final class PdfExporter {
                 String store = r.optString("store", "");
                 if (store.length() > 0) c.drawText(store, W - M - small.measureText(store), 60, small);
 
-                c.drawText(r.optString("title", "Relatório de validades"), M, 98, title);
+                c.drawText(TextUtils.ellipsize(r.optString("title", "Relatório de validades"), title, contentW, TextUtils.TruncateAt.END).toString(), M, 98, title);
                 String subtitle = r.optString("subtitle", "");
                 c.drawText(subtitle, M, 114, sub);
 
                 // Resumo em cartões
                 JSONObject s = r.optJSONObject("summary");
                 if (s == null) s = new JSONObject();
-                String[] labels = {"Produtos", "Vencidos", "Vencem hoje", "Próximos", "Em dia"};
-                String[] keys = {"total", "expired", "today", "soon", "ok"};
-                String[] st = {null, "expired", "today", "soon", "ok"};
+                String[] labels = {"Produtos", "Vencidos", "< 7 dias", "7 a 30 dias", "+30 dias"};
+                String[] keys = {"total", "expired", "soon", "mid", "ok"};
+                String[] st = {null, "expired", "soon", "mid", "ok"};
                 int gap = 8;
                 float cw = (contentW - gap * 4) / 5f;
                 for (int i = 0; i < 5; i++) {
@@ -163,7 +164,7 @@ final class PdfExporter {
             fill.setColor(Color.parseColor("#F5F6FA"));
             c.drawRoundRect(new RectF(M, y - 18, W - M, y + 4), 6, 6, fill);
             c.drawText("PRODUTO", xName + 8, y - 4, head);
-            if (showCategory) c.drawText("CATEGORIA", xCat, y - 4, head);
+            if (showCategory) c.drawText(r.optBoolean("showStore", false) ? "LOJA" : "CATEGORIA", xCat, y - 4, head);
             if (showQty) c.drawText("QTD", xQty, y - 4, head);
             c.drawText("VALIDADE", xDate, y - 4, head);
             c.drawText("STATUS", xStatus, y - 4, head);
@@ -192,9 +193,10 @@ final class PdfExporter {
                 String sn = statusName(status);
                 float pw = pill.measureText(sn) + 14;
                 int col = statusColor(status);
-                fill.setColor(withAlpha(col, 36));
+                boolean exp = "expired".equals(status);
+                fill.setColor(exp ? col : withAlpha(col, 36));
                 c.drawRoundRect(new RectF(xStatus, top + 7, xStatus + pw, top + 21), 7, 7, fill);
-                pill.setColor(col);
+                pill.setColor(exp ? Color.WHITE : col);
                 c.drawText(sn, xStatus + 7, top + 17.5f, pill);
 
                 c.drawLine(M, top + ROW_H - 1, W - M, top + ROW_H - 1, line);

@@ -135,7 +135,8 @@
   /* Atualiza telas que dependem dos produtos quando eles mudam. */
   s.on(what => {
     if (!current) return;
-    if (what === 'products' && ['home', 'export', 'settings', 'settings.data', 'settings.history'].includes(current.name)) RS.app.refresh();
+    if (what === 'products' && ['home', 'export', 'settings', 'settings.data', 'history'].includes(current.name)) RS.app.refresh();
+    if ((what === 'store' || what === 'stores' || what === 'all') && ['export', 'settings', 'history', 'settings.data'].includes(current.name)) RS.app.refresh();
   });
 
   /* ----- Efeito de toque (ripple) em todos os botões ----- */

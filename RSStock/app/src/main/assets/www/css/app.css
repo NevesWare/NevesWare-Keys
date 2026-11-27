@@ -365,7 +365,8 @@ svg { flex-shrink: 0; }
 .swatch:active { transform: scale(.9); }
 .swatch.on::after { content: ""; position: absolute; inset: -5px; border-radius: 19px; border: 2px solid var(--text); }
 
-.theme-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.theme-cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.theme-card .pv { height: 56px !important; }
 .theme-card { border-radius: 18px; padding: 10px; text-align: center; font-size: .8rem; font-weight: 600; border: 1px solid var(--stroke); background: var(--glass); transition: transform .2s var(--spring); }
 .theme-card:active { transform: scale(.95); }
 .theme-card .pv { height: 64px; border-radius: 12px; margin-bottom: 8px; position: relative; overflow: hidden; }

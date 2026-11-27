@@ -133,6 +133,7 @@
       RS.native.setImmersive(s.fullscreen !== false);
       RS.native.setAppIcon(this.isCoca() ? 'coca' : 'default');
       if (RS.fx) RS.fx.update();
+      document.querySelectorAll('img.app-logo').forEach(i => { i.src = RS.logoSrc(); });
     },
 
     /* ----- Lojas ----- */

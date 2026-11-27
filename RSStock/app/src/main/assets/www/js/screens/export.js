@@ -19,11 +19,7 @@
   function summaryHtml() {
     const { summary } = X().dataset(opts());
     return `<div><b class="num" style="font-size:1.35rem">${summary.total}</b> <span class="muted">${summary.total === 1 ? 'produto' : 'produtos'}</span></div>
-      <div style="display:flex;gap:10px;font-size:.74rem" class="num">
-        <span class="s-expired" style="display:flex;align-items:center;gap:5px"><span class="sdot"></span>${summary.expired}</span>
-        <span class="s-today" style="display:flex;align-items:center;gap:5px"><span class="sdot"></span>${summary.today}</span>
-        <span class="s-soon" style="display:flex;align-items:center;gap:5px"><span class="sdot"></span>${summary.soon}</span>
-        <span class="s-ok" style="display:flex;align-items:center;gap:5px"><span class="sdot"></span>${summary.ok}</span></div>`;
+      <div style="display:flex;gap:10px;font-size:.74rem" class="num">${u.STATUSES.map(k => `<span class="s-${k}" style="display:flex;align-items:center;gap:5px"><span class="sdot"></span>${summary[k]}</span>`).join('')}</div>`;
   }
 
   RS.screens.export = {
@@ -32,7 +28,7 @@
       const o = opts();
       const sortLabel = (SORTS.find(x => x.value === o.sort) || SORTS[0]).label;
       return `
-        <header class="topbar"><div class="grow"><p class="eyebrow">Relatórios</p><h1 class="h1">Exportar</h1></div>
+        <header class="topbar"><div class="grow"><p class="eyebrow">Exportar validades de</p><h1 class="h1" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${u.esc(X().titleName(o))}</h1></div>
           <button class="icon-btn glass" data-act="preview" aria-label="Prévia">${ui.icon('eye')}</button></header>
 
         <div class="fmt-grid">
@@ -40,6 +36,9 @@
             <span class="xi">${ui.icon(f.icon, 20)}</span><span><b>${f.title}</b><small>${f.desc}</small></span><span class="radio"></span></button>`).join('')}
         </div>
 
+        ${s.stores.length > 1 ? `<div class="seg" style="margin-top:12px">
+          <button class="${o.scope !== 'all' ? 'on' : ''}" data-scope="current">${ui.icon('home', 16)}Esta loja</button>
+          <button class="${o.scope === 'all' ? 'on' : ''}" data-scope="all">${ui.icon('layers', 16)}Todas (${s.stores.length})</button></div>` : ''}
         <div class="group-label">O que exportar</div>
         <div class="chips tight">
           ${Object.entries(X().FILTERS).map(([k, l]) => `<button class="chip glass-lite ${o.filter === k ? 'on' : ''}" data-filter="${k}">${l}</button>`).join('')}
@@ -62,9 +61,10 @@
 
     mount(root) {
       root.addEventListener('click', async e => {
-        const t = e.target.closest('[data-format],[data-filter],[data-inc],[data-act],[data-run]');
+        const t = e.target.closest('[data-format],[data-filter],[data-inc],[data-act],[data-run],[data-scope]');
         if (!t) return;
         ui.tap();
+        if (t.dataset.scope) { s.set('export.scope', t.dataset.scope); return RS.app.refresh(); }
         if (t.dataset.format) { s.set('export.format', t.dataset.format); return RS.app.refresh(); }
         if (t.dataset.filter) { s.set('export.filter', t.dataset.filter); return RS.app.refresh(); }
         if (t.dataset.inc) { s.set('export.include.' + t.dataset.inc, !opts().include[t.dataset.inc]); return RS.app.refresh(); }
@@ -91,7 +91,7 @@
       setTimeout(() => {
         const imgs = X().buildImages(o);
         ctl.setBody(imgs.map(src => `<img class="preview-img" src="${src}" alt="Prévia" style="margin-bottom:12px">`).join('') +
-          (imgs.length > 1 ? `<p class="hint" style="text-align:center">${imgs.length} imagens (40 produtos por imagem)</p>` : ''));
+          `<p class="hint" style="text-align:center">${imgs.length === 1 ? "1 folha" : imgs.length + " folhas"} no formato de tela de celular (1080×1920)</p>`);
       }, 350);
     } else {
       const r = X().buildReport(o);
@@ -112,7 +112,7 @@
       const go = await ui.confirm({ title: 'Nada para exportar', message: 'Nenhum produto corresponde ao filtro escolhido. Exportar mesmo assim?', confirm: 'Exportar', icon: 'filter' });
       if (!go) return;
     }
-    const name = 'RSStock-' + u.stamp();
+    const name = X().fileBase(o);
 
     if (o.format === 'csv') {
       const L = ui.loading('Gerando planilha', 'Organizando colunas…');

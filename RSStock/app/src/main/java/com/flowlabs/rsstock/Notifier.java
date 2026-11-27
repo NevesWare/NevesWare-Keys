@@ -48,6 +48,7 @@ final class Notifier {
 
     static final class Item {
         String name;
+        String store;
         long days;
     }
 
@@ -98,6 +99,7 @@ final class Notifier {
             if (d > daysBefore) continue;
             Item it = new Item();
             it.name = o.optString("name", "Produto");
+            it.store = o.optString("store", "");
             it.days = d;
             items.add(it);
             if (d < 0) expired++;
@@ -155,7 +157,7 @@ final class Notifier {
             int max = Math.min(items.size(), 6);
             for (int i = 0; i < max; i++) {
                 Item it = items.get(i);
-                style.addLine(it.name + " — " + label(it.days));
+                style.addLine(it.name + " — " + label(it.days) + (it.store.length() > 0 ? " · " + it.store : ""));
             }
             if (items.size() > max) style.setSummaryText("+" + (items.size() - max) + " outros");
             style.setBigContentTitle(title);

@@ -42,3 +42,5 @@ RS.config = {
     ocean:  { name: 'Oceano',  a: '#06b6d4', b: '#6366f1', rgb: '6, 182, 212' }
   }
 };
+
+RS.logoSrc = () => (RS.store && RS.store.isCoca && RS.store.isCoca() ? 'img/logo-coca.png' : 'img/logo.png');
