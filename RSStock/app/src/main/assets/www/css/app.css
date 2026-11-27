@@ -973,3 +973,12 @@ svg { flex-shrink: 0; }
   .sc { padding: 10px; gap: 6px; } .sc .ti { width: 32px; height: 32px; }
   .row { min-height: 48px; padding: 7px 14px; }
 }
+
+/* v3.1 — conteúdo nunca fica escondido atrás da barra: rola por dentro se não couber */
+.scroll.flexcol { display: flex; flex-direction: column; padding-top: 2px; padding-bottom: 14px; }
+.scroll.flexcol > * { flex-shrink: 0; }
+.scroll.flexcol > .spacer { flex: 1 1 auto; }
+.me-card .meta { flex-wrap: nowrap; overflow: hidden; -webkit-mask-image: linear-gradient(90deg, #000 85%, transparent); mask-image: linear-gradient(90deg, #000 85%, transparent); }
+.me-card b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Faixa do tema Coca acompanha a altura do topo (entalhe/câmera) */
+:root[data-theme="coca"] .coca-wave { top: 0; height: calc(var(--safe-top) + 128px); }

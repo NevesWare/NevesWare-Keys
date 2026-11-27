@@ -54,6 +54,7 @@
         <header class="topbar"><div class="grow"><p class="eyebrow">Preferências</p><h1 class="h1">Ajustes</h1></div>
           <button class="icon-btn glass" data-go="logout" aria-label="Sair" style="color:var(--c-danger)">${I('logout', 20)}</button></header>
 
+        <div class="scroll flexcol">
         <button class="me-card stagger-in" data-go="settings.profile">
           <span class="me-avatar" style="--av:${(cfg.accents[pr.color] || {}).a}"><span>${u.esc(u.initials(pr.name || 'R S'))}</span></span>
           <span class="ct"><b>${u.esc(pr.name || 'Toque para criar seu perfil')}</b>
@@ -81,6 +82,7 @@
           <button class="glass-lite" data-go="settings.credits" style="--tc:#ec4899">${I('heart', 18)}Créditos</button>
           <button class="glass-lite" data-go="settings.about" style="--tc:#64748b">${I('info', 18)}v${cfg.version}</button>
           <button class="glass-lite" data-go="site" style="--tc:#06b6d4">${I('globe', 18)}Site</button>
+        </div>
         </div>`;
     },
     mount(root) {

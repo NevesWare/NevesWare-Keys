@@ -31,6 +31,7 @@
         <header class="topbar"><div class="grow"><p class="eyebrow">Exportar validades de</p><h1 class="h1" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${u.esc(X().titleName(o))}</h1></div>
           <button class="icon-btn glass" data-act="preview" aria-label="Prévia">${ui.icon('eye')}</button></header>
 
+        <div class="scroll flexcol">
         <div class="fmt-grid">
           ${FORMATS.map(f => `<button class="fmt glass ${o.format === f.id ? 'on' : ''}" data-format="${f.id}" style="--a:${f.a};--b:${f.b}">
             <span class="xi">${ui.icon(f.icon, 20)}</span><span><b>${f.title}</b><small>${f.desc}</small></span><span class="radio"></span></button>`).join('')}
@@ -56,6 +57,7 @@
         <div class="btn-row" style="margin-top:12px">
           <button class="btn ghost" data-run="save">${ui.icon(o.format === 'image' ? 'download' : o.format === 'text' ? 'copy' : 'save', 20)}${o.format === 'text' ? 'Copiar' : 'Salvar'}</button>
           <button class="btn primary" data-run="share">${ui.icon('share', 20)}Compartilhar</button>
+        </div>
         </div>`;
     },
 
