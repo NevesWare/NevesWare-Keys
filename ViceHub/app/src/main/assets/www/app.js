@@ -1,10 +1,11 @@
-/* ViceHub v2 — app.js
- * Abas: Mapa · Locais · Veículos · Guia
- * Mapa oficial em tiles + locais do GTADB (CC BY 4.0).
+/* ViceHub v3 — app.js
+ * Abertura → contas (entrar, criar conta, convidado) → app.
+ * Abas (barra embaixo): Mapa · Locais · Veículos · Guia.
+ * Mapa oficial em tiles + locais do GTADB (CC BY 4.0) + marcadores do próprio jogador.
  */
 (function () {
   "use strict";
-  var D = window.VH_DATA, G6 = window.VH_GTADB, TL = window.VH_TILES;
+  var D = window.VH_DATA, G6 = window.VH_GTADB, TL = window.VH_TILES, CFG = window.VH_CONFIG || {};
   var $ = function (s, r) { return (r || document).querySelector(s); };
   var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
   var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); };
@@ -14,20 +15,31 @@
   var fmt = function (n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, "."); };
   var norm = function (s) { s = String(s || "").toLowerCase(); return s.normalize ? s.normalize("NFD").replace(/[̀-ͯ]/g, "") : s; };
   var store = {
-    get: function (k, d) { try { var v = localStorage.getItem("vh2:" + k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
-    set: function (k, v) { try { localStorage.setItem("vh2:" + k, JSON.stringify(v)); } catch (e) { } }
+    get: function (k, d) { try { var v = localStorage.getItem("vh3:" + k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+    set: function (k, v) { try { localStorage.setItem("vh3:" + k, JSON.stringify(v)); return true; } catch (e) { return false; } }
   };
   var toastT;
-  function toast(msg) { var t = $("#toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toastT); toastT = setTimeout(function () { t.classList.remove("show"); }, 1700); }
+  function toast(msg) { var t = $("#toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toastT); toastT = setTimeout(function () { t.classList.remove("show"); }, 1900); }
 
   /* ---------- ícones (24×24, traço) ---------- */
   var IC = {
     home: '<path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/>',
+    house: '<path d="M3 12l9-8 9 8"/><path d="M5 10v10h14V10M10 20v-5h4v5"/>',
     garage: '<path d="M3 10l9-6 9 6v10H3z"/><path d="M7 20v-7h10v7M7 16.5h10"/>',
+    garageGold: '<path d="M3 10l9-6 9 6v10H3z"/><path d="M6.5 18l1-2.5h9l1 2.5zM8 18v1.5M16 18v1.5"/><path d="M12 7.6l.7 1.4 1.5.2-1.1 1 .3 1.5-1.4-.7-1.4.7.3-1.5-1.1-1 1.5-.2z"/>',
+    carGold: '<path d="M3 16v-3l2.2-5h13.6L21 13v3z"/><circle cx="7.5" cy="16.5" r="1.8"/><circle cx="16.5" cy="16.5" r="1.8"/><path d="M12 2.6l.8 1.6 1.7.2-1.2 1.2.3 1.7-1.6-.8-1.6.8.3-1.7-1.2-1.2 1.7-.2z"/>',
+    card: '<rect x="5" y="3" width="14" height="18" rx="2.5"/><path d="M12 7.5l1.2 2.4 2.6.4-1.9 1.8.5 2.6L12 13.5l-2.4 1.2.5-2.6-1.9-1.8 2.6-.4z"/><path d="M8 18h8"/>',
     wrench: '<path d="M14.5 5.5a4 4 0 0 0-5 5L4 16l4 4 5.5-5.5a4 4 0 0 0 5-5l-2.5 2.5-2.5-.5-.5-2.5z"/>',
-    target: '<circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>',
+    gun: '<path d="M3 9h15l2-2h1v4h-4l-1 2h-3l-1 2H9l-1 5H5l1-6H3z"/>',
     bag: '<path d="M5 8h14l-1.2 12H6.2z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/>',
+    cart: '<path d="M3 4h2l2.4 11h10.6L20 7H6.3"/><circle cx="9.5" cy="19" r="1.5"/><circle cx="16.5" cy="19" r="1.5"/>',
+    shirt: '<path d="M8 3l-5 3 2 4 2-1v12h10V9l2 1 2-4-5-3a3 3 0 0 1-8 0z"/>',
+    scissors: '<circle cx="6" cy="6.5" r="2.5"/><circle cx="6" cy="17.5" r="2.5"/><path d="M8 8l12 10M8 16L20 6"/>',
+    pen: '<path d="M4 20l3-1 11-11-2-2L5 17z"/><path d="M14 6l2-2 4 4-2 2"/>',
+    cross: '<rect x="3.5" y="3.5" width="17" height="17" rx="4"/><path d="M12 8v8M8 12h8"/>',
+    shield: '<path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/>',
     food: '<path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M16 3c-2 1.5-3 4-3 7h3v11"/>',
+    glass: '<path d="M5 4h14l-7 8z"/><path d="M12 12v8M8 20h8"/>',
     music: '<path d="M9 18V6l10-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/>',
     bed: '<path d="M3 18V7M3 13h18v5M21 18v-3a3 3 0 0 0-3-3h-7v1"/><circle cx="7" cy="10" r="2"/>',
     anchor: '<circle cx="12" cy="5" r="2"/><path d="M12 7v13M8 11h8M5 14a7 7 0 0 0 14 0"/>',
@@ -37,6 +49,7 @@
     bus: '<rect x="5" y="3" width="14" height="15" rx="3"/><path d="M5 11h14M8 21v-3M16 21v-3"/>',
     gov: '<path d="M3 9l9-5 9 5M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18"/>',
     star: '<path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8L3.5 9.7l5.9-.9z"/>',
+    tree: '<path d="M12 3l6 8h-3l4 6H5l4-6H6z"/><path d="M12 17v4"/>',
     leaf: '<path d="M5 19c0-8 5-14 15-14 0 10-6 15-14 15"/><path d="M5 19l8-8"/>',
     pin: '<path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>',
     building: '<rect x="5" y="3" width="14" height="18" rx="1.5"/><path d="M9 7h2M13 7h2M9 11h2M13 11h2M9 15h2M13 15h2"/>',
@@ -50,33 +63,55 @@
     link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
     zoom: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5M11 8v6M8 11h6"/>',
     left: '<path d="M15 6l-6 6 6 6"/>',
-    right: '<path d="M9 6l6 6-6 6"/>'
+    right: '<path d="M9 6l6 6-6 6"/>',
+    camera: '<path d="M4 8h3l2-2h6l2 2h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
+    trash: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',
+    user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+    logout: '<path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10"/>'
   };
   function ico(name, attrs) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"' + (attrs || "") + ">" + (IC[name] || IC.pin) + "</svg>"; }
 
   var CAT = D.categorias;
   var GROUPS = [
+    ["Colecionáveis", ["lendario", "garlend", "carta"]],
     ["Para o jogador", ["casa", "garagem", "oficina", "armas", "posto"]],
-    ["Comer e sair", ["comida", "boate", "hotel"]],
-    ["Lojas e serviços", ["loja", "servico"]],
+    ["Comer e sair", ["comida", "bar", "boate", "hotel"]],
+    ["Compras e estilo", ["mercado", "loja", "roupas", "barbearia", "tatuagem"]],
+    ["Serviços", ["saude", "seguranca", "servico"]],
     ["Transporte", ["transporte", "marina", "aereo", "corrida"]],
     ["Lugares", ["marco", "natureza", "residencial", "industria", "outros"]]
   ];
+  var RANK = {};
+  [["lendario", "garlend", "carta"], ["casa", "garagem"], ["oficina", "armas", "posto", "marina", "aereo", "corrida"],
+   ["comida", "bar", "boate", "hotel", "mercado", "loja", "roupas", "barbearia", "tatuagem"], ["saude", "seguranca", "servico", "marco"],
+   ["transporte", "natureza"], ["residencial", "industria", "outros"]].forEach(function (g, i) { g.forEach(function (c) { RANK[c] = i; }); });
   var REG = {}; D.regioes.forEach(function (r) { REG[r.id] = r; });
   var FLAG = { e: "Dá para entrar", u: "A confirmar", d: "Demolido", c: "Fechado" };
 
-  /* ---------- locais (GTADB) ---------- */
-  var LOCS = (G6 ? G6.items : []).map(function (it, i) {
-    var c = CAT[it[3]] && !CAT[it[3]].oculto ? it[3] : "outros", fl = it[8] || "";
+  /* ---------- locais: GTADB + marcadores do jogador ---------- */
+  var LOCS = (G6 ? G6.items : []).map(function (it) {
+    var c = CAT[it[3]] ? it[3] : "outros", fl = it[8] || "";
     var extra = fl.split("").map(function (f) { return FLAG[f]; }).filter(Boolean);
     return {
-      i: i, id: it[0], n: String(it[1]).replace(/^["“]+|["”]+$/g, ""), area: it[2], c: c, r: it[4], x: it[5], y: it[6], real: it[7], fl: fl,
+      id: it[0], n: String(it[1]).replace(/^["“]+|["”]+$/g, ""), area: it[2], c: c, r: it[4], x: it[5], y: it[6], real: it[7], fl: fl,
       foto: it[9] ? "gtadb/photos/" + it[0] + ".jpg" : "", ok: fl.indexOf("u") < 0,
       d: (D.notas && D.notas[it[0]]) || ((it[2] ? "Fica em " + it[2] + "." : "") + (extra.length ? " " + extra.join(" · ") + "." : "")).trim()
     };
   });
-  var BYCAT = {}; LOCS.forEach(function (l) { (BYCAT[l.c] = BYCAT[l.c] || []).push(l); });
-  Object.keys(BYCAT).forEach(function (c) { BYCAT[c].sort(function (a, b) { return a.n.localeCompare(b.n); }); });
+  var MINE = store.get("mypins", []);
+  MINE.forEach(function (m) { m.mine = true; m.ok = true; LOCS.push(m); });
+  var BYCAT = {}, ORDER = [];
+  function reindex() {
+    BYCAT = {};
+    LOCS.forEach(function (l, i) { l.i = i; (BYCAT[l.c] = BYCAT[l.c] || []).push(l); });
+    Object.keys(BYCAT).forEach(function (c) { BYCAT[c].sort(function (a, b) { return a.n.localeCompare(b.n); }); });
+    ORDER = LOCS.slice().sort(function (a, b) { return (RANK[a.c] || 9) - (RANK[b.c] || 9) || (b.foto ? 1 : 0) - (a.foto ? 1 : 0) || (a.id < b.id ? -1 : 1); });
+  }
+  reindex();
+  function saveMine() {
+    var ok = store.set("mypins", LOCS.filter(function (l) { return l.mine; }).map(function (l) { return { id: l.id, n: l.n, c: l.c, r: l.r, x: l.x, y: l.y, d: l.d, foto: l.foto, area: l.area || "" }; }));
+    if (!ok) toast("Sem espaço para salvar fotos. Tente uma foto menor.");
+  }
   var visited = store.get("visited", {}), favs = store.get("favs", {});
   var nVisited = function () { return LOCS.filter(function (l) { return visited[l.id]; }).length; };
   function updateProgress() {
@@ -86,7 +121,60 @@
   }
 
   /* =========================================================
-     ABAS (em cima) COM TRANSIÇÃO 3D
+     CONTAS (adaptador local; troque por Supabase/Firebase depois)
+     ========================================================= */
+  function hash(s) { var h = 2166136261; for (var r = 0; r < 3; r++) for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i) + r; h = Math.imul(h, 16777619) >>> 0; } return h.toString(36); }
+  var VH_AUTH = window.VH_AUTH = {
+    current: function () { return store.get("session", null); },
+    signUp: function (name, email, pass) {
+      var users = store.get("users", {}), key = email.toLowerCase();
+      if (users[key]) return { error: "Já existe uma conta com esse e-mail neste aparelho. Use Entrar." };
+      users[key] = { name: name, email: key, h: hash(key + ":" + pass), created: Date.now() };
+      store.set("users", users);
+      var s = { name: name, email: key, kind: "local" }; store.set("session", s); return { user: s };
+    },
+    signIn: function (email, pass) {
+      var users = store.get("users", {}), u = users[email.toLowerCase()];
+      if (!u || u.h !== hash(u.email + ":" + pass)) return { error: "E-mail ou senha não conferem." };
+      var s = { name: u.name, email: u.email, kind: "local" }; store.set("session", s); return { user: s };
+    },
+    guest: function () { var s = { name: "Convidado", kind: "guest" }; store.set("session", s); return { user: s }; },
+    google: function () { return CFG.googleClientId ? { error: "Login com Google precisa do servidor de contas configurado (veja config.js)." } : { soon: true }; },
+    signOut: function () { store.set("session", null); }
+  };
+  var Auth = (function () {
+    var mode = "in", el = $("#auth");
+    function setMode(m) {
+      mode = m;
+      $$(".au-tabs button").forEach(function (b) { b.classList.toggle("on", b.getAttribute("data-mode") === m); });
+      $("#auNameF").hidden = m !== "up";
+      $("#auGo").textContent = m === "up" ? "Criar conta" : "Entrar";
+      $("#auPass").setAttribute("autocomplete", m === "up" ? "new-password" : "current-password");
+      $("#auErr").hidden = true;
+    }
+    function err(t) { var e = $("#auErr"); e.textContent = t; e.hidden = false; }
+    function done(u) { el.hidden = true; startApp(u); toast(u.kind === "guest" ? "Entrou como convidado" : "Olá, " + u.name.split(" ")[0] + "!"); }
+    $$(".au-tabs button").forEach(function (b) { b.onclick = function () { setMode(b.getAttribute("data-mode")); }; });
+    $("#auForm").addEventListener("submit", function (e) {
+      e.preventDefault();
+      var name = $("#auName").value.trim(), email = $("#auEmail").value.trim(), pass = $("#auPass").value;
+      if (mode === "up" && name.length < 2) return err("Escreva seu nome.");
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return err("Escreva um e-mail válido.");
+      if (pass.length < 6) return err("A senha precisa de pelo menos 6 caracteres.");
+      var r = mode === "up" ? VH_AUTH.signUp(name, email, pass) : VH_AUTH.signIn(email, pass);
+      if (r.error) return err(r.error);
+      done(r.user);
+    });
+    $("#auGuest").onclick = function () { done(VH_AUTH.guest().user); };
+    $("#auGoogle").onclick = function () { var r = VH_AUTH.google(); toast(r.soon ? "Login com Google chega em breve" : r.error); };
+    var dc = $("#auDiscord");
+    if (CFG.discordUrl) { dc.href = CFG.discordUrl; dc.target = "_blank"; $("#auDiscordSoon").hidden = true; }
+    else dc.onclick = function (e) { e.preventDefault(); toast("Nosso Discord abre em breve"); };
+    return { show: function () { setMode("in"); el.hidden = false; } };
+  })();
+
+  /* =========================================================
+     NAVEGAÇÃO (barra embaixo) COM TRANSIÇÃO 3D
      ========================================================= */
   var TABS = [
     { id: "map", label: "Mapa", ic: "map", view: "v-map" },
@@ -94,17 +182,17 @@
     { id: "veh", label: "Veículos", ic: "car", view: "v-veh" },
     { id: "guide", label: "Guia", ic: "book", view: "v-guide" }
   ];
-  var current = 0, tabsEl = $("#tabs");
+  var current = 0, dock = $("#dock");
   TABS.forEach(function (t, i) {
     var b = document.createElement("button");
     b.className = "tab" + (i ? "" : " active"); b.setAttribute("role", "tab");
     b.innerHTML = ico(t.ic) + "<span>" + t.label + "</span>";
     b.addEventListener("click", function () { go(i); });
-    tabsEl.appendChild(b);
+    dock.appendChild(b);
   });
   function ink() {
-    var t = $$(".tab", tabsEl)[current], k = $("#tabInk"); if (!t) return;
-    k.style.width = t.offsetWidth + "px"; k.style.transform = "translateX(" + (t.offsetLeft - 4) + "px)";
+    var t = $$(".tab", dock)[current], k = $("#dockInk"); if (!t) return;
+    k.style.width = t.offsetWidth + "px"; k.style.transform = "translateX(" + (t.offsetLeft - 6) + "px)";
   }
   function go(i) {
     if (typeof i === "string") i = TABS.findIndex(function (t) { return t.id === i; });
@@ -115,7 +203,7 @@
       v.classList.remove("active", "left");
       if (k === i) v.classList.add("active"); else if (k < i) v.classList.add("left");
     });
-    $$(".tab", tabsEl).forEach(function (b, k) { b.classList.toggle("active", k === i); });
+    $$(".tab", dock).forEach(function (b, k) { b.classList.toggle("active", k === i); });
     ink(); closeDrawer();
     if (TABS[i].id === "map") Map.show(); else Map.closePop();
     if (TABS[i].id === "places") Places.render();
@@ -129,10 +217,11 @@
     var NS = "http://www.w3.org/2000/svg";
     var BOX = G6 ? G6.bbox : [0, 0, 15040, 19840], W = BOX[2], H = BOX[3], MAXK = 2;
     var svg = $("#mapSvg"), wrap = $("#mapWrap"), stageEl = $("#mapStage"), pop = $("#pop");
-    var st = { k: 1, tx: 0, ty: 0 }, fitK = 1, vw = 0, vh = 0, built = false, need = true;
-    var cats = Object.keys(CAT).filter(function (c) { return !CAT[c].oculto; });
+    var st = { k: 1, tx: 0, ty: 0 }, fitK = 1, vw = 0, vh = 0, built = false, need = true, dirty = true;
+    var cats = Object.keys(CAT);
     var on = {}; cats.forEach(function (c) { on[c] = true; });
-    var fRegion = "all", fVisit = "all", fFav = false, sel = -1, gMap, gOv, gTiles, groups = [];
+    var fRegion = "all", fVisit = "all", fFav = false, sel = -1, gMap, gTiles, gPins, adding = false;
+    var builtK = -1, builtRect = null, shown = 0, eligible = 0;
 
     /* ---- tiles ---- */
     var TSET = {}, tileEls = {};
@@ -169,20 +258,22 @@
 
     function build() {
       if (built) return; built = true;
-      gMap = document.createElementNS(NS, "g"); gTiles = document.createElementNS(NS, "g"); gOv = document.createElementNS(NS, "g");
-      gMap.appendChild(gTiles); svg.appendChild(gMap); svg.appendChild(gOv);
+      gMap = document.createElementNS(NS, "g"); gTiles = document.createElementNS(NS, "g"); gPins = document.createElementNS(NS, "g");
+      svg.innerHTML = '<defs><linearGradient id="goldG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff1a8"/><stop offset=".45" stop-color="#f5c542"/><stop offset="1" stop-color="#b9791a"/></linearGradient></defs>';
+      gMap.appendChild(gTiles); svg.appendChild(gMap); svg.appendChild(gPins);
       if (!TL && window.VH_MAPIMG) { var M = window.VH_MAPIMG; gTiles.appendChild(img(M.src, M.x, M.y, M.w, M.h)); }
-      bindInput(); resize(true); loop();
+      bindInput(); buildQuick(); resize(true); loop();
     }
     function topSpace() { var t = $(".map-top"); return t ? t.getBoundingClientRect().bottom + 6 : 170; }
+    function botSpace() { var d = $("#dock"); return d ? vh - (d.getBoundingClientRect().top - wrap.getBoundingClientRect().top) + 40 : 120; }
     function resize(reset) {
       if (!built) return;
       var r = wrap.getBoundingClientRect(); if (!r.width) return;
       var first = !vw; vw = r.width; vh = r.height;
-      var top = topSpace(), bot = 50;
+      var top = topSpace(), bot = botSpace();
       fitK = Math.min((vw - 20) / W, (vh - top - bot) / H);
       if (reset || first) { st.k = fitK; st.tx = (vw - W * st.k) / 2; st.ty = top + (vh - top - bot - H * st.k) / 2; }
-      need = true;
+      dirty = true; need = true;
     }
     function clampView() {
       st.k = clamp(st.k, fitK * .8, Math.max(MAXK, fitK));
@@ -199,7 +290,7 @@
       return true;
     }
 
-    /* ---- quadro ---- */
+    /* ---- quadro: panorâmica só move o grupo de pins; pins só são refeitos quando o zoom ou o filtro mudam ---- */
     var anim = null, vel = null, drag = null;
     function loop() {
       requestAnimationFrame(loop);
@@ -216,55 +307,74 @@
       if (need) { need = false; draw(); }
     }
     function pinSVG(l, x, y, isSel) {
-      var c = CAT[l.c], v = visited[l.id];
-      return '<g class="pin' + (isSel ? " sel" : "") + '" data-i="' + l.i + '" transform="translate(' + x.toFixed(1) + "," + y.toFixed(1) + ")" + (isSel ? " scale(1.3)" : "") + '">' +
+      var c = CAT[l.c], v = visited[l.id], gold = c.ouro;
+      return '<g class="pin' + (isSel ? " sel" : "") + (gold ? " gold" : "") + '" data-i="' + l.i + '" transform="translate(' + x.toFixed(1) + "," + y.toFixed(1) + ")" + (isSel ? " scale(1.28)" : "") + '">' +
         (isSel ? '<circle class="pulse" r="6" fill="none" stroke="' + c.cor + '" stroke-width="2.5"/>' : "") +
-        '<ellipse rx="6" ry="2.4" fill="rgba(0,0,0,.35)"/>' +
-        '<path d="M0 0C-4-7-13-12-13-22A13 13 0 1 1 13-22C13-12 4-7 0 0Z" fill="' + c.cor + '" stroke="rgba(10,7,22,.55)" stroke-width="1.2"' + (v ? ' opacity=".55"' : "") + "/>" +
-        '<g transform="translate(-7.8,-29.8) scale(.65)" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">' + (IC[c.icone] || IC.pin) + "</g>" +
-        (v ? '<g transform="translate(9,-33)"><circle r="6" fill="#5dff9b" stroke="#0a0716" stroke-width="1.5"/><path d="M-2.6 0l1.8 1.8L2.8-1.8" fill="none" stroke="#0a0716" stroke-width="1.8" stroke-linecap="round"/></g>' : "") +
-        (favs[l.id] ? '<circle cx="-10" cy="-33" r="4" fill="#ff3d8b" stroke="#fff" stroke-width="1.2"/>' : "") + "</g>";
+        '<ellipse rx="5" ry="2" fill="rgba(0,0,0,.4)"/>' +
+        '<path d="M-5 -7L0 0L5 -7Z" fill="rgba(14,9,30,.92)"/>' +
+        '<g class="face"><circle cy="-19" r="14" fill="rgba(14,9,30,.92)" stroke="' + (gold ? "#f5c542" : "rgba(255,255,255,.85)") + '" stroke-width="1.5"/>' +
+        '<circle cy="-19" r="11" fill="' + (gold ? "url(#goldG)" : c.cor) + '"' + (v ? ' opacity=".5"' : "") + "/></g>" +
+        '<g transform="translate(-6.6,-25.6) scale(.55)" fill="none" stroke="' + (gold ? "#2a1600" : "#fff") + '" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">' + (IC[c.icone] || IC.pin) + "</g>" +
+        (v ? '<g transform="translate(10,-31)"><circle r="5.5" fill="#5dff9b" stroke="#0a0716" stroke-width="1.5"/><path d="M-2.4 0l1.6 1.6L2.6-1.6" fill="none" stroke="#0a0716" stroke-width="1.8" stroke-linecap="round"/></g>' : "") +
+        (favs[l.id] ? '<circle cx="-10" cy="-31" r="4" fill="#ff3d8b" stroke="#fff" stroke-width="1.2"/>' : "") + "</g>";
+    }
+    function buildPins() {
+      var k = st.k, z = k / fitK;
+      var minD = k < .05 ? 62 : k < .12 ? 50 : k < .35 ? 40 : k < .9 ? 33 : 29;
+      var cull = k > .25;
+      var rx0 = -st.tx - vw, ry0 = -st.ty - vh, rx1 = -st.tx + 2 * vw, ry1 = -st.ty + 2 * vh;
+      builtRect = cull ? [rx0, ry0, rx1, ry1] : null;
+      var grid = {}, out = "", labels = "", lgrid = {}, showLab = k >= .75, cell = minD;
+      shown = 0; eligible = 0;
+      function free(x, y) {
+        var cx = Math.floor(x / cell), cy = Math.floor(y / cell);
+        for (var i = -1; i <= 1; i++) for (var j = -1; j <= 1; j++) {
+          var b = grid[(cx + i) + ":" + (cy + j)]; if (!b) continue;
+          for (var n = 0; n < b.length; n++) if (Math.abs(b[n][0] - x) < minD * .8 && Math.abs(b[n][1] - y) < minD) return false;
+        }
+        return true;
+      }
+      function take(x, y) { var key = Math.floor(x / cell) + ":" + Math.floor(y / cell); (grid[key] = grid[key] || []).push([x, y]); }
+      function labelFree(x0, y0, x1, y1) {
+        for (var gx = Math.floor(x0 / 80); gx <= Math.floor(x1 / 80); gx++) for (var gy = Math.floor(y0 / 20); gy <= Math.floor(y1 / 20); gy++) {
+          var b = lgrid[gx + ":" + gy]; if (!b) continue;
+          for (var n = 0; n < b.length; n++) { var r = b[n]; if (x0 < r[2] && x1 > r[0] && y0 < r[3] && y1 > r[1]) return false; }
+        }
+        for (gx = Math.floor(x0 / 80); gx <= Math.floor(x1 / 80); gx++) for (gy = Math.floor(y0 / 20); gy <= Math.floor(y1 / 20); gy++) (lgrid[gx + ":" + gy] = lgrid[gx + ":" + gy] || []).push([x0, y0, x1, y1]);
+        return true;
+      }
+      var selL = sel >= 0 ? LOCS[sel] : null;
+      if (selL) take(selL.x * k, selL.y * k);
+      ORDER.forEach(function (l) {
+        if (l === selL || !visible(l)) return;
+        eligible++;
+        var x = l.x * k, y = l.y * k;
+        if (cull && (x < rx0 || y < ry0 || x > rx1 || y > ry1)) return;
+        if (!free(x, y)) return;
+        take(x, y); shown++;
+        out += pinSVG(l, x, y, false);
+        if (showLab) {
+          var w = Math.min(160, l.n.length * 5.8 + 6);
+          if (labelFree(x - w / 2, y + 3, x + w / 2, y + 17)) labels += '<text class="pin-label" x="' + x.toFixed(1) + '" y="' + (y + 14).toFixed(1) + '" text-anchor="middle">' + esc(l.n) + "</text>";
+        }
+      });
+      var ra = clamp(1.5 - (z - 1) * .4, 0, 1), regs = "";
+      if (ra > .02) D.regioes.forEach(function (r) {
+        regs += '<text class="region-label" x="' + (r.x * k).toFixed(1) + '" y="' + (r.y * k).toFixed(1) + '" text-anchor="middle" font-size="' + (10 + z * 1.6).toFixed(1) + '" fill="' + r.cor + '" opacity="' + ra.toFixed(2) + '">' + esc(r.nome) + "</text>";
+      });
+      if (selL) { out += pinSVG(selL, selL.x * k, selL.y * k, true); labels += '<text class="pin-label" x="' + (selL.x * k).toFixed(1) + '" y="' + (selL.y * k + 16).toFixed(1) + '" text-anchor="middle">' + esc(selL.n) + "</text>"; }
+      gPins.innerHTML = regs + out + labels;
+      builtK = k; dirty = false;
+      var hiddenN = eligible - shown;
+      $("#legend").innerHTML = "<b>" + fmt(shown + (selL ? 1 : 0)) + "</b>/" + fmt(eligible + (selL ? 1 : 0)) + (hiddenN > 0 ? " · aproxime" : " locais");
     }
     function draw() {
       updateTiles();
       gMap.setAttribute("transform", "translate(" + st.tx.toFixed(2) + "," + st.ty.toFixed(2) + ") scale(" + st.k.toFixed(6) + ")");
-      var z = st.k / fitK, out = "";
-      var ra = clamp(1.5 - (z - 1) * .4, 0, 1);
-      if (ra > .02) D.regioes.forEach(function (r) {
-        out += '<text class="region-label" x="' + (st.tx + r.x * st.k).toFixed(1) + '" y="' + (st.ty + r.y * st.k).toFixed(1) + '" text-anchor="middle" font-size="' + (10 + z * 1.6).toFixed(1) + '" fill="' + r.cor + '" opacity="' + ra.toFixed(2) + '">' + esc(r.nome) + "</text>";
-      });
-      var cell = st.k > .5 ? 26 : 42, grid = {}, selP = null; groups = [];
-      LOCS.forEach(function (l) {
-        if (!visible(l) && l.i !== sel) return;
-        var x = st.tx + l.x * st.k, y = st.ty + l.y * st.k;
-        if (x < -40 || y < -60 || x > vw + 40 || y > vh + 40) return;
-        if (l.i === sel) { selP = { l: l, x: x, y: y }; return; }
-        var key = Math.floor(x / cell) + ":" + Math.floor(y / cell), G = grid[key];
-        if (!G) { G = grid[key] = { items: [], sx: 0, sy: 0 }; groups.push(G); }
-        G.items.push({ l: l, x: x, y: y }); G.sx += x; G.sy += y;
-      });
-      var labels = "";
-      groups.forEach(function (G, gi) {
-        var n = G.items.length;
-        if (n === 1) {
-          var p = G.items[0]; out += pinSVG(p.l, p.x, p.y, false);
-          if (st.k > .42) labels += '<text class="pin-label" x="' + p.x.toFixed(1) + '" y="' + (p.y + 14).toFixed(1) + '" text-anchor="middle">' + esc(p.l.n) + "</text>";
-          return;
-        }
-        var cx = G.sx / n, cy = G.sy / n, cnt = {}, top = null;
-        G.items.forEach(function (p) { cnt[p.l.c] = (cnt[p.l.c] || 0) + 1; if (!top || cnt[p.l.c] > cnt[top]) top = p.l.c; });
-        var r = 13 + Math.min(9, Math.log(n) * 2.4);
-        G.cx = cx; G.cy = cy;
-        out += '<g class="pin" data-cl="' + gi + '" transform="translate(' + cx.toFixed(1) + "," + cy.toFixed(1) + ')">' +
-          '<circle r="' + (r + 5).toFixed(1) + '" fill="' + CAT[top].cor + '" opacity=".22"/>' +
-          '<circle r="' + r.toFixed(1) + '" fill="rgba(14,9,30,.88)" stroke="' + CAT[top].cor + '" stroke-width="2.4"/>' +
-          '<text y="4.5" text-anchor="middle" font-family="Manrope,system-ui,sans-serif" font-weight="800" font-size="12.5" fill="#fff">' + n + "</text></g>";
-      });
-      if (selP) { out += pinSVG(selP.l, selP.x, selP.y, true); labels += '<text class="pin-label" x="' + selP.x.toFixed(1) + '" y="' + (selP.y + 16).toFixed(1) + '" text-anchor="middle">' + esc(selP.l.n) + "</text>"; }
-      gOv.innerHTML = out + labels;
+      var outside = builtRect && (-st.tx < builtRect[0] + vw * .5 || -st.ty < builtRect[1] + vh * .5 || -st.tx + vw > builtRect[2] - vw * .5 || -st.ty + vh > builtRect[3] - vh * .5);
+      if (dirty || Math.abs(st.k - builtK) > 1e-9 || outside) buildPins();
+      gPins.setAttribute("transform", "translate(" + st.tx.toFixed(2) + "," + st.ty.toFixed(2) + ")");
       if (sel >= 0) placePop();
-      var total = LOCS.filter(visible).length;
-      $("#legend").innerHTML = "<b>" + fmt(total) + "</b> locais · <b>" + fmt(nVisited()) + "</b> visitados";
     }
 
     /* ---- cartão flutuante ---- */
@@ -272,56 +382,62 @@
       var pe = $(".pin.sel", svg); if (!pe || pop.hidden) return;
       var r = pe.getBoundingClientRect(), wr = wrap.getBoundingClientRect();
       var px = r.left + r.width / 2 - wr.left, py = r.top - wr.top, pb = r.bottom - wr.top;
-      var w = pop.offsetWidth, h = pop.offsetHeight, top = topSpace();
+      var w = pop.offsetWidth, h = pop.offsetHeight, top = topSpace(), bottom = vh - botSpace() + 30;
       var left = clamp(px - w / 2, 14, vw - w - 14), y;
       if (py - h - 12 > top) { y = py - h - 12; pop.classList.remove("below"); }
-      else { y = Math.min(pb + 10, vh - h - 50); pop.classList.add("below"); }
+      else { y = Math.min(pb + 10, bottom - h); pop.classList.add("below"); }
       pop.style.left = left + "px"; pop.style.top = Math.max(top, y) + "px";
     }
     function openPop(l) {
       var c = CAT[l.c], list = BYCAT[l.c] || [l], idx = list.indexOf(l);
-      var photo = l.foto && !window.VH_NOPHOTOS;
+      var photo = l.foto && (!window.VH_NOPHOTOS || l.mine);
       pop.innerHTML =
         '<div class="pop-ph">' + (photo ? '<img src="' + esc(l.foto) + '" alt="' + esc(l.n) + '">' : '<span class="noimg">' + (l.foto ? "Foto no app" : "Sem foto ainda") + "</span>") +
         '<button class="pop-x" data-a="close" aria-label="Fechar">' + ico("close") + "</button></div>" +
         '<div class="pop-b"><h3>' + esc(l.n) + '</h3><div class="pop-cat" style="color:' + c.cor + '">' + ico(c.icone) + esc(c.nome) +
-        '<span class="st ' + (l.ok ? "ok" : "no") + '">' + (l.ok ? "Confirmado" : "A confirmar") + "</span></div>" +
+        (l.mine ? '<span class="st no">Seu marcador</span>' : '<span class="st ' + (l.ok ? "ok" : "no") + '">' + (l.ok ? "Confirmado" : "A confirmar") + "</span>") + "</div>" +
         (l.d ? "<p>" + esc(l.d) + "</p>" : "") +
         (l.real ? '<div class="pop-real">' + ico("pin") + "<span>Na vida real: " + esc(l.real) + "</span></div>" : "") +
-        '<button class="visit' + (visited[l.id] ? " on" : "") + '" data-a="visit"><span>' + (visited[l.id] ? "Visitado" : "Marcar como visitado") + '</span><span class="box">' + ico("check", ' stroke-width="3"') + "</span></button></div>" +
+        '<button class="visit' + (visited[l.id] ? " on" : "") + '" data-a="visit"><span>' + (visited[l.id] ? (c.ouro ? "Coletado" : "Visitado") : (c.ouro ? "Marcar como coletado" : "Marcar como visitado")) + '</span><span class="box">' + ico("check", ' stroke-width="3"') + "</span></button></div>" +
         '<div class="pop-f"><button data-a="fav" class="' + (favs[l.id] ? "on" : "") + '" aria-label="Salvar">' + ico("heart", favs[l.id] ? ' fill="currentColor"' : "") + "</button>" +
         '<button data-a="zoom" aria-label="Aproximar">' + ico("zoom") + '</button><button data-a="copy" aria-label="Copiar nome">' + ico("link") + "</button>" +
+        (l.mine ? '<button data-a="del" aria-label="Apagar marcador">' + ico("trash") + "</button>" : "") +
         '<span class="nav"><button data-a="prev" aria-label="Anterior">' + ico("left") + "</button>" + (idx + 1) + " / " + list.length + '<button data-a="next" aria-label="Próximo">' + ico("right") + "</button></span></div>" +
-        '<div class="pop-id">' + esc(l.area || REG[l.r].nome) + " · " + l.id + " · GTADB</div>";
+        '<div class="pop-id">' + esc(l.area || REG[l.r].nome) + " · " + (l.mine ? "marcador seu" : l.id + " · GTADB") + "</div>";
       pop.hidden = false; pop.style.animation = "none"; void pop.offsetWidth; pop.style.animation = "";
+      var armed = false;
       pop.onclick = function (e) {
         var b = e.target.closest("[data-a]"); if (!b) return;
         var a = b.getAttribute("data-a");
         if (a === "close") closePop();
-        if (a === "visit") { if (visited[l.id]) delete visited[l.id]; else visited[l.id] = 1; store.set("visited", visited); updateProgress(); openPop(l); need = true; toast(visited[l.id] ? "Marcado como visitado" : "Desmarcado"); }
-        if (a === "fav") { if (favs[l.id]) delete favs[l.id]; else favs[l.id] = 1; store.set("favs", favs); openPop(l); need = true; }
+        if (a === "visit") { if (visited[l.id]) delete visited[l.id]; else visited[l.id] = 1; store.set("visited", visited); updateProgress(); openPop(l); dirty = true; need = true; }
+        if (a === "fav") { if (favs[l.id]) delete favs[l.id]; else favs[l.id] = 1; store.set("favs", favs); openPop(l); dirty = true; need = true; }
         if (a === "zoom") flyTo(l, Math.max(st.k * 2.5, 1.2));
         if (a === "copy") {
           var txt = l.n + " — " + (l.area || REG[l.r].nome) + " (ViceHub)";
           try { navigator.clipboard.writeText(txt).then(function () { toast("Nome copiado"); }, function () { toast(txt); }); } catch (err) { toast(txt); }
         }
+        if (a === "del") {
+          if (!armed) { armed = true; toast("Toque de novo no lixo para apagar"); return; }
+          LOCS.splice(LOCS.indexOf(l), 1); reindex(); saveMine(); closePop(); dirty = true; need = true; updateProgress(); toast("Marcador apagado");
+        }
         if (a === "prev" || a === "next") { var nl = list[(idx + (a === "next" ? 1 : -1) + list.length) % list.length]; on[nl.c] = true; select(nl.i, true); }
       };
       requestAnimationFrame(placePop);
     }
-    function closePop() { pop.hidden = true; if (sel >= 0) { sel = -1; need = true; } }
+    function closePop() { pop.hidden = true; if (sel >= 0) { sel = -1; dirty = true; need = true; } }
     function select(i, fly) {
-      sel = i; var l = LOCS[i];
-      if (fly) flyTo(l, Math.max(st.k, .7)); else if (st.k < .2) flyTo(l, .5); else need = true;
+      sel = i; dirty = true; var l = LOCS[i];
+      if (fly) flyTo(l, Math.max(st.k, .8)); else if (st.k < .2) flyTo(l, .5); else need = true;
       openPop(l);
     }
     function flyTo(l, k) {
       k = clamp(k, fitK, MAXK);
-      var top = topSpace(), cy = top + (vh - top) * .62;
+      var top = topSpace(), cy = top + (vh - top - botSpace()) * .7 + 20;
       anim = { a: { k: st.k, tx: st.tx, ty: st.ty }, b: { k: k, tx: vw / 2 - l.x * k, ty: cy - l.y * k }, t0: performance.now(), dur: 750 };
     }
     function home() {
-      var top = topSpace(), bot = 50, k = fitK;
+      var top = topSpace(), bot = botSpace(), k = fitK;
       anim = { a: { k: st.k, tx: st.tx, ty: st.ty }, b: { k: k, tx: (vw - W * k) / 2, ty: top + (vh - top - bot - H * k) / 2 }, t0: performance.now(), dur: 650 };
     }
     function zoomAt(sx, sy, f, animate) {
@@ -330,6 +446,39 @@
       if (animate) anim = { a: { k: st.k, tx: st.tx, ty: st.ty }, b: b, t0: performance.now(), dur: 380 };
       else { st.k = b.k; st.tx = b.tx; st.ty = b.ty; clampView(); need = true; }
     }
+
+    /* ---- atalhos de categoria no topo do mapa ---- */
+    var QUICK = [
+      ["Colecionáveis", "card", "#f5c542", ["lendario", "garlend", "carta"]],
+      ["Garagens", "garage", "#2de2e6", ["garagem", "casa", "garlend"]],
+      ["Oficinas", "wrench", "#ff6b5f", ["oficina"]],
+      ["Armas", "gun", "#ff3b3b", ["armas"]],
+      ["Compras", "bag", "#ff9a3c", ["mercado", "loja", "roupas", "barbearia", "tatuagem"]],
+      ["Comer e sair", "glass", "#ff7ab8", ["comida", "bar", "boate"]],
+      ["Postos", "fuel", "#ffe066", ["posto"]],
+      ["Turismo", "star", "#ffd23f", ["marco", "natureza"]]
+    ];
+    var quickOn = -1;
+    function buildQuick() {
+      $("#quick").innerHTML = QUICK.map(function (q, i) {
+        return '<button class="qchip' + (quickOn === i ? " on" : "") + '" data-q="' + i + '" style="--c:' + q[2] + '"><span class="qi" style="background:' + (q[2] === "#f5c542" ? "linear-gradient(180deg,#fff1a8,#f5c542 45%,#b9791a)" : q[2]) + ';color:' + (q[2] === "#f5c542" ? "#2a1600" : "#fff") + '">' + ico(q[1]) + "</span>" + q[0] + "</button>";
+      }).join("");
+    }
+    $("#quick").addEventListener("click", function (e) {
+      var b = e.target.closest("[data-q]"); if (!b) return;
+      var i = +b.getAttribute("data-q");
+      if (quickOn === i) { quickOn = -1; cats.forEach(function (c) { on[c] = true; }); }
+      else {
+        quickOn = i; cats.forEach(function (c) { on[c] = QUICK[i][3].indexOf(c) >= 0; });
+        var n = LOCS.filter(visible).length;
+        if (!n) toast(i === 0 ? "Nenhum colecionável marcado ainda. Use o botão dourado para adicionar." : "Nada nessa categoria ainda");
+      }
+      buildQuick(); syncBadge();
+    });
+
+    /* ---- adicionar marcador ---- */
+    function startAdd() { adding = true; closePop(); $("#addHint").hidden = false; toast("Toque no mapa para posicionar"); }
+    function stopAdd() { adding = false; $("#addHint").hidden = true; }
 
     /* ---- entrada ---- */
     var ptrs = {}, pinch = null, lastTap = 0;
@@ -373,6 +522,8 @@
       $("#zoomOut").onclick = function () { zoomAt(vw / 2, vh / 2, .5, true); };
       $("#recenter").onclick = function () { closePop(); home(); };
       $("#tilt3d").onclick = function () { var t = stageEl.classList.toggle("tilted"); this.classList.toggle("on", t); need = true; toast(t ? "Mapa 3D ligado" : "Mapa 3D desligado"); };
+      $("#addPin").onclick = function () { if (adding) stopAdd(); else startAdd(); };
+      $("#addCancel").onclick = stopAdd;
       $("#openFilters").onclick = openDrawer;
       var input = $("#mapSearch"), res = $("#results");
       input.addEventListener("input", function () { renderResults(input.value.trim()); });
@@ -387,7 +538,7 @@
     function renderResults(q) {
       var res = $("#results");
       if (!q) { res.hidden = true; return; }
-      var nq = norm(q), list = LOCS.filter(function (l) { return norm(l.n + " " + l.area + " " + l.real + " " + CAT[l.c].nome).indexOf(nq) >= 0; }).slice(0, 25);
+      var nq = norm(q), list = LOCS.filter(function (l) { return norm(l.n + " " + l.area + " " + (l.real || "") + " " + CAT[l.c].nome).indexOf(nq) >= 0; }).slice(0, 25);
       res.hidden = false;
       res.innerHTML = list.length ? list.map(function (l) {
         var c = CAT[l.c];
@@ -395,21 +546,19 @@
       }).join("") : '<div class="empty">Nada encontrado para "' + esc(q) + '".</div>';
     }
     function onTap(e) {
-      var el = document.elementFromPoint(e.clientX, e.clientY), pin = el && el.closest ? el.closest("[data-i],[data-cl]") : null;
-      $("#results").hidden = true;
-      if (pin && pin.hasAttribute("data-i")) { select(+pin.getAttribute("data-i"), false); return; }
-      if (pin && pin.hasAttribute("data-cl")) {
-        var G = groups[+pin.getAttribute("data-cl")]; if (!G) return;
-        var minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
-        G.items.forEach(function (p) { minX = Math.min(minX, p.l.x); maxX = Math.max(maxX, p.l.x); minY = Math.min(minY, p.l.y); maxY = Math.max(maxY, p.l.y); });
-        var span = Math.max(maxX - minX, maxY - minY, 30), k = clamp(Math.min(vw, vh) * .5 / span, st.k * 1.8, MAXK);
-        var mx = (minX + maxX) / 2, my = (minY + maxY) / 2;
-        anim = { a: { k: st.k, tx: st.tx, ty: st.ty }, b: { k: k, tx: vw / 2 - mx * k, ty: vh * .55 - my * k }, t0: performance.now(), dur: 600 };
+      var wr = wrap.getBoundingClientRect();
+      if (adding) {
+        stopAdd();
+        var mx = (e.clientX - wr.left - st.tx) / st.k, my = (e.clientY - wr.top - st.ty) / st.k;
+        PinForm.open(clamp(mx, 0, W), clamp(my, 0, H));
         return;
       }
+      var el = document.elementFromPoint(e.clientX, e.clientY), pin = el && el.closest ? el.closest("[data-i]") : null;
+      $("#results").hidden = true;
+      if (pin) { select(+pin.getAttribute("data-i"), false); return; }
       if (sel >= 0) { closePop(); return; }
       var now = performance.now();
-      if (now - lastTap < 320) { var r = wrap.getBoundingClientRect(); zoomAt(e.clientX - r.left, e.clientY - r.top, 2, true); }
+      if (now - lastTap < 320) zoomAt(e.clientX - wr.left, e.clientY - wr.top, 2, true);
       lastTap = now;
     }
 
@@ -417,7 +566,7 @@
     function hiddenCount() { return cats.filter(function (c) { return !on[c]; }).length; }
     function syncBadge() {
       var n = hiddenCount() + (fRegion !== "all") + (fVisit !== "all") + (fFav ? 1 : 0), b = $("#filterCount");
-      b.textContent = n; b.hidden = !n; need = true;
+      b.textContent = n; b.hidden = !n; dirty = true; need = true;
       if (sel >= 0 && !visible(LOCS[sel])) closePop();
       if ($("#drawer").classList.contains("open")) renderDrawer();
     }
@@ -431,7 +580,7 @@
         h += '<div class="grp"><div class="grp-h">' + g[0] + "</div>";
         g[1].forEach(function (c) {
           var C = CAT[c]; if (!C) return;
-          h += '<button class="fitem' + (on[c] ? " on" : "") + '" data-f="cat" data-v="' + c + '" style="--c:' + C.cor + '"><span class="ic" style="background:' + C.cor + '">' + ico(C.icone) + "</span><b>" + esc(C.nome) + "</b><small>" + (BYCAT[c] ? BYCAT[c].length : 0) + '</small><span class="tg"></span></button>';
+          h += '<button class="fitem' + (on[c] ? " on" : "") + '" data-f="cat" data-v="' + c + '" style="--c:' + C.cor + '"><span class="ic" style="background:' + (C.ouro ? "linear-gradient(180deg,#fff1a8,#f5c542 45%,#b9791a)" : C.cor) + '">' + ico(C.icone, C.ouro ? ' style="color:#2a1600"' : "") + "</span><b>" + esc(C.nome) + "</b><small>" + (BYCAT[c] ? BYCAT[c].length : 0) + '</small><span class="tg"></span></button>';
         });
         h += "</div>";
       });
@@ -445,6 +594,7 @@
       var b = e.target.closest("[data-f]"); if (!b) return;
       var f = b.getAttribute("data-f"), v = b.getAttribute("data-v");
       if (f === "done") { closeDrawer(); return; }
+      quickOn = -1; buildQuick();
       if (f === "all") { cats.forEach(function (c) { on[c] = true; }); fRegion = "all"; fVisit = "all"; fFav = false; }
       if (f === "none") cats.forEach(function (c) { on[c] = false; });
       if (f === "cat") on[v] = !on[v];
@@ -457,24 +607,91 @@
     return {
       show: function () { build(); setTimeout(function () { resize(false); }, 30); need = true; },
       resize: function () { resize(false); },
-      closePop: closePop, popOpen: function () { return !pop.hidden; },
+      closePop: closePop, popOpen: function () { return !pop.hidden; }, adding: function () { return adding; }, stopAdd: stopAdd,
       focus: function (i) { go("map"); var l = LOCS[i]; on[l.c] = true; syncBadge(); setTimeout(function () { select(i, true); }, 120); },
       region: function (r) {
         go("map"); cats.forEach(function (c) { on[c] = true; }); fRegion = r.id; syncBadge();
         setTimeout(function () { closePop(); flyTo({ x: r.x, y: r.y }, fitK * (r.id === "vice" ? 4.5 : 3)); }, 120);
       },
       solo: function (list) { go("map"); cats.forEach(function (c) { on[c] = list.indexOf(c) >= 0; }); fRegion = "all"; syncBadge(); setTimeout(home, 120); },
-      refresh: function () { need = true; }
+      added: function (l) { on[l.c] = true; dirty = true; syncBadge(); select(l.i, false); },
+      refresh: function () { dirty = true; need = true; }
     };
   })();
-  function closeDrawer() { $("#drawer").classList.remove("open"); if (!$("#vModal").classList.contains("open")) $("#scrim").classList.remove("open"); }
-  $("#scrim").addEventListener("click", function () { closeDrawer(); Veh.close(); });
+  function closeDrawer() { $("#drawer").classList.remove("open"); if (!$("#vModal").classList.contains("open") && !$("#sheet").classList.contains("open")) $("#scrim").classList.remove("open"); }
+
+  /* =========================================================
+     FOLHA (perfil e formulário de marcador)
+     ========================================================= */
+  function openSheet(html) { $("#sheetPanel").innerHTML = '<div class="sh-grab"></div><div class="sh-b">' + html + "</div>"; $("#sheet").classList.add("open"); $("#scrim").classList.add("open"); }
+  function closeSheet() { $("#sheet").classList.remove("open"); if (!$("#drawer").classList.contains("open") && !$("#vModal").classList.contains("open")) $("#scrim").classList.remove("open"); }
+  $("#scrim").addEventListener("click", function () { closeDrawer(); Veh.close(); closeSheet(); });
+
+  var PinForm = (function () {
+    var pending = null, photo = "";
+    function nearestRegion(x, y) { var best = D.regioes[0], bd = 1e18; D.regioes.forEach(function (r) { var d = (r.x - x) * (r.x - x) + (r.y - y) * (r.y - y); if (d < bd) { bd = d; best = r; } }); return best.id; }
+    function open(x, y) {
+      pending = { x: Math.round(x), y: Math.round(y) }; photo = "";
+      var opts = ["lendario", "garlend", "carta"].concat(Object.keys(CAT).filter(function (c) { return !CAT[c].meu; }));
+      openSheet('<span class="eyebrow">Novo marcador</span><h2 style="margin:4px 0 14px">O que tem aqui?</h2>' +
+        '<div class="chips" id="pfCats" style="flex-wrap:wrap;margin:0 0 6px;padding:0">' + opts.map(function (c, i) { var C = CAT[c]; return '<button class="chip' + (i === 0 ? " on" : "") + '" data-c="' + c + '" style="--c:' + C.cor + '"><i></i>' + esc(C.nome) + "</button>"; }).join("") + "</div>" +
+        '<label class="field"><span>Nome</span><input id="pfName" type="text" placeholder="Ex.: Cheetah dourado na garagem" autocomplete="off"></label>' +
+        '<label class="field"><span>Anotação</span><textarea id="pfNote" rows="2" placeholder="Como chegar, horário, missão..."></textarea></label>' +
+        '<button class="ph-pick" id="pfPhoto"><span class="th" id="pfThumb">' + ico("camera", ' width="20" height="20"') + '</span><span><b>Adicionar foto</b><small>Uma captura sua do jogo (opcional)</small></span></button>' +
+        '<div class="stack"><button class="btn primary" id="pfSave">' + ico("pin") + 'Salvar marcador</button><button class="btn ghost" id="pfCancel">Cancelar</button></div>');
+      var cat = opts[0];
+      $("#pfCats").onclick = function (e) { var b = e.target.closest("[data-c]"); if (!b) return; cat = b.getAttribute("data-c"); $$("#pfCats .chip").forEach(function (x) { x.classList.toggle("on", x === b); }); };
+      $("#pfPhoto").onclick = function () { $("#photoInput").value = ""; $("#photoInput").click(); };
+      $("#pfCancel").onclick = closeSheet;
+      $("#pfSave").onclick = function () {
+        var n = $("#pfName").value.trim();
+        if (!n) { toast("Escreva um nome para o marcador"); $("#pfName").focus(); return; }
+        var l = { id: "M" + Date.now().toString(36), n: n, c: cat, r: nearestRegion(pending.x, pending.y), x: pending.x, y: pending.y, d: $("#pfNote").value.trim(), foto: photo, area: "", mine: true, ok: true };
+        LOCS.push(l); reindex(); saveMine(); closeSheet(); updateProgress(); Map.added(l); toast("Marcador salvo");
+      };
+    }
+    $("#photoInput").addEventListener("change", function () {
+      var f = this.files && this.files[0]; if (!f) return;
+      var rd = new FileReader();
+      rd.onload = function () {
+        var im = new Image();
+        im.onload = function () {
+          var w = Math.min(640, im.width), h = Math.round(im.height * w / im.width), c = document.createElement("canvas");
+          c.width = w; c.height = h; c.getContext("2d").drawImage(im, 0, 0, w, h);
+          try { photo = c.toDataURL("image/jpeg", .7); } catch (e) { photo = ""; }
+          var t = $("#pfThumb"); if (t) { t.style.backgroundImage = "url(" + photo + ")"; t.innerHTML = ""; }
+        };
+        im.src = rd.result;
+      };
+      rd.readAsDataURL(f);
+    });
+    return { open: open };
+  })();
+
+  function openProfile() {
+    var u = VH_AUTH.current() || { name: "Convidado", kind: "guest" }, guest = u.kind === "guest";
+    var nMine = LOCS.filter(function (l) { return l.mine; }).length;
+    openSheet('<div class="prof"><span class="avatar' + (guest ? " guest" : "") + '">' + esc((u.name || "?").charAt(0).toUpperCase()) + "</span><span><b>" + esc(u.name) + "</b><small>" + (guest ? "Convidado · dados salvos neste aparelho" : esc(u.email) + " · conta neste aparelho") + "</small></span></div>" +
+      '<div class="pstats"><div><b>' + fmt(nVisited()) + "</b><span>visitados</span></div><div><b>" + Object.keys(favs).length + "</b><span>salvos</span></div><div><b>" + nMine + "</b><span>marcadores</span></div></div>" +
+      '<div class="stack">' + (guest ? '<button class="btn primary" data-p="login">' + ico("user") + "Entrar ou criar conta</button>" : "") +
+      '<a class="btn au-discord" data-p="discord" href="' + esc(CFG.discordUrl || "#") + '"' + (CFG.discordUrl ? ' target="_blank" rel="noopener"' : "") + ">Comunidade no Discord" + (CFG.discordUrl ? "" : "<em>em breve</em>") + "</a>" +
+      '<button class="btn ghost" data-p="out">' + ico("logout") + (guest ? "Sair do modo convidado" : "Sair da conta") + "</button></div>" +
+      '<p class="copy">© 2026 Flow Labs Studio · Todos os direitos reservados</p>');
+    $("#sheetPanel").onclick = function (e) {
+      var b = e.target.closest("[data-p]"); if (!b) return;
+      var p = b.getAttribute("data-p");
+      if (p === "discord" && !CFG.discordUrl) { e.preventDefault(); toast("Nosso Discord abre em breve"); }
+      if (p === "login" || p === "out") { if (p === "out") VH_AUTH.signOut(); closeSheet(); Auth.show(); }
+    };
+  }
+  $("#avatarBtn").onclick = openProfile;
+  $("#progressBtn").onclick = openProfile;
 
   /* =========================================================
      LOCAIS
      ========================================================= */
   var Places = (function () {
-    var cat = "all", q = "", shown = 40, sorted = LOCS.slice().sort(function (a, b) { return (b.foto ? 1 : 0) - (a.foto ? 1 : 0) || a.n.localeCompare(b.n); });
+    var cat = "all", q = "", shownN = 40;
     function chips() {
       var cs = Object.keys(CAT).filter(function (c) { return BYCAT[c]; });
       $("#plCats").innerHTML = '<button class="chip' + (cat === "all" ? " on" : "") + '" data-c="all" style="--c:#fff"><i></i>Todos <small>' + LOCS.length + "</small></button>" +
@@ -482,21 +699,21 @@
     }
     function render() {
       chips();
-      var nq = norm(q), list = sorted.filter(function (l) { return (cat === "all" || l.c === cat) && (!nq || norm(l.n + " " + l.area + " " + l.real).indexOf(nq) >= 0); });
-      var photo = !window.VH_NOPHOTOS;
-      $("#plGrid").innerHTML = list.length ? list.slice(0, shown).map(function (l, i) {
-        var c = CAT[l.c];
+      var sorted = LOCS.slice().sort(function (a, b) { return (b.mine ? 1 : 0) - (a.mine ? 1 : 0) || (b.foto ? 1 : 0) - (a.foto ? 1 : 0) || a.n.localeCompare(b.n); });
+      var nq = norm(q), list = sorted.filter(function (l) { return (cat === "all" || l.c === cat) && (!nq || norm(l.n + " " + l.area + " " + (l.real || "")).indexOf(nq) >= 0); });
+      $("#plGrid").innerHTML = list.length ? list.slice(0, shownN).map(function (l, i) {
+        var c = CAT[l.c], photo = l.foto && (!window.VH_NOPHOTOS || l.mine);
         return '<button class="pl glass" data-i="' + l.i + '" style="animation-delay:' + (i % 20) * 25 + 'ms"><div class="ph">' +
-          (l.foto && photo ? '<img src="' + esc(l.foto) + '" alt="" loading="lazy">' : '<span class="noimg" style="color:' + c.cor + '">' + ico(c.icone) + "</span>") +
-          '<span class="cdot" style="background:' + c.cor + '">' + ico(c.icone) + "</span>" + (visited[l.id] ? '<span class="vis">' + ico("check", ' stroke-width="3"') + "</span>" : "") +
-          '</div><div class="tx"><b>' + esc(l.n) + "</b><small>" + esc(l.area || REG[l.r].nome) + "</small></div></button>";
+          (photo ? '<img src="' + esc(l.foto) + '" alt="" loading="lazy">' : '<span class="noimg" style="color:' + c.cor + '">' + ico(c.icone) + "</span>") +
+          '<span class="cdot" style="background:' + (c.ouro ? "linear-gradient(180deg,#fff1a8,#f5c542 45%,#b9791a)" : c.cor) + '">' + ico(c.icone) + "</span>" + (visited[l.id] ? '<span class="vis">' + ico("check", ' stroke-width="3"') + "</span>" : "") +
+          '</div><div class="tx"><b>' + esc(l.n) + "</b><small>" + (l.mine ? "Seu marcador · " : "") + esc(l.area || REG[l.r].nome) + "</small></div></button>";
       }).join("") : '<div class="empty">Nenhum local com esse nome.</div>';
-      $("#plMore").hidden = list.length <= shown;
-      $("#placesSub").textContent = fmt(list.length) + " locais · " + fmt(LOCS.filter(function (l) { return l.foto; }).length) + " com foto do jogo";
+      $("#plMore").hidden = list.length <= shownN;
+      $("#placesSub").textContent = fmt(list.length) + " locais · " + fmt(LOCS.filter(function (l) { return l.foto; }).length) + " com foto";
     }
-    $("#plCats").addEventListener("click", function (e) { var b = e.target.closest("[data-c]"); if (!b) return; cat = b.getAttribute("data-c"); shown = 40; render(); });
-    $("#plSearch").addEventListener("input", function () { q = this.value.trim(); shown = 40; render(); });
-    $("#plMore").addEventListener("click", function () { shown += 40; render(); });
+    $("#plCats").addEventListener("click", function (e) { var b = e.target.closest("[data-c]"); if (!b) return; cat = b.getAttribute("data-c"); shownN = 40; render(); });
+    $("#plSearch").addEventListener("input", function () { q = this.value.trim(); shownN = 40; render(); });
+    $("#plMore").addEventListener("click", function () { shownN += 40; render(); });
     $("#plGrid").addEventListener("click", function (e) { var b = e.target.closest("[data-i]"); if (b) Map.focus(+b.getAttribute("data-i")); });
     return { render: render };
   })();
@@ -549,27 +766,28 @@
     }
     function open(i) {
       var v = D.veiculos[i]; openI = i;
-      var where = v.t === "barco" ? ["marina"] : v.t === "aereo" ? ["aereo"] : ["garagem", "oficina", "corrida"];
+      var where = v.t === "barco" ? ["marina"] : v.t === "aereo" ? ["aereo"] : ["lendario", "garlend", "garagem", "oficina", "corrida"];
       $("#vPanel").innerHTML = '<div class="vm-art" style="--vc:' + v.cor + '">' + vArt(v) + vPhoto(v) + '<span class="soon">Foto em breve</span><button class="pop-x" data-a="close" aria-label="Fechar">' + ico("close") + "</button></div>" +
         '<div class="vm-b"><span class="eyebrow">' + esc(v.m === "—" ? TYPE[v.t] : v.m) + "</span><h2>" + esc(v.n) + "</h2>" +
         '<div class="spec"><div><small>Tipo</small><b>' + TYPE[v.t] + "</b></div><div><small>Classe</small><b>" + esc(v.cl) + "</b></div>" +
         "<div><small>Inspirado em</small><b>" + esc(v.real || "Não identificado") + "</b></div><div><small>Velocidade</small><b>" + (v.spd ? v.spd.toFixed(1) + " / 10" : "Não publicada") + "</b></div></div>" +
         (v.nota ? '<p class="muted" style="font-size:13.5px;margin:0 0 14px">' + esc(v.nota) + "</p>" : "") +
         '<p class="muted" style="font-size:12px;margin:0 0 14px">' + (v.s === "oficial" ? "Mostrado oficialmente pela Rockstar." : "Da lista da comunidade.") + "</p>" +
-        '<button class="btn primary" data-a="where" style="width:100%">' + ico("map") + (v.t === "barco" ? "Ver marinas no mapa" : v.t === "aereo" ? "Ver aeroportos no mapa" : "Ver garagens, oficinas e corridas") + "</button></div>";
+        '<button class="btn primary" data-a="where" style="width:100%">' + ico("map") + (v.t === "barco" ? "Ver marinas no mapa" : v.t === "aereo" ? "Ver aeroportos no mapa" : "Ver carros lendários, garagens e oficinas") + "</button></div>";
       $("#vModal").classList.add("open"); $("#scrim").classList.add("open");
       $("#vPanel").onclick = function (e) { var b = e.target.closest("[data-a]"); if (!b) return; if (b.getAttribute("data-a") === "close") close(); else { close(); Map.solo(where); } };
     }
-    function close() { openI = -1; $("#vModal").classList.remove("open"); if (!$("#drawer").classList.contains("open")) $("#scrim").classList.remove("open"); }
+    function close() { openI = -1; $("#vModal").classList.remove("open"); if (!$("#drawer").classList.contains("open") && !$("#sheet").classList.contains("open")) $("#scrim").classList.remove("open"); }
     return { build: build, close: close, isOpen: function () { return openI >= 0; } };
   })();
 
   /* =========================================================
      GUIA
      ========================================================= */
+  var REGIMG = { vice: 1, keys: 1, gellhorn: 1, ambrosia: 1, grass: 1 };
   function buildGuide() {
-    var J = D.jogo, nf = LOCS.filter(function (l) { return l.foto; }).length;
-    $("#gHeroTxt").textContent = fmt(LOCS.length) + " locais com nome no mapa oficial, " + D.veiculos.length + " veículos e as 6 regiões de Leonida.";
+    var J = D.jogo, nf = LOCS.filter(function (l) { return l.foto && !l.mine; }).length;
+    $("#gHeroTxt").textContent = fmt(LOCS.length) + " locais no mapa oficial, " + D.veiculos.length + " veículos e as 6 regiões de Leonida.";
     var facts = [["Lançamento", J.lancamento], ["Plataformas", J.plataformas.join(" · ")], ["Versão para PC", J.pc], ["GTA Online novo", J.online], ["Vendas no 1º dia", J.destaques[0].valor], ["Inspirado em", J.inspiracao]];
     $("#facts").innerHTML = facts.map(function (f) { return '<div class="fact glass"><small>' + esc(f[0]) + "</small><b>" + esc(f[1]) + "</b></div>"; }).join("");
     $("#heroes").innerHTML = J.protagonistas.map(function (p, i) {
@@ -578,15 +796,16 @@
     }).join("");
     var BOX = G6 ? G6.bbox : [0, 0, 15040, 19840], span = 4200, th = 92;
     $("#regions").innerHTML = D.regioes.map(function (r) {
-      var n = LOCS.filter(function (l) { return l.r === r.id; }).length, sc = th / span;
-      var bs = (BOX[2] * sc).toFixed(0) + "px " + (BOX[3] * sc).toFixed(0) + "px", bp = (-(r.x - span / 2) * sc).toFixed(0) + "px " + (-(r.y - span / 2) * sc).toFixed(0) + "px";
-      return '<button class="reg glass" data-r="' + r.id + '"><span class="thumb" style="background-size:' + bs + ";background-position:" + bp + '"></span><span><b>' + esc(r.nome) + '</b><small style="color:' + r.cor + '">inspirado em ' + esc(r.base) + "</small><p>" + esc(r.texto) + '</p><span class="n">' + n + " locais no mapa</span></span></button>";
+      var n = LOCS.filter(function (l) { return l.r === r.id; }).length, sc = th / span, style;
+      if (REGIMG[r.id]) style = 'background-image:url(img/regioes/' + r.id + '.jpg);background-size:cover;background-position:center';
+      else style = "background-size:" + (BOX[2] * sc).toFixed(0) + "px " + (BOX[3] * sc).toFixed(0) + "px;background-position:" + (-(r.x - span / 2) * sc).toFixed(0) + "px " + (-(r.y - span / 2) * sc).toFixed(0) + "px";
+      return '<button class="reg glass" data-r="' + r.id + '"><span class="thumb" style="' + style + '"></span><span><b>' + esc(r.nome) + '</b><small style="color:' + r.cor + '">inspirado em ' + esc(r.base) + "</small><p>" + esc(r.texto) + '</p><span class="n">' + n + " locais no mapa</span></span></button>";
     }).join("");
     $("#regions").onclick = function (e) { var b = e.target.closest("[data-r]"); if (b) Map.region(REG[b.getAttribute("data-r")]); };
-    var cs = Object.keys(CAT).filter(function (c) { return BYCAT[c]; }).sort(function (a, b) { return BYCAT[b].length - BYCAT[a].length; });
+    var cs = Object.keys(CAT).filter(function (c) { return BYCAT[c] && !CAT[c].meu; }).sort(function (a, b) { return BYCAT[b].length - BYCAT[a].length; });
     $("#numbers").innerHTML = '<div class="numgrid">' + cs.map(function (c) {
       return '<div class="num"><span class="ic" style="background:' + CAT[c].cor + '">' + ico(CAT[c].icone) + "</span><span><b>" + BYCAT[c].length + "</b><span>" + esc(CAT[c].nome) + "</span></span></div>";
-    }).join("") + '</div><p class="muted" style="font-size:12px;margin:12px 0 0">' + fmt(nf) + " locais têm foto tirada do jogo.</p>";
+    }).join("") + '</div><p class="muted" style="font-size:12px;margin:12px 0 0">' + fmt(nf) + " locais têm foto tirada do jogo. Carros lendários e cartas douradas você marca no mapa com o botão dourado.</p>";
     $("#garInfo").innerHTML = "<ul>" + D.garagensInfo.itens.map(function (t) { return "<li>" + esc(t) + "</li>"; }).join("") + "</ul>";
     var homes = (BYCAT.casa || []).concat(BYCAT.garagem || []);
     $("#homes").innerHTML = homes.map(function (l) {
@@ -597,12 +816,15 @@
   }
 
   /* =========================================================
-     VOLTAR (Android), ABERTURA
+     VOLTAR (Android), ABERTURA, INÍCIO
      ========================================================= */
   window.ViceHub = {
     back: function () {
+      if (!$("#auth").hidden) return false;
+      if ($("#sheet").classList.contains("open")) { closeSheet(); return true; }
       if (Veh.isOpen()) { Veh.close(); return true; }
       if ($("#drawer").classList.contains("open")) { closeDrawer(); return true; }
+      if (Map.adding()) { Map.stopAdd(); return true; }
       if (!$("#results").hidden) { $("#results").hidden = true; return true; }
       if (Map.popOpen()) { Map.closePop(); return true; }
       if (current !== 0) { go(0); return true; }
@@ -610,21 +832,30 @@
     }
   };
   document.addEventListener("keydown", function (e) { if (e.key === "Escape") window.ViceHub.back(); });
-
-  /* impede que o navegador role a área principal para o lado ao focar um botão perto da borda */
   ["#stage", "#app", "#v-map", "#mapWrap"].forEach(function (s) {
     var el = $(s);
     if (el) el.addEventListener("scroll", function () { el.scrollLeft = 0; if (s !== "#stage") el.scrollTop = 0; });
   });
   $$(".view").forEach(function (v) { v.addEventListener("scroll", function () { if (v.scrollLeft) v.scrollLeft = 0; }); });
-  updateProgress();
-  Veh.build();
-  buildGuide();
-  Places.render();
-  Map.show();
-  requestAnimationFrame(ink);
+
+  var started = false;
+  function startApp(u) {
+    var av = $("#avatarBtn"), guest = !u || u.kind === "guest";
+    $("#avatarTxt").textContent = guest ? "C" : (u.name || "?").charAt(0).toUpperCase();
+    av.classList.toggle("guest", guest);
+    if (started) return; started = true;
+    updateProgress(); Veh.build(); buildGuide(); Places.render(); Map.show();
+    requestAnimationFrame(ink);
+  }
   var splash = $("#splash"), done = false;
-  function endSplash() { if (done) return; done = true; splash.classList.add("hide"); ink(); Map.resize(); setTimeout(function () { splash.hidden = true; }, 1000); }
+  function endSplash() {
+    if (done) return; done = true;
+    splash.classList.add("hide");
+    setTimeout(function () { splash.hidden = true; }, 800);
+    var u = VH_AUTH.current();
+    if (u) startApp(u); else { startApp(null); Auth.show(); }
+    setTimeout(function () { ink(); Map.resize(); }, 60);
+  }
   splash.addEventListener("click", endSplash);
-  setTimeout(endSplash, window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 600 : 3500);
+  setTimeout(endSplash, window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 500 : 2800);
 })();

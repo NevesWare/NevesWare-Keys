@@ -39,37 +39,43 @@ def to_map(wx, wy):
 # ---------- categorias ----------
 HASH = [  # ordem = prioridade
     ("#safehouse", "casa"), ("#garage", "garagem"), ("#modshop", "oficina"), ("#pay'n'spray", "oficina"), ("#carwash", "oficina"),
-    ("#guns", "armas"), ("#nightclub", "boate"), ("#stripclub", "boate"), ("#bar", "boate"), ("#drinks", "boate"),
+    ("#guns", "armas"), ("#nightclub", "boate"), ("#stripclub", "boate"), ("#bar", "bar"), ("#drinks", "bar"),
     ("#marina", "marina"), ("#airport", "aereo"), ("#airbase", "aereo"), ("#racetrack", "corrida"), ("#gas", "posto"),
-    ("#food", "comida"), ("#fastfood", "comida"), ("#police", "servico"), ("#hospital", "servico"), ("#jail", "servico"),
+    ("#food", "comida"), ("#fastfood", "comida"), ("#police", "seguranca"), ("#jail", "seguranca"), ("#hospital", "saude"),
     ("#bus", "transporte"), ("#train", "transporte"), ("#metro", "transporte"), ("#metromover", "transporte"),
-    ("#supermarket", "loja"), ("#clothes", "loja"), ("#hair", "loja"), ("#electronics", "loja"), ("#shoes", "loja"),
-    ("#tattoos", "loja"), ("#vendor", "loja"), ("#fence", "loja"), ("#golf", "marco"), ("#tennis", "marco"),
+    ("#supermarket", "mercado"), ("#clothes", "roupas"), ("#shoes", "roupas"), ("#hair", "barbearia"), ("#tattoos", "tatuagem"),
+    ("#electronics", "loja"), ("#vendor", "loja"), ("#fence", "loja"), ("#golf", "marco"), ("#tennis", "marco"),
     ("#ferriswheel", "marco"), ("#landmark", "marco"), ("#curiosity", "marco"), ("#blimp", "marco"),
 ]
 PLAIN = [
-    ("restaurant", "comida"), ("hotel", "hotel"), ("retail", "loja"), ("supermarket", "loja"), ("transportation", "transporte"),
+    ("restaurant", "comida"), ("hotel", "hotel"), ("supermarket", "mercado"), ("retail", "loja"), ("transportation", "transporte"),
     ("government", "servico"), ("public", "servico"), ("utilities", "servico"), ("office", "servico"), ("service", "servico"),
     ("landmark", "marco"), ("leisure", "marco"), ("events", "marco"), ("point-of-interest", "marco"),
     ("natural", "natureza"), ("residential", "residencial"), ("industrial", "industria"), ("agriculture", "industria"),
     ("construction", "industria"),
 ]
 
-KEYWORDS = [  # palavras no nome (minúsculas, com espaços nas pontas quando é palavra inteira)
+KEYWORDS = [  # palavras no nome (minúsculas, com espaços nas pontas quando é palavra inteira); a ordem importa
+    ([" barber", " salon", " hair", " beauty"], "barbearia"),
+    ([" tattoo", " ink "], "tatuagem"),
+    ([" boutique", " apparel", " clothing", " fashion", " shoes", " sneaker", " threads", " wear"], "roupas"),
+    ([" supermarket", " market", " mart", " grocery", " 24/7", " minimarket", " liquor", " bodega"], "mercado"),
+    ([" hospital", " clinic", " medical", " pharmacy", " farmacia", " dental", " health"], "saude"),
+    ([" police", " sheriff", " fire station", " fire dept", " prison", " jail", " penitentiary", " correctional"], "seguranca"),
+    ([" nightclub", " strip club", " club "], "boate"),
+    ([" bar ", " bar,", " pub ", " lounge", " tavern", " saloon", " brewery", " cantina", " cocktail"], "bar"),
     ([" bus stop", " station", " metro", " ferry", " terminal", " bridge", " parking"], "transporte"),
     ([" gas ", " gas station", " fuel", " xero "], "posto"),
     ([" motel", " hotel", " inn ", " resort", " suites", " hostel"], "hotel"),
-    ([" bar ", " bar,", " pub ", " lounge", " nightclub", " club ", " tavern", " saloon", " brewery", " cantina"], "boate"),
     ([" restaurant", " cafe", " café", " diner", " grill", " pizza", " burger", " taco", " bakery", " kitchen", " bbq",
       " seafood", " sushi", " donut", " coffee", " food", " eatery", " steakhouse", " cuban", " ice cream", " deli "], "comida"),
     ([" customs", " auto ", " autos", " motors", " body shop", " tire", " car wash", " mechanic", " repair"], "oficina"),
     ([" marina", " boat", " yacht", " dock", " pier"], "marina"),
     ([" airport", " airfield", " air station", " hangar", " heliport", " helipad"], "aereo"),
     ([" turn ", " raceway", " speedway", " racetrack", " race track", " drag strip"], "corrida"),
-    ([" police", " sheriff", " fire station", " hospital", " clinic", " medical", " school", " college", " university",
-      " courthouse", " court", " city hall", " library", " post office", " prison", " jail", " bank", " church", " chapel", " cemetery", " campus", " hall", " center", " centre", " restroom", " office", " department"], "servico"),
-    ([" farmacia", " pharmacy", " store", " shop", " mart", " market", " pawn", " mall", " boutique", " salon", " barber",
-      " tattoo", " liquor", " outlet", " plaza", " supermarket", " records", " vinyl", " jewel"], "loja"),
+    ([" school", " college", " university", " courthouse", " court", " city hall", " library", " post office", " bank",
+      " church", " chapel", " cemetery", " campus", " hall", " center", " centre", " restroom", " office", " department"], "servico"),
+    ([" store", " shop", " pawn", " mall", " outlet", " plaza", " records", " vinyl", " jewel", " gadgets", " electronics"], "loja"),
     ([" park", " beach", " lake", " river", " bay ", " swamp", " island", " key ", " forest", " trail", " canal", " marsh", " creek", " sound", " bayou", " pond", " springs", " point", " reef", " cove", " lagoon", " dunes"], "natureza"),
     ([" stadium", " arena", " museum", " theater", " theatre", " monument", " statue", " tower", " lighthouse", " sign",
       " mural", " gallery", " zoo", " golf", " casino", " carnival", " fair", " oceanarium", " aquarium", " castle", " fountain", " memorial"], "marco"),
@@ -224,3 +230,16 @@ def stitch(z, out, quality=82):
 
 os.makedirs(os.path.join(WWW, "img"), exist_ok=True)
 print("capa", stitch(2, os.path.join(WWW, "img", "leonida.jpg")))
+
+# ---------- fotos das regiões (imagens do repositório GTADB, CC BY 4.0) ----------
+REG_IMG = {"vice": "ViceBeach.jpg", "keys": "bannerLeonidaKeys.jpg", "gellhorn": "bannerPortGellhorn.jpg",
+           "ambrosia": "bannerAmbrosia2.jpg", "grass": "Grassrivers.jpg"}
+rdst = os.path.join(WWW, "img", "regioes"); os.makedirs(rdst, exist_ok=True)
+for rid, fn in REG_IMG.items():
+    src = os.path.join(SRC, "images", fn)
+    if os.path.exists(src):
+        im = Image.open(src).convert("RGB")
+        if im.width > 900:
+            im = im.resize((900, round(im.height * 900 / im.width)), Image.LANCZOS)
+        im.save(os.path.join(rdst, rid + ".jpg"), quality=72, optimize=True, progressive=True)
+print("regiões", sorted(os.listdir(rdst)))

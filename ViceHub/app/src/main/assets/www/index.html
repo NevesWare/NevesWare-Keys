@@ -3,68 +3,60 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="theme-color" content="#0b0618">
+<meta name="theme-color" content="#0a0716">
 <title>ViceHub</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;700;800&family=Manrope:wght@500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600;700;800&family=Manrope:wght@500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <!--VH:BODY-->
-<div id="splash" role="img" aria-label="ViceHub">
-  <div class="sp-scene">
-    <svg class="sp-art" viewBox="0 0 320 230" aria-hidden="true">
-      <defs>
-        <linearGradient id="spSun" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe066"/><stop offset=".55" stop-color="#ff8a3d"/><stop offset="1" stop-color="#ff2d7a"/></linearGradient>
-        <linearGradient id="spCity" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5a2a8a"/><stop offset="1" stop-color="#1c0d33"/></linearGradient>
-        <linearGradient id="spSea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff3d8b" stop-opacity=".55"/><stop offset="1" stop-color="#2de2e6" stop-opacity="0"/></linearGradient>
-        <mask id="spStripes"><rect width="320" height="230" fill="#fff"/><g fill="#000"><rect y="118" width="320" height="4"/><rect y="130" width="320" height="5"/><rect y="143" width="320" height="6"/><rect y="157" width="320" height="8"/></g></mask>
-        <clipPath id="spHorizon"><rect width="320" height="168"/></clipPath>
-      </defs>
-      <g clip-path="url(#spHorizon)"><circle class="sp-sun" cx="160" cy="122" r="74" fill="url(#spSun)" mask="url(#spStripes)"/></g>
-      <g class="sp-city" fill="url(#spCity)">
-        <rect x="62" y="120" width="16" height="48"/><rect x="80" y="100" width="12" height="68"/><rect x="94" y="128" width="18" height="40"/>
-        <rect x="114" y="88" width="14" height="80"/><rect x="130" y="112" width="20" height="56"/>
-        <rect x="168" y="104" width="16" height="64"/><rect x="186" y="80" width="14" height="88"/><rect x="202" y="118" width="18" height="50"/>
-        <rect x="222" y="96" width="12" height="72"/><rect x="236" y="126" width="20" height="42"/>
-      </g>
-      <g class="sp-lights" fill="#ffd9f0">
-        <rect x="117" y="96" width="2" height="2"/><rect x="123" y="104" width="2" height="2"/><rect x="189" y="90" width="2" height="2"/><rect x="195" y="110" width="2" height="2"/><rect x="83" y="112" width="2" height="2"/><rect x="225" y="106" width="2" height="2"/><rect x="171" y="120" width="2" height="2"/>
-      </g>
-      <rect x="0" y="168" width="320" height="62" fill="url(#spSea)"/>
-      <g class="sp-waves" stroke="#2de2e6" stroke-width="1.6" fill="none" opacity=".75"><path d="M60 182 H260"/><path d="M90 194 H230"/><path d="M118 206 H202"/></g>
-      <g class="sp-palm sp-palm-l" fill="none" stroke="#14072a" stroke-linecap="round">
-        <path d="M40 230 C 44 196 50 160 64 128" stroke-width="7"/>
-        <path d="M64 128 C 50 116 30 118 16 132" stroke-width="5"/><path d="M64 128 C 56 108 40 98 22 100" stroke-width="5"/>
-        <path d="M64 128 C 70 106 86 96 104 98" stroke-width="5"/><path d="M64 128 C 80 118 100 122 110 138" stroke-width="5"/><path d="M64 128 C 64 110 70 94 80 86" stroke-width="5"/>
-      </g>
-      <g class="sp-palm sp-palm-r" fill="none" stroke="#14072a" stroke-linecap="round">
-        <path d="M286 230 C 282 200 276 172 262 146" stroke-width="7"/>
-        <path d="M262 146 C 276 134 296 136 308 150" stroke-width="5"/><path d="M262 146 C 270 126 286 118 302 120" stroke-width="5"/>
-        <path d="M262 146 C 256 126 240 118 224 120" stroke-width="5"/><path d="M262 146 C 248 138 230 142 220 156" stroke-width="5"/><path d="M262 146 C 262 128 256 114 246 106" stroke-width="5"/>
-      </g>
-    </svg>
-    <div class="sp-logo"><span class="sp-vice"><i>V</i><i>I</i><i>C</i><i>E</i></span><span class="sp-hub"><b>HUB</b></span></div>
+<div id="bg"><i class="blob b1"></i><i class="blob b2"></i><i class="blob b3"></i><i class="blob b4"></i></div>
+
+<!-- abertura -->
+<div id="splash" aria-label="ViceHub">
+  <div class="sp-card glass">
+    <div class="sp-sun" aria-hidden="true"><i></i></div>
+    <div class="sp-word"><span class="sp-vice">VICE</span><span class="sp-hub">HUB</span></div>
     <div class="sp-tag">Guia de Leonida · GTA VI</div>
-    <div class="sp-bar"><i></i></div>
+    <div class="sp-load"><i></i></div>
   </div>
   <div class="sp-foot">© 2026 Flow Labs Studio · Todos os direitos reservados</div>
 </div>
 
-<div id="bg"><i class="blob b1"></i><i class="blob b2"></i><i class="blob b3"></i></div>
+<!-- contas -->
+<div id="auth" hidden>
+  <div class="au-card glass">
+    <div class="au-brand"><span class="b-vice">VICE</span><span class="b-hub">HUB</span></div>
+    <p class="au-sub">Salve seus locais visitados, marcadores e favoritos.</p>
+    <div class="au-tabs"><button class="on" data-mode="in">Entrar</button><button data-mode="up">Criar conta</button></div>
+    <form id="auForm" autocomplete="on" novalidate>
+      <label class="au-f" id="auNameF" hidden><span>Nome</span><input id="auName" type="text" autocomplete="nickname" placeholder="Como quer ser chamado"></label>
+      <label class="au-f"><span>E-mail</span><input id="auEmail" type="email" autocomplete="email" placeholder="voce@email.com"></label>
+      <label class="au-f"><span>Senha</span><input id="auPass" type="password" autocomplete="current-password" placeholder="Mínimo de 6 caracteres"></label>
+      <p class="au-err" id="auErr" hidden></p>
+      <button class="btn primary au-go" type="submit" id="auGo">Entrar</button>
+    </form>
+    <div class="au-or"><span>ou</span></div>
+    <button class="btn ghost au-alt" id="auGoogle"><svg viewBox="0 0 24 24" width="18" height="18"><path fill="#fff" d="M21.6 12.2c0-.7-.1-1.4-.2-2H12v3.8h5.4a4.6 4.6 0 0 1-2 3v2.5h3.2c1.9-1.7 3-4.3 3-7.3z"/><path fill="#cfd3ff" d="M12 22c2.7 0 5-.9 6.6-2.4l-3.2-2.5c-.9.6-2 1-3.4 1-2.6 0-4.8-1.8-5.6-4.1H3.1v2.6A10 10 0 0 0 12 22z"/><path fill="#9aa4ff" d="M6.4 14c-.2-.6-.3-1.3-.3-2s.1-1.4.3-2V7.4H3.1a10 10 0 0 0 0 9.2z"/><path fill="#fff" d="M12 5.9c1.5 0 2.8.5 3.8 1.5l2.9-2.9A10 10 0 0 0 3.1 7.4L6.4 10C7.2 7.7 9.4 5.9 12 5.9z"/></svg>Continuar com Google</button>
+    <button class="btn ghost au-alt" id="auGuest">Entrar como convidado</button>
+    <a class="btn au-discord" id="auDiscord" href="#" rel="noopener"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M19.6 5.3A16.6 16.6 0 0 0 15.5 4l-.5 1a15.4 15.4 0 0 0-6 0l-.5-1a16.6 16.6 0 0 0-4.1 1.3C1.8 9.2 1.1 13 1.4 16.7A16.8 16.8 0 0 0 6.5 19.3l1.1-1.8a10.8 10.8 0 0 1-1.7-.8l.4-.3a11.9 11.9 0 0 0 11.4 0l.4.3a10.8 10.8 0 0 1-1.7.8l1.1 1.8a16.8 16.8 0 0 0 5.1-2.6c.4-4.3-.7-8-3-11.4zM8.7 14.5c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2zm6.6 0c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2z"/></svg><span>Comunidade no Discord</span><em id="auDiscordSoon">em breve</em></a>
+    <p class="au-note" id="auNote">Por enquanto as contas ficam salvas só neste aparelho.</p>
+  </div>
+  <div class="sp-foot">© 2026 Flow Labs Studio · Todos os direitos reservados</div>
+</div>
 
 <div id="app">
-  <!-- cabeçalho + abas em cima -->
   <header class="top">
-    <div class="top-row">
-      <div class="brand"><span class="b-vice">VICE</span><span class="b-hub">HUB</span></div>
+    <div class="brand"><span class="b-vice">VICE</span><span class="b-hub">HUB</span></div>
+    <div class="top-r">
       <button class="progress glass" id="progressBtn" aria-label="Seu progresso">
         <svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="15" class="pr-bg"/><circle cx="18" cy="18" r="15" class="pr-fg" id="prRing"/></svg>
         <span><b id="prNum">0</b><small>visitados</small></span>
       </button>
+      <button class="avatar" id="avatarBtn" aria-label="Sua conta"><span id="avatarTxt">?</span></button>
     </div>
-    <nav class="tabs glass" id="tabs" role="tablist"><span class="tab-ink" id="tabInk"></span></nav>
   </header>
 
   <main class="stage" id="stage">
@@ -78,13 +70,16 @@
           <button class="filter-btn" id="openFilters" aria-label="Filtros"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 6h16M7 12h10M10 18h4"/></svg><span>Filtros</span><em id="filterCount" hidden></em></button>
         </div>
         <div class="results glass" id="results" hidden></div>
+        <div class="quick" id="quick"></div>
       </div>
       <div class="map-tools">
         <button class="tool glass" id="zoomIn" aria-label="Aproximar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
         <button class="tool glass" id="zoomOut" aria-label="Afastar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"/></svg></button>
         <button class="tool glass" id="recenter" aria-label="Leonida inteira"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
         <button class="tool glass" id="tilt3d" aria-label="Mapa 3D"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/></svg></button>
+        <button class="tool glass gold" id="addPin" aria-label="Adicionar marcador"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><path d="M12 6.5v6M9 9.5h6"/></svg></button>
       </div>
+      <div class="add-hint glass" id="addHint" hidden>Toque no mapa onde fica o marcador <button id="addCancel">Cancelar</button></div>
       <div class="map-legend glass" id="legend"></div>
       <div class="attrib">© GTADB · CC BY 4.0</div>
       <div class="pop" id="pop" hidden></div>
@@ -106,7 +101,7 @@
       <div class="search glass"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="vSearch" type="search" placeholder="Modelo, marca ou carro real" autocomplete="off"></div>
       <div class="chips" id="vClass"></div>
       <div class="v-list" id="vList"></div>
-      <p class="note">Ponto verde: mostrado pela Rockstar. Ponto amarelo: lista da comunidade. Marcas reais são comparações feitas por fãs.</p>
+      <p class="note">Ponto verde: mostrado pela Rockstar. Ponto amarelo: lista da comunidade. Para pôr a foto de um carro, coloque o arquivo em img/veiculos/ com o nome do modelo (veja o README).</p>
     </section>
 
     <!-- GUIA -->
@@ -127,19 +122,24 @@
       <div class="list" id="homes"></div>
       <div class="sec-h"><h2>Créditos</h2></div>
       <div class="glass card credits">
-        <p><b>Mapa, locais e fotos:</b> GTADB, gtadb.org e colaboradores. "GTA VI Landmarks Data (CC BY 4.0) — https://map.gtadb.org" e "GTA VI Map Tiles (CC BY 4.0) — https://map.gtadb.org". Licença: creativecommons.org/licenses/by/4.0. Alterações do ViceHub: categorias traduzidas, prédios sem nome removidos, fotos reduzidas e notas próprias.</p>
+        <p><b>Mapa, locais, fotos e imagens das regiões:</b> GTADB, gtadb.org e colaboradores. "GTA VI Landmarks Data (CC BY 4.0) — https://map.gtadb.org" e "GTA VI Map Tiles (CC BY 4.0) — https://map.gtadb.org". Licença: creativecommons.org/licenses/by/4.0. Alterações do ViceHub: categorias traduzidas, prédios sem nome removidos, fotos reduzidas e notas próprias.</p>
         <p>Guia feito por fãs, sem ligação com a Rockstar Games ou a Take-Two. Imagens do jogo © Rockstar Games.</p>
       </div>
       <p class="copy">© 2026 Flow Labs Studio · Todos os direitos reservados</p>
     </section>
   </main>
+
+  <nav class="dock glass" id="dock" role="tablist"><span class="dock-ink" id="dockInk"></span></nav>
 </div>
 
 <div class="scrim" id="scrim"></div>
 <aside class="drawer glass" id="drawer" aria-label="Filtros do mapa"></aside>
 <div class="modal" id="vModal"><div class="panel glass" id="vPanel"></div></div>
+<div class="modal" id="sheet"><div class="panel glass" id="sheetPanel"></div></div>
+<input type="file" id="photoInput" accept="image/*" hidden>
 <div class="toast glass" id="toast"></div>
 <!--VH:SCRIPTS-->
+<script src="config.js"></script>
 <script src="gtadb/tiles.js"></script>
 <script src="gtadb/landmarks.js"></script>
 <script src="data.js"></script>

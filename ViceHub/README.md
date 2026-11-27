@@ -1,6 +1,6 @@
 # ViceHub
 
-Guia de fã de GTA VI para celular: mapa de Leonida com filtros, veículos com modelo 3D, garagens, esconderijos e informações do jogo.
+Guia de fã de GTA VI para celular: mapa oficial de Leonida com 1.123 locais, marcadores próprios (carros lendários, garagens lendárias, cartas douradas), veículos, contas e informações do jogo.
 
 O app é uma interface web (`app/src/main/assets/www`) aberta num WebView em tela cheia, travado em pé. O mesmo código vira o site depois.
 
@@ -11,7 +11,9 @@ O app é uma interface web (`app/src/main/assets/www`) aberta num WebView em tel
 | `app/src/main/java/.../MainActivity.java` | WebView em tela cheia (modo imersivo), botão voltar ligado à interface |
 | `app/src/main/assets/www/index.html` | Telas do app |
 | `app/src/main/assets/www/style.css` | Visual de vidro com as cores de Vice City |
-| `app/src/main/assets/www/app.js` | Abertura animada, abas no topo (Mapa, Locais, Veículos, Guia), mapa com pins em gota, cartão com foto, visitados e filtros |
+| `app/src/main/assets/www/app.js` | Abertura, contas, barra de navegação embaixo (Mapa, Locais, Veículos, Guia), mapa sem sobreposição de ícones, cartão com foto, visitados, filtros, marcadores próprios |
+| `app/src/main/assets/www/config.js` | Chaves do login com Google, link do Discord e servidor de contas (vazios = "em breve") |
+| `app/src/main/assets/www/img/regioes/` | Fotos das regiões (imagens do GTADB) |
 | `app/src/main/assets/www/data.js` | **Base de dados**: regiões, locais, categorias, veículos, garagens |
 | `app/src/main/assets/www/tiles/` | Mapa oficial do jogo em tiles (níveis 0–5), do GTADB |
 | `app/src/main/assets/www/gtadb/` | 1.123 locais com nome (`landmarks.js`), lista de tiles e 760 fotos do jogo, do GTADB |
@@ -37,12 +39,17 @@ python3 ViceHub/tools/import_gtadb.py caminho/para/gtadb.org
 
 Notas próprias por local ficam em `data.js` → `notas` (chave = id do GTADB, ex.: `L172`). Coordenadas em metros a partir do canto do recorte do mapa; quadrantes de 1 km.
 
-## Editor do mapa (dentro do app)
+## Contas
 
-No mapa, toque no lápis para ligar o editor. Com ele ligado:
-- toque num ponto vazio do mapa para criar um local (nome, categoria, região);
-- abra um local e use "Mover pin" para corrigir a posição;
-- em Filtros → Editor do mapa → Exportar, copie o JSON e cole em `data.js` para publicar para todo mundo.
+Depois da abertura aparece a tela de contas: **Entrar**, **Criar conta**, **Entrar como convidado**, **Continuar com Google** e **Discord**.
+- Hoje o servidor de contas é `local`: a conta fica salva só no aparelho (bom para testar, não para produção).
+- Para contas de verdade, ligue um servidor (Supabase ou Firebase) e troque o adaptador `VH_AUTH` em `app.js` (seção CONTAS). O resto do app não muda.
+- **Google:** preencha `googleClientId` em `config.js` e implemente o login no adaptador (no Android, pelo SDK do Google ou pelo OAuth do Supabase). Enquanto estiver vazio, o botão mostra "em breve".
+- **Discord:** coloque o convite em `discordUrl` em `config.js`. Enquanto estiver vazio, o botão mostra "em breve".
+
+## Marcadores próprios (carros lendários, garagens lendárias, cartas douradas)
+
+O GTADB não tem colecionáveis nem veículos. Por isso o botão dourado no mapa cria marcadores: o jogador toca no mapa, escolhe a categoria (as três douradas aparecem primeiro), dá um nome, uma anotação e, se quiser, uma foto. Eles ficam no aparelho, aparecem no mapa, em Locais e no atalho **Colecionáveis**, e podem ser marcados como coletados.
 
 ## Fotos dos veículos
 

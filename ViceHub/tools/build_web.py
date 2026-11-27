@@ -40,7 +40,7 @@ head = ('<title>ViceHub</title>\n<meta name="claude:viewport-fit-sides" content=
         "<style>" + read("style.css") + "</style>\n")
 pre = ("<script>window.VH_PHOTOS=" + json.dumps(photos) + ";window.VH_NOPHOTOS=true;window.VH_MAPIMG="
        + json.dumps(mapimg) + ";</script>\n")
-out = head + body + pre + "<script>" + gt + "</script>\n<script>" + read("data.js") + "</script>\n<script>" + read("app.js") + "</script>\n"
+out = head + body + pre + "<script>" + read("config.js") + "</script>\n<script>" + gt + "</script>\n<script>" + read("data.js") + "</script>\n<script>" + read("app.js") + "</script>\n"
 cover = open(os.path.join(www, "img", "leonida.jpg"), "rb").read()
 out = out.replace("img/leonida.jpg", b64(cover))
 dst = os.path.join(root, "web"); os.makedirs(dst, exist_ok=True)
