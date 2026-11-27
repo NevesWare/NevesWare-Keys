@@ -46,7 +46,19 @@ public class MainActivity extends Activity {
             s.setMediaPlaybackRequiresUserGesture(false);
         }
 
-        web.setWebViewClient(new WebViewClient());
+        web.setWebViewClient(new WebViewClient() {
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                // Links da internet (Google Maps, Discord...) abrem fora do app.
+                if (url != null && (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("geo:"))) {
+                    try {
+                        startActivity(new android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url)));
+                    } catch (Exception e) { /* nenhum app para abrir o link */ }
+                    return true;
+                }
+                return false;
+            }
+        });
         web.setWebChromeClient(new WebChromeClient());
         web.setOverScrollMode(View.OVER_SCROLL_NEVER);
 

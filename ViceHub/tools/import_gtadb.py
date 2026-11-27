@@ -139,6 +139,8 @@ def short_rl(addr):
 data = json.load(open(os.path.join(SRC, "map", "data", "6", "landmarks.json"), encoding="utf-8"))
 photos_src = os.path.join(SRC, "map", "photos", "6")
 photos_dst = os.path.join(WWW, "gtadb", "photos")
+real_dst = os.path.join(WWW, "gtadb", "real")
+os.makedirs(real_dst, exist_ok=True)
 os.makedirs(photos_dst, exist_ok=True)
 items, n_photo = [], 0
 for lid, v in data.items():
@@ -183,10 +185,28 @@ for lid, v in data.items():
                 print("foto com erro", lid, e)
         has_photo = 1 if os.path.exists(dst) else 0
         n_photo += has_photo
-    items.append([lid, title, area, cat, reg, mx, my, short_rl(rl_addr), flags, has_photo])
+    has_real = 0
+    rsrc = os.path.join(photos_src, lid + ",rl.jpg")
+    if os.path.exists(rsrc):
+        rdst_ = os.path.join(real_dst, lid + ".jpg")
+        if not os.path.exists(rdst_):
+            try:
+                im = Image.open(rsrc).convert("RGB")
+                if im.width > PHOTO_W:
+                    im = im.resize((PHOTO_W, round(im.height * PHOTO_W / im.width)), Image.LANCZOS)
+                im.save(rdst_, quality=62, optimize=True, progressive=True)
+            except Exception as e:
+                print("foto real com erro", lid, e)
+        has_real = 1 if os.path.exists(rdst_) else 0
+    ll = [round(rl[0], 6), round(rl[1], 6)] if rl and len(rl) == 2 else 0
+    items.append([lid, title, area, cat, reg, mx, my, short_rl(rl_addr), flags, has_photo, ll, has_real])
 
 items.sort(key=lambda it: int(it[0][1:]))
 keep = {it[0] + ".jpg" for it in items if it[9]}
+keepr = {it[0] + ".jpg" for it in items if it[11]}
+for fn in os.listdir(real_dst):
+    if fn.endswith(".jpg") and fn not in keepr:
+        os.remove(os.path.join(real_dst, fn))
 for fn in os.listdir(photos_dst):  # apaga fotos geradas antes para locais que saíram
     if fn.endswith(".jpg") and fn not in keep:
         os.remove(os.path.join(photos_dst, fn))
@@ -195,7 +215,7 @@ with open(os.path.join(WWW, "gtadb", "landmarks.js"), "w", encoding="utf-8") as 
     f.write("/* GTA VI Landmarks Data (CC BY 4.0) — https://map.gtadb.org — gtadb.org and all contributors.\n"
             "   Convertido para o ViceHub (coordenadas em metros a partir do recorte do mapa; categorias traduzidas). */\n")
     f.write("window.VH_GTADB = " + json.dumps({
-        "fields": ["id", "nome", "area", "cat", "regiao", "x", "y", "real", "flags", "foto"],
+        "fields": ["id", "nome", "area", "cat", "regiao", "x", "y", "real", "flags", "foto", "latlng", "fotoReal"],
         "bbox": [X0, Y0, W, H], "items": items}, ensure_ascii=False, separators=(",", ":")) + ";\n")
 
 # ---------- tiles ----------

@@ -12,6 +12,8 @@ O app é uma interface web (`app/src/main/assets/www`) aberta num WebView em tel
 | `app/src/main/assets/www/index.html` | Telas do app |
 | `app/src/main/assets/www/style.css` | Visual de vidro com as cores de Vice City |
 | `app/src/main/assets/www/app.js` | Abertura, contas, barra de navegação embaixo (Mapa, Locais, Veículos, Guia), mapa sem sobreposição de ícones, cartão com foto, visitados, filtros, marcadores próprios |
+| `app/src/main/assets/www/guia.js` | Arsenal (62 armas), controles PS5/Xbox, 18 coleções de cartas, veículos raros e linha do tempo |
+| `app/src/main/assets/www/gtadb/real/` | 733 fotos dos lugares reais (Miami/Flórida) para o "Jogo × Vida real" |
 | `app/src/main/assets/www/config.js` | Chaves do login com Google, link do Discord e servidor de contas (vazios = "em breve") |
 | `app/src/main/assets/www/img/regioes/` | Fotos das regiões (imagens do GTADB) |
 | `app/src/main/assets/www/data.js` | **Base de dados**: regiões, locais, categorias, veículos, garagens |
@@ -38,6 +40,10 @@ python3 ViceHub/tools/import_gtadb.py caminho/para/gtadb.org
 ```
 
 Notas próprias por local ficam em `data.js` → `notas` (chave = id do GTADB, ex.: `L172`). Coordenadas em metros a partir do canto do recorte do mapa; quadrantes de 1 km.
+
+## Navegação
+
+Barra de baixo: **Mapa · Locais · Garagem · Arsenal · Mais**. Em **Mais**: Guia de Leonida, Colecionáveis (cartas com contador por coleção e veículos raros), Controles (PS5 e Xbox), Linha do tempo e Ajustes. Tema padrão: **Dark**. Entrar e Criar conta são telas separadas.
 
 ## Ajustes
 
