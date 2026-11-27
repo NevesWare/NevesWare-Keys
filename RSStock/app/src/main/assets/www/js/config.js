@@ -8,7 +8,7 @@ RS.screens = {};
 RS.config = {
   appName: 'RS Stock',
   version: '1.0.0',
-  studio: 'Flow Labs Studio',
+  studio: 'FlowLabs Studio',
   year: new Date().getFullYear(),
 
   /* Site oficial — o botão aparece como "Em breve" enquanto estiver vazio. */

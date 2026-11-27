@@ -86,10 +86,92 @@
     if (!b) return;
     ui.tap();
     const id = b.dataset.tab;
-    if (id === 'add') return RS.editor.open();
+    if (id === 'add') return quickAdd(b);
     if (current && current.name === id) return;
     RS.app.go(id, {}, { tab: true });
   }
+
+  /* Menu rápido do botão + */
+  let dialOpen = null;
+  function quickAdd(btn) {
+    if (dialOpen) return dialOpen.close();
+    if (!s.current()) return RS.stores.form();
+    const acts = [
+      { k: 'product', icon: 'plus', c: 'var(--accent)', t: 'Novo produto', d: 'Cadastrar validade' },
+      { k: 'scan', icon: 'scan', c: '#06b6d4', t: 'Escanear', d: 'Buscar ou cadastrar' },
+      { k: 'out', icon: 'upload', c: '#ff3b4e', t: 'Dar baixa', d: 'Saída do estoque' },
+      { k: 'in', icon: 'download', c: '#10b981', t: 'Entrada', d: 'Repor estoque' },
+      { k: 'store', icon: 'home', c: '#f59e0b', t: 'Nova loja', d: 'Criar outro estoque', wide: true }
+    ];
+    const scrim = document.createElement('div'); scrim.className = 'dial-scrim';
+    const dial = document.createElement('div'); dial.className = 'dial';
+    dial.innerHTML = acts.map(a => `<button class="glass ${a.wide ? 'wide' : ''}" data-k="${a.k}" style="--dc:${a.c}"><span class="di">${ui.icon(a.icon, 22)}</span><span><b>${a.t}</b><small>${a.d}</small></span></button>`).join('');
+    document.getElementById('app').append(scrim, dial);
+    btn.classList.add('open');
+    requestAnimationFrame(() => requestAnimationFrame(() => { scrim.classList.add('show'); dial.classList.add('show'); }));
+    const ctl = {
+      close(after) {
+        const i = ui.stack.indexOf(ctl); if (i >= 0) ui.stack.splice(i, 1);
+        dialOpen = null;
+        btn.classList.remove('open');
+        scrim.classList.remove('show'); dial.classList.remove('show');
+        setTimeout(() => { scrim.remove(); dial.remove(); }, 380);
+        if (after) setTimeout(after, 160);
+      }
+    };
+    dialOpen = ctl;
+    ui.stack.push(ctl);
+    scrim.onclick = () => ctl.close();
+    dial.addEventListener('click', e => {
+      const b = e.target.closest('[data-k]');
+      if (!b) return;
+      ui.tap();
+      const k = b.dataset.k;
+      ctl.close(async () => {
+        if (k === 'product') RS.editor.open();
+        else if (k === 'store') RS.stores.form();
+        else if (k === 'scan') {
+          const code = await RS.scanner.scan();
+          if (!code) return;
+          const p = s.byBarcode(code);
+          if (p && p.storeId === s.settings.currentStoreId) RS.detail.open(p.id); else RS.editor.openWithBarcode(code);
+        } else if (k === 'out' || k === 'in') {
+          const id = await RS.pickProduct(k === 'out' ? 'Dar baixa em qual produto?' : 'Entrada em qual produto?');
+          if (id) RS.moveSheet(id, k);
+        }
+      });
+    });
+  }
+
+  /* Escolher um produto da loja atual (busca + código de barras). */
+  RS.pickProduct = function (title) {
+    return new Promise(resolve => {
+      let picked = null;
+      const draw = (q = '') => {
+        const list = s.query({ text: q, sort: 'expiry' }).slice(0, 60);
+        return list.length ? `<div class="list">${list.map(p => RS.itemRow(p)).join('')}</div>` : `<div class="empty"><h3>Nada encontrado</h3><p>Tente outro nome ou escaneie o código.</p></div>`;
+      };
+      ui.sheet({
+        title,
+        body: `<div class="search glass-lite" style="margin-bottom:12px">${ui.icon('search', 20)}<input data-q placeholder="Buscar produto…" autocomplete="off">
+          <button class="icon-btn" data-scan style="width:38px;height:38px">${ui.icon('scan', 18)}</button></div><div data-l>${draw()}</div>`,
+        onMount(el, ctl) {
+          const q = ctl.$('[data-q]');
+          q.addEventListener('input', u.debounce(() => { ctl.$('[data-l]').innerHTML = draw(q.value); }, 120));
+          el.addEventListener('click', async e => {
+            const it = e.target.closest('[data-open]');
+            if (it) { ui.tap(); picked = it.dataset.open; return ctl.close(); }
+            if (e.target.closest('[data-scan]')) {
+              const code = await RS.scanner.scan();
+              const p = code && s.byBarcode(code);
+              if (p) { picked = p.id; ctl.close(); } else if (code) ui.toast('Código não encontrado nesta loja', { type: 'warn' });
+            }
+          });
+        },
+        onClose() { setTimeout(() => resolve(picked), 260); }
+      });
+    });
+  };
 
   RS.app = {
     go(name, params = {}, opt = {}) {

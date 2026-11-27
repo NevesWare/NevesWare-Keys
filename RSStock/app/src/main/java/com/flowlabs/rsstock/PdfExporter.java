@@ -116,7 +116,7 @@ final class PdfExporter {
                 }
                 cellBold.setTextSize(12);
                 c.drawText("RS Stock", M + 40, 47, cellBold);
-                c.drawText("Flow Labs Studio", M + 40, 60, small);
+                c.drawText("FlowLabs Studio", M + 40, 60, small);
                 cellBold.setTextSize(10);
 
                 String gen = r.optString("generatedAt", "");
@@ -208,7 +208,7 @@ final class PdfExporter {
             }
 
             // Rodapé
-            String left = "Gerado pelo RS Stock · Flow Labs Studio";
+            String left = "Gerado pelo RS Stock · FlowLabs Studio";
             String right = "Página " + (p + 1) + " de " + pages;
             c.drawLine(M, H - FOOTER_H - 6, W - M, H - FOOTER_H - 6, line);
             c.drawText(left, M, H - FOOTER_H + 10, small);

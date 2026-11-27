@@ -45,28 +45,42 @@
   RS.screens.settings = {
     tab: 'settings',
     render() {
-      const pr = s.settings.profile, c = s.counts();
+      const pr = s.settings.profile;
       const themeName = { dark: 'Escuro', light: 'Claro', system: 'Sistema', coca: 'Coca' }[s.settings.theme];
+      const cur = s.current();
+      const row = (go, icon, color, title, sub, value = '') => `<button class="row" data-go="${go}" style="--tc:${color}"><span class="ri">${I(icon, 18)}</span>
+        <span class="ct"><b>${title}</b><small>${sub}</small></span><span class="cv">${value}${I('chev', 18)}</span></button>`;
       return `
-        <header class="topbar"><div class="grow"><p class="eyebrow">Preferências</p><h1 class="h1">Ajustes</h1></div></header>
-        <button class="card glass profile-card compact" data-go="settings.profile" style="width:100%;text-align:left">
-          <span class="avatar" style="--av:${(cfg.accents[pr.color] || {}).a}">${u.esc(u.initials(pr.name || 'R S'))}</span>
-          <span class="ct"><b>${u.esc(pr.name || 'Seu perfil')}</b><small class="muted" style="font-size:.78rem;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${u.esc(s.current() ? s.current().name + ' · ' + u.plural(s.stores.length, 'loja', 'lojas') : userLabel())}</small></span>
-          ${RS.auth.isGuest() ? `<span class="soon-tag">Convidado</span>` : ''}${I('chev', 20)}
+        <header class="topbar"><div class="grow"><p class="eyebrow">Preferências</p><h1 class="h1">Ajustes</h1></div>
+          <button class="icon-btn glass" data-go="logout" aria-label="Sair" style="color:var(--c-danger)">${I('logout', 20)}</button></header>
+
+        <button class="me-card stagger-in" data-go="settings.profile">
+          <span class="me-avatar" style="--av:${(cfg.accents[pr.color] || {}).a}"><span>${u.esc(u.initials(pr.name || 'R S'))}</span></span>
+          <span class="ct"><b>${u.esc(pr.name || 'Toque para criar seu perfil')}</b>
+            <span class="meta"><span>${RS.auth.isGuest() ? 'Convidado' : 'Conta'}</span>${cur ? `<span>${u.esc(cur.name)}</span>` : ''}<span>${u.plural(s.products.length, 'produto', 'produtos')}</span></span></span>
+          ${I('chev', 22)}
         </button>
-        <div class="tiles stagger">
-          ${tile('stores', 'home', '#e4000f', 'Lojas', u.plural(s.stores.length, 'loja', 'lojas'))}
-          ${tile('settings.appearance', 'moon', '#8b5cf6', 'Aparência', themeName)}
-          ${tile('settings.notifications', 'bell', '#f43f5e', 'Notificações', s.settings.notif.enabled ? s.settings.notif.daysBefore + ' dias antes' : 'Desligadas')}
-          ${tile('settings.a11y', 'a11y', '#10b981', 'Acessibilidade', 'Texto e contraste')}
-          ${tile('settings.security', 'lock', '#0ea5e9', 'Segurança', s.settings.security.pin ? 'PIN ativo' : 'PIN e senha')}
-          ${tile('settings.data', 'db', '#f59e0b', 'Backup', u.plural(s.products.length, 'produto', 'produtos'))}
-          ${tile('history', 'clock', '#6366f1', 'Histórico', u.plural(s.history.length, 'registro', 'registros'))}
-          ${tile('account', 'cloud', '#3b82f6', 'Conta', RS.auth.isGuest() ? 'Em breve' : 'Conectada')}
-          ${tile('settings.credits', 'heart', '#ec4899', 'Créditos', cfg.studio)}
-          ${tile('settings.about', 'info', '#64748b', 'Sobre', 'v' + cfg.version)}
-          ${tile('site', 'globe', '#06b6d4', 'Site', cfg.features.site && cfg.siteUrl ? 'Abrir' : 'Em breve')}
-          ${tile('logout', 'logout', '#ff5470', 'Sair', RS.auth.isGuest() ? 'Convidado' : 'Da conta', 'danger')}
+
+        <div class="shortcuts">
+          <button class="sc glass-lite" data-go="stores" style="--tc:#e4000f"><span class="ti">${I('home', 19)}</span><em class="num">${s.stores.length}</em><span><b>Lojas</b><small>Criar e editar</small></span></button>
+          <button class="sc glass-lite" data-go="history" style="--tc:#6366f1"><span class="ti">${I('clock', 19)}</span><em class="num">${s.history.length > 999 ? '999+' : s.history.length}</em><span><b>Histórico</b><small>Movimentações</small></span></button>
+          <button class="sc glass-lite" data-go="settings.data" style="--tc:#f59e0b"><span class="ti">${I('db', 19)}</span><span><b>Backup</b><small>Salvar e restaurar</small></span></button>
+        </div>
+
+        <div class="group-label">Preferências</div>
+        <div class="rows glass-lite">
+          ${row('settings.appearance', 'moon', '#8b5cf6', 'Aparência', 'Tema, cores e vidro', themeName)}
+          ${row('settings.notifications', 'bell', '#f43f5e', 'Notificações', 'Alertas de validade', s.settings.notif.enabled ? s.settings.notif.daysBefore + ' dias' : 'Off')}
+          ${row('settings.a11y', 'a11y', '#10b981', 'Acessibilidade', 'Texto, contraste e movimento')}
+          ${row('settings.security', 'lock', '#0ea5e9', 'Segurança', 'PIN e senha da conta', s.settings.security.pin ? 'PIN ativo' : '')}
+          ${row('account', 'cloud', '#3b82f6', 'Conta na nuvem', 'Sincronizar com sua conta', '<span class="soon-tag">Em breve</span>')}
+        </div>
+
+        <div class="group-label">Sobre</div>
+        <div class="about-row">
+          <button class="glass-lite" data-go="settings.credits" style="--tc:#ec4899">${I('heart', 18)}Créditos</button>
+          <button class="glass-lite" data-go="settings.about" style="--tc:#64748b">${I('info', 18)}v${cfg.version}</button>
+          <button class="glass-lite" data-go="site" style="--tc:#06b6d4">${I('globe', 18)}Site</button>
         </div>`;
     },
     mount(root) {
@@ -97,7 +111,7 @@
 
   function openSite() {
     if (cfg.features.site && cfg.siteUrl) return RS.native.openUrl(cfg.siteUrl);
-    ui.alert({ title: 'Site em breve', message: 'O site oficial do RS Stock está sendo preparado pela Flow Labs Studio. Em breve você poderá acessá-lo por aqui.', icon: 'globe' });
+    ui.alert({ title: 'Site em breve', message: 'O site oficial do RS Stock está sendo preparado pela FlowLabs Studio. Em breve você poderá acessá-lo por aqui.', icon: 'globe' });
   }
   RS.openSite = openSite;
 
@@ -457,28 +471,65 @@
     tab: 'settings',
     bar: false,
     render() {
-      return sub('Créditos', `
-        <div class="card glass credits-hero">
-          <div class="studio-mark">FL</div>
-          <h2>${cfg.studio}</h2>
-          <p>O RS Stock é desenvolvido com carinho pela Flow Labs Studio — criando ferramentas simples, bonitas e úteis para o dia a dia.</p>
-        </div>
-        <div class="group-label">Equipe e projeto</div>
-        <div class="group glass-lite">
-          <div class="cell static"><span class="ci" style="--cc:#7c5cff">${I('sparkle', 18)}</span><span class="ct"><b>Design e desenvolvimento</b><small>${cfg.studio}</small></span></div>
-          <div class="cell static"><span class="ci" style="--cc:#ec4899">${I('package', 18)}</span><span class="ct"><b>Produto</b><small>${cfg.appName} — controle de validades e estoque</small></span></div>
-          <button class="cell" data-site><span class="ci" style="--cc:#3b82f6">${I('globe', 18)}</span><span class="ct"><b>Site da Flow Labs Studio</b></span><span class="soon-tag">Em breve</span></button>
-        </div>
-        <div class="group-label">Tecnologias de código aberto</div>
-        <div class="group glass-lite">
-          <div class="cell static"><span class="ci" style="--cc:#10b981">${I('scan', 18)}</span><span class="ct"><b>ZXing</b><small>Leitura de códigos de barras · Apache 2.0</small></span></div>
-          <div class="cell static"><span class="ci" style="--cc:#64748b">${I('code', 18)}</span><span class="ct"><b>Android WebView</b><small>Interface e motor de renderização</small></span></div>
-        </div>
-        <p class="hint" style="text-align:center;margin-top:24px">Feito no Brasil 💜<br>© ${cfg.year} ${cfg.studio} · Todos os direitos reservados</p>`);
+      const sparks = Array.from({ length: 14 }, (_, i) => `<i style="left:${(i * 37) % 100}%;top:${(i * 53) % 100}%;animation-delay:-${(i * .37).toFixed(2)}s"></i>`).join('');
+      return `
+        <header class="topbar"><button class="icon-btn glass" data-back aria-label="Voltar">${I('back')}</button>
+          <div class="grow"><h1 class="page-title">Créditos</h1></div></header>
+        <div class="credits3d">
+          <div class="scene3d" data-scene>
+            <div class="sparks">${sparks}</div>
+            <div class="orbit o1"><i></i></div>
+            <div class="orbit o2"><i></i></div>
+            <div class="cube" data-cube>
+              <div class="face f1">FL</div>
+              <div class="face f2">FlowLabs</div>
+              <div class="face f3">${I('sparkle', 44, 1.8)}</div>
+              <div class="face f4">${I('code', 44, 1.8)}</div>
+              <div class="face f5">${I('heart', 44, 1.8)}</div>
+              <div class="face f6">${I('zap', 44, 1.8)}</div>
+            </div>
+          </div>
+          <div class="brand-word">FlowLabs</div>
+          <div class="brand-sub">Studio</div>
+          <p class="credits-text">O ${cfg.appName} é criado pela <b style="color:var(--text)">FlowLabs Studio</b> — ferramentas simples, bonitas e úteis para o dia a dia.</p>
+          <div class="credit-chips">
+            <span class="glass-lite">${I('sparkle', 14)}Design e desenvolvimento</span>
+            <span class="glass-lite">${I('scan', 14)}ZXing · Apache 2.0</span>
+            <span class="glass-lite">${I('code', 14)}Android WebView</span>
+          </div>
+          <button class="btn ghost sm" data-site style="margin-top:18px">${I('globe', 16)}Site da FlowLabs <span class="soon-tag">Em breve</span></button>
+          <p class="hint" style="text-align:center;margin-top:14px">Arraste o cubo para girar · Feito no Brasil 💜<br>© ${cfg.year} FlowLabs Studio · Todos os direitos reservados</p>
+        </div>`;
     },
     mount(root) {
       bindCommon(root);
       root.addEventListener('click', e => { if (e.target.closest('[data-site]')) { ui.tap(); openSite(); } });
+      // Girar o cubo com o dedo
+      const scene = root.querySelector('[data-scene]'), cube = root.querySelector('[data-cube]');
+      let x0 = null, y0 = null, rx = -22, ry = 0, vx = 0, raf = 0;
+      const apply = () => { cube.style.transform = `rotateX(${rx}deg) rotateY(${ry}deg)`; };
+      scene.addEventListener('pointerdown', e => {
+        x0 = e.clientX; y0 = e.clientY;
+        const m = getComputedStyle(cube).transform;
+        cube.classList.add('drag'); cancelAnimationFrame(raf);
+        if (m && m !== 'none') cube.style.transform = m;
+        scene.setPointerCapture(e.pointerId);
+      });
+      scene.addEventListener('pointermove', e => {
+        if (x0 == null) return;
+        vx = (e.clientX - x0) * .6;
+        ry += vx; rx = Math.max(-80, Math.min(80, rx - (e.clientY - y0) * .5));
+        x0 = e.clientX; y0 = e.clientY; apply();
+      });
+      const end = () => {
+        if (x0 == null) return;
+        x0 = null;
+        const glide = () => { vx *= .95; ry += vx; apply(); if (Math.abs(vx) > .2) raf = requestAnimationFrame(glide); };
+        glide();
+        ui.tap(10);
+      };
+      scene.addEventListener('pointerup', end);
+      scene.addEventListener('pointercancel', end);
     }
   };
 

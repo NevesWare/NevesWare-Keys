@@ -3,7 +3,7 @@
 <img src="docs/icon-512.png" width="96" alt="Ícone">
 
 **Controle de validades e estoque** — minimalista, intuitivo, com visual de vidro fosco (glassmorphism), tema escuro e claro.
-Desenvolvido por **Flow Labs Studio**.
+Desenvolvido por **FlowLabs Studio**.
 
 ![RS Stock](docs/screenshots/abertura-login-inicio.png)
 
@@ -27,7 +27,7 @@ Desenvolvido por **Flow Labs Studio**.
 - **Histórico** de movimentações (adicionado, editado, entrada, baixa, removido).
 - **Exportar em 4 formatos**: PDF, Imagem, Texto e Planilha (CSV para Excel/Google Planilhas).
 
-- **Splash** com nome do app, carregamento minimalista e rodapé “Flow Labs Studio · Todos os direitos reservados”.
+- **Splash** com nome do app, carregamento minimalista e rodapé “FlowLabs Studio · Todos os direitos reservados”.
 - **Login**: entrar com nick/e-mail e senha, criar conta com e-mail (preparados para Supabase, marcados “Em breve”),
   **entrar como convidado** (funcional) e botão **Visitar site** (em breve).
 - **Início**: saúde do estoque (anel %), contadores (vencidos, hoje, próximos, em dia), ações rápidas e alertas.
@@ -72,6 +72,6 @@ Para o site: preencha `siteUrl` e `features.site`.
 
 Para testar a interface no navegador: `cd app/src/main/assets/www && python3 -m http.server` e abra `http://localhost:8000`.
 
-© Flow Labs Studio · Todos os direitos reservados.
+© FlowLabs Studio · Todos os direitos reservados.
 
 Pacote: `com.flowlabs.rsstock` · Ícones em `res/mipmap-*` (inclui ícone adaptativo Android 8+).

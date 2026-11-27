@@ -28,7 +28,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * RS Stock — Flow Labs Studio.
+ * RS Stock — FlowLabs Studio.
  *
  * A interface é feita em HTML/CSS/JS (pasta assets/www) e roda dentro de um WebView
  * com origem segura (https://appassets.androidplatform.net). O lado nativo cuida de:
