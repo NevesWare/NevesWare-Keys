@@ -307,7 +307,7 @@
         <div class="btn-row" style="margin-top:12px">
           <button class="btn sm" data-a="out" style="background:color-mix(in srgb,var(--c-soon) 16%,transparent);color:var(--c-soon)">${ui.icon('upload', 18)}Dar baixa</button>
           <button class="btn ghost sm" data-a="in">${ui.icon('download', 18)}Entrada</button></div>
-        ${logs.length ? `<div class="group-label">Últimas movimentações</div><div class="card glass-lite" style="padding:4px 14px">${logs.map(e => `<div class="log"><span class="lt"><small>${u.esc(e.detail)}</small></span><time>${new Date(e.t).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</time></div>`).join('')}</div>` : ''}`,
+        ${logs.length ? `<div class="group-label">Últimas movimentações</div><div class="card glass-lite" style="padding:4px 14px">${logs.map(e => `<div class="log"><span class="lt"><small><b style="display:inline;font-size:inherit">${u.esc(s.LOG_LABEL[e.type] || '')}</b> · ${u.esc(e.detail)}</small></span><time>${new Date(e.t).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</time></div>`).join('')}</div>` : ''}`,
       foot: `<div class="btn-row">
           <button class="btn danger sm" data-a="del" aria-label="Excluir" style="flex:.6">${ui.icon('trash', 18)}</button>
           <button class="btn ghost sm" data-a="dup">${ui.icon('copy', 18)}Duplicar</button>

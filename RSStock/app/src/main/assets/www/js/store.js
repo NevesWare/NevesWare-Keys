@@ -50,6 +50,7 @@
     history: [],
     settings: merge(DEFAULTS, null),
     DEFAULTS, STORE_COLORS, REASONS,
+    LOG_LABEL: { add: 'Cadastro', edit: 'Edição', remove: 'Remoção', in: 'Entrada', out: 'Baixa', 'store-add': 'Loja criada', 'store-edit': 'Loja editada', 'store-remove': 'Loja excluída' },
 
     async load() {
       try { this.settings = merge(DEFAULTS, JSON.parse(localStorage.getItem(SKEY) || 'null')); } catch (e) { this.settings = merge(DEFAULTS, null); }
@@ -82,7 +83,7 @@
     async persist() { await RS.repo.save({ stores: this.stores, products: this.products, history: this.history }); },
 
     on(fn) { listeners.add(fn); return () => listeners.delete(fn); },
-    emit(what) { listeners.forEach(fn => { try { fn(what); } catch (e) { console.error(e); } }); },
+    emit(what) { Array.from(listeners).forEach(fn => { if (!listeners.has(fn)) return; try { fn(what); } catch (e) { console.error(e); } }); },
 
     /* ----- Configurações ----- */
     saveSettings() { localStorage.setItem(SKEY, JSON.stringify(this.settings)); },
@@ -239,7 +240,7 @@
         if (before.barcode !== item.barcode) changes.push('código');
         if (before.category !== item.category) changes.push('categoria');
         if (before.storeId !== item.storeId) changes.push('movido para ' + this.storeName(item.storeId));
-        if (changes.length) this.log('edit', item.name, 'Editado: ' + changes.join(' · '), item.storeId);
+        if (changes.length) this.log('edit', item.name, changes.join(' · '), item.storeId);
       } else {
         item = RS.Product(Object.assign({ storeId: this.settings.currentStoreId }, data, { createdAt: now, updatedAt: now }));
         const ses = RS.auth.session();
@@ -264,7 +265,7 @@
       const real = after - before;
       const why = REASONS[reason] || reason;
       this.log(real < 0 ? 'out' : 'in', p.name,
-        (real < 0 ? 'Baixa de ' : 'Entrada de ') + u.fmtQty(Math.abs(real), p.unit) + (why ? ' · ' + why : '') + ' · ' + u.fmtQty(before, p.unit) + ' → ' + u.fmtQty(after, p.unit) + (note ? ' · “' + note + '”' : ''),
+        u.fmtQty(Math.abs(real), p.unit) + (why ? ' · ' + why : '') + ' · ' + u.fmtQty(before, p.unit) + ' → ' + u.fmtQty(after, p.unit) + (note ? ' · “' + note + '”' : ''),
         p.storeId);
       await this.persist();
       this.syncNative();

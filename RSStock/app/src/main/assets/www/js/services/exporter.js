@@ -154,7 +154,7 @@
   function paginate(groups, multi) {
     const pages = [];
     let cur = [], y = 0, first = true;
-    const top = () => (first ? 268 : 120);
+    const top = () => (first ? 290 : 120);
     const limit = H - FOOT - 12;
     const push = (row, h) => {
       if (top() + y + h > limit && cur.length) { pages.push(cur); cur = []; y = 0; first = false; }
@@ -188,10 +188,11 @@
     };
     if (P.coca) {
       ctx.fillStyle = '#e4000f';
-      ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(W, 0); ctx.lineTo(W, 120);
-      ctx.bezierCurveTo(W * .7, 175, W * .45, 95, W * .25, 135); ctx.bezierCurveTo(W * .12, 160, W * .05, 140, 0, 150); ctx.closePath(); ctx.fill();
-      ctx.strokeStyle = '#fff'; ctx.lineWidth = 4;
-      ctx.beginPath(); ctx.moveTo(0, 150); ctx.bezierCurveTo(W * .05, 140, W * .12, 160, W * .25, 135); ctx.bezierCurveTo(W * .45, 95, W * .7, 175, W, 120); ctx.stroke();
+      const wy = pageIdx === 0 ? 0 : -46;
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(W, 0); ctx.lineTo(W, 150 + wy);
+      ctx.bezierCurveTo(W * .7, 166 + wy, W * .45, 132 + wy, W * .25, 150 + wy); ctx.bezierCurveTo(W * .12, 160 + wy, W * .05, 150 + wy, 0, 158 + wy); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 3.5;
+      ctx.beginPath(); ctx.moveTo(0, 158 + wy); ctx.bezierCurveTo(W * .05, 150 + wy, W * .12, 160 + wy, W * .25, 150 + wy); ctx.bezierCurveTo(W * .45, 132 + wy, W * .7, 166 + wy, W, 150 + wy); ctx.stroke();
       for (let i = 0; i < 26; i++) { ctx.beginPath(); ctx.arc((i * 97) % W, 200 + (i * 173) % (H - 260), 2 + (i % 5) * 1.6, 0, Math.PI * 2); ctx.strokeStyle = 'rgba(228,0,15,.12)'; ctx.lineWidth = 1.2; ctx.stroke(); }
     } else {
       blob(40, 40, 360, ac.a, P.dark ? .5 : .3);
@@ -217,7 +218,7 @@
       ctx.fillStyle = onHeader; ctx.font = `750 25px ${font}`; ctx.fillText(fit(ctx, title, W - 48), 24, y + 18);
       ctx.fillStyle = onHeader2; ctx.font = `500 11.5px ${font}`;
       ctx.fillText(fit(ctx, (address ? address + ' · ' : '') + 'Validades · ' + FILTERS[opts.filter] + ' · ' + u.plural(summary.total, 'produto', 'produtos'), W - 48), 24, y + 38);
-      y += 62;
+      y += 84;
       const tiles = u.STATUSES.map(k => [u.statusShort[k], summary[k], P.col[k], k]);
       const tw = (W - 48 - 24) / 4;
       tiles.forEach((t, i) => {

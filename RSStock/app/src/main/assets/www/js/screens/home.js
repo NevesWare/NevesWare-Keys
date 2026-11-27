@@ -77,7 +77,7 @@
         <div class="legend">${u.STATUSES.map(k => `<button class="s-${k}" data-filter="${k}"><span><span class="sdot"></span>${u.statusShort[k]}</span><b class="num">${c[k]}</b></button>`).join('')}</div>
       </section>
 
-      ${last ? `<button class="last-move glass-lite" data-act="history">${ui.icon('clock', 16)}<span><b>${u.esc(last.name)}</b> · ${u.esc((last.detail || '').split(' · ')[0])}</span><em>${ago(last.t)}</em></button>` : ''}
+      ${last ? `<button class="last-move glass-lite" data-act="history">${ui.icon('clock', 16)}<span><b>${u.esc(last.name)}</b> · ${u.esc((s.LOG_LABEL[last.type] || '') + (last.type === 'in' || last.type === 'out' ? ' de ' + (last.detail || '').split(' · ')[0] : ''))}</span><em>${ago(last.t)}</em></button>` : ''}
 
       <div class="section-title"><span>Vencem primeiro</span>${c.total ? '<button data-act="all">Ver todos</button>' : ''}</div>
       <section class="fill" data-fit>

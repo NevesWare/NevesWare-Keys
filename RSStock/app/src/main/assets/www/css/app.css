@@ -829,3 +829,12 @@ svg { flex-shrink: 0; }
 .big-qty button { width: 56px; height: 56px; border-radius: 20px; display: grid; place-items: center; background: var(--glass-2); border: 1px solid var(--stroke); }
 .big-qty input { width: 120px; text-align: center; font-size: 2.4rem; font-weight: 750; border: 0; outline: 0; background: none; }
 .after-qty { text-align: center; font-size: .84rem; color: var(--text-2); margin-bottom: 14px; }
+/* Coca: textos do topo em branco sobre a faixa vermelha */
+:root[data-theme="coca"] .view > .topbar .eyebrow,
+:root[data-theme="coca"] .view > .topbar .h1,
+:root[data-theme="coca"] .view > .topbar .page-title,
+:root[data-theme="coca"] .view > .topbar .store-title b,
+:root[data-theme="coca"] .view > [data-head] .eyebrow,
+:root[data-theme="coca"] .view > [data-head] .store-title b { color: #fff; }
+:root[data-theme="coca"] .view > .topbar .store-title svg, :root[data-theme="coca"] .view > [data-head] .store-title svg { color: rgba(255,255,255,.8); }
+:root[data-theme="coca"] .view > .topbar .icon-btn { color: #e4000f; }

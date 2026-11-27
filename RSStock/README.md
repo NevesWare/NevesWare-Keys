@@ -9,6 +9,14 @@ Desenvolvido por **Flow Labs Studio**.
 
 ## Recursos
 
+- **Várias lojas**: crie, edite e exclua lojas (ex.: Mercado Rio Sul, Guanabara). Cada loja tem o próprio estoque;
+  troque de loja pelo topo da tela inicial ou de Produtos.
+- **Cores por prazo**: ⚫ vencido (tag VENCIDO) · 🔴 menos de 7 dias · 🟡 7 a 30 dias · 🟢 mais de 30 dias.
+- **Dar baixa / Entrada** com motivo (venda, vencido/descarte, avaria, uso interno, troca, ajuste) e observação.
+- **Histórico completo**: cadastros, edições, baixas, entradas, remoções e ações de loja, por loja ou de todas, com autor e horário.
+- **Exportação com o nome da loja** (ou de todas as lojas): PDF, imagem em **folhas** 1080×1920 (Folha 1, Folha 2…), texto e planilha.
+- **Tema especial Coca**: vermelho e branco, bolhas, faixa ondulada, transições próprias e **ícone do app vermelho**.
+
 - **Cara de app de verdade**: tela cheia imersiva (sem barras do sistema; pode desligar em Aparência), splash nativa com o ícone,
   cada aba cabe inteira na tela (sem rolar a página; só listas longas rolam por dentro), transições deslizantes entre abas e telas,
   efeito de toque (ripple), barra inferior flutuante com indicador animado, vibração, modo compacto automático em telas pequenas.

@@ -9,7 +9,7 @@
   RS.storeBadge = storeBadge;
 
   function statsLine(c) {
-    return `${u.plural(c.total, 'produto', 'produtos')}${c.expired ? ' · <b class="txt-exp">' + c.expired + ' vencido' + (c.expired > 1 ? 's' : '') + '</b>' : ''}${c.soon ? ' · <b style="color:var(--c-soon)">' + c.soon + ' em &lt;7 dias</b>' : ''}`;
+    return `${u.plural(c.total, 'produto', 'produtos')}${c.expired ? ' · <span class="txt-exp" style="font-weight:700">' + c.expired + ' vencido' + (c.expired > 1 ? 's' : '') + '</span>' : ''}${c.soon ? ' · <span style="color:var(--c-soon);font-weight:700">' + c.soon + ' em &lt;7 dias</span>' : ''}`;
   }
 
   /* Folha para trocar de loja rapidamente */
