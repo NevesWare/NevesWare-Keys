@@ -95,6 +95,7 @@
 
     openNotificationSettings() { if (B) B.openNotificationSettings(); },
 
+    testWeekly() { try { return B && B.testWeekly ? B.testWeekly() : -1; } catch (e) { return -1; } },
     testNotification(fallbackTitle, fallbackBody) {
       if (B) return B.testNotification();
       if ('Notification' in window && Notification.permission === 'granted') new Notification(fallbackTitle, { body: fallbackBody });

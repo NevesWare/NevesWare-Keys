@@ -78,6 +78,12 @@ public class WebBridge {
             AlertScheduler.schedule(a);
         } catch (Throwable ignored) {
         }
+        RSWidget.updateAll(a);
+    }
+
+    @JavascriptInterface
+    public int testWeekly() {
+        return Notifier.weekly(a, true);
     }
 
     @JavascriptInterface

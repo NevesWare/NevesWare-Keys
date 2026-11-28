@@ -7,8 +7,8 @@ RS.screens = {};
 
 RS.config = {
   appName: 'RS Stock',
-  version: '2.0.0',
-  versionCode: 1,
+  version: '2.1.0',
+  versionCode: 2,
   studio: 'FlowLabs Studio',
   year: new Date().getFullYear(),
 

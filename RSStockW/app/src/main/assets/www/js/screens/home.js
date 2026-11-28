@@ -78,6 +78,11 @@
         <div class="legend">${u.STATUSES.map(k => `<button class="s-${k}" data-filter="${k}"><span><span class="sdot"></span>${u.statusShort[k]}</span><b class="num">${c[k]}</b></button>`).join('')}</div>
       </section>
 
+      <div class="quick-tools">
+        <button class="qt glass-lite" data-act="round" style="--tc:#10b981">${ui.icon('check', 17, 2.4)}<span><b>Ronda</b><small>${(() => { const r = s.roundFor(st.id); return r && r.finishedAt ? 'Concluída ✓' : r ? r.done + ' de ' + c.total : 'Desta semana'; })()}</small></span></button>
+        <button class="qt glass-lite" data-act="weekly" style="--tc:#3b82f6">${ui.icon('calendar', 17, 2.2)}<span><b>Semana</b><small>Resumo</small></span></button>
+        <button class="qt glass-lite" data-act="losses" style="--tc:#ef4444">${ui.icon('alert', 17, 2.2)}<span><b>Perdas</b><small>${(() => { const L = s.losses({ days: 30, storeId: st.id }); return L.value ? u.money(L.value) : L.count ? L.units + ' un' : '30 dias'; })()}</small></span></button>
+      </div>
       ${last ? `<button class="last-move glass-lite" data-act="history">${ui.icon('clock', 16)}<span><b>${u.esc(last.name)}</b> · ${u.esc((s.LOG_LABEL[last.type] || '') + (last.type === 'in' || last.type === 'out' ? ' de ' + (last.detail || '').split(' · ')[0] : ''))}</span><em>${ago(last.t)}</em></button>` : ''}
 
       <div class="section-title"><span>Vencem primeiro</span>${c.total ? '<button data-act="all">Ver todos</button>' : ''}</div>
@@ -112,8 +117,11 @@
         else if (a === 'all') RS.app.go('products', { status: 'all' });
         else if (a === 'history') RS.app.go('history');
         else if (a === 'alerts') openAlerts();
+        else if (a === 'round') RS.app.go('round');
+        else if (a === 'weekly') RS.weekly.show();
+        else if (a === 'losses') RS.app.go('losses');
       });
-      this._off = s.on(w => { if (w === 'stores' || w === 'store') RS.app.refresh(); });
+      this._off = s.on(w => { if (w === 'stores' || w === 'store' || w === 'all' || w === 'round') RS.app.refresh(); });
     },
     unmount() { if (this._off) this._off(); },
     onResize(root) { fitList(root); }

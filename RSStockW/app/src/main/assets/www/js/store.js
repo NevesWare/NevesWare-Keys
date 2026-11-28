@@ -18,7 +18,7 @@
     introSeen: false,
     currentStoreId: '',
     profile: { name: '', color: 'violet' },
-    notif: { enabled: true, daysBefore: 7, hour: 9, minute: 0, notifyExpired: true, inAppBadge: true, allStores: true },
+    notif: { enabled: true, daysBefore: 7, hour: 9, minute: 0, notifyExpired: true, inAppBadge: true, allStores: true, weekly: true, weeklyDay: 1, weeklyHour: 9, roundReminder: true },
     a11y: { fontScale: 1, contrast: false, reduceMotion: false, solid: false, bold: false, large: false },
     /* Compatibilidade com tamanhos de tela e aparelhos */
     compat: { universal: false, layout: 'auto', scale: 'auto', orientation: 'auto', lite: false, noTransitions: false, gpu: true, init: false },
@@ -50,9 +50,12 @@
     stores: [],
     products: [],      // produtos de TODAS as lojas (cada um com storeId)
     history: [],
+    rounds: [],
+    members: {},   // { storeId: [{ userId, nick, role }] }
+    roles: {},     // { storeId: 'owner' | 'editor' | 'viewer' }
     settings: merge(DEFAULTS, null),
     DEFAULTS, STORE_COLORS, REASONS,
-    LOG_LABEL: { add: 'Cadastro', edit: 'Edição', remove: 'Remoção', in: 'Entrada', out: 'Baixa', 'store-add': 'Loja criada', 'store-edit': 'Loja editada', 'store-remove': 'Loja excluída' },
+    LOG_LABEL: { add: 'Cadastro', edit: 'Edição', remove: 'Remoção', in: 'Entrada', out: 'Baixa', 'store-add': 'Loja criada', 'store-edit': 'Loja editada', 'store-remove': 'Loja excluída', round: 'Ronda', team: 'Equipe', import: 'Importação' },
 
     async load() {
       try { this.settings = merge(DEFAULTS, JSON.parse(localStorage.getItem(SKEY) || 'null')); } catch (e) { this.settings = merge(DEFAULTS, null); }
@@ -66,9 +69,7 @@
     /* Carrega os dados da conta atual (troca de conta = troca de dados). */
     async loadAccount() {
       const data = await RS.repo.load();
-      this.stores = (data.stores || []).map(x => RS.Store(x));
-      this.products = (data.products || []).map(p => RS.Product(p));
-      this.history = data.history || [];
+      this.applyData(data);
 
       // Migração: produtos antigos sem loja vão para uma "Loja principal"
       const orphans = this.products.filter(p => !p.storeId || !this.stores.find(x => x.id === p.storeId));
@@ -82,7 +83,19 @@
       }
       this.syncNative();
       this.emit('all');
-      if (RS.auth.isUser()) this.syncNow(true);
+      if (RS.auth.isUser()) {
+        this.syncNow(true);
+        RS.repo.subscribe(() => this.syncNow(true));   // tempo real (lojas compartilhadas)
+      }
+    },
+
+    applyData(data) {
+      this.stores = (data.stores || []).map(x => RS.Store(x));
+      this.products = (data.products || []).map(p => RS.Product(p));
+      this.history = data.history || [];
+      this.rounds = data.rounds || [];
+      this.members = data.members || {};
+      this.roles = data.roles || {};
     },
 
     /* Puxa da nuvem (enviando antes o que estiver pendente) e aplica no app. */
@@ -92,9 +105,7 @@
         if (!silent && RS.repo.status.error) RS.ui.toast('Sem conexão — seus dados ficam salvos no aparelho', { type: 'warn', icon: 'cloud' });
         return false;
       }
-      this.stores = (data.stores || []).map(x => RS.Store(x));
-      this.products = (data.products || []).map(p => RS.Product(p));
-      this.history = data.history || [];
+      this.applyData(data);
       if (!this.find(this.settings.currentStoreId)) { this.settings.currentStoreId = this.stores[0] ? this.stores[0].id : ''; this.saveSettings(); }
       this.syncNative();
       this.emit('all');
@@ -123,7 +134,101 @@
       return r && r.ok;
     },
 
-    async persist() { await RS.repo.save({ stores: this.stores, products: this.products, history: this.history }); },
+    async persist() { await RS.repo.save({ stores: this.stores, products: this.products, history: this.history, rounds: this.rounds, members: this.members, roles: this.roles }); },
+
+    /* ----- Equipe ----- */
+    role(storeId) { return this.roles[storeId] || 'owner'; },
+    canEdit(storeId) { return this.role(storeId || this.settings.currentStoreId) !== 'viewer'; },
+    isShared(storeId) { const m = this.members[storeId] || []; return m.length > 1; },
+    membersOf(storeId) { return this.members[storeId] || []; },
+
+    /* ----- Ronda semanal de validade ----- */
+    weekKey(d) {
+      d = d ? new Date(d) : new Date();
+      const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+      const day = t.getUTCDay() || 7; t.setUTCDate(t.getUTCDate() + 4 - day);
+      const y = t.getUTCFullYear(), w = Math.ceil(((t - Date.UTC(y, 0, 1)) / 864e5 + 1) / 7);
+      return y + '-S' + String(w).padStart(2, '0');
+    },
+    weekRange(d) {
+      d = d ? new Date(d) : new Date();
+      const mon = new Date(d); mon.setHours(0, 0, 0, 0); mon.setDate(mon.getDate() - ((mon.getDay() + 6) % 7));
+      const sun = new Date(mon); sun.setDate(sun.getDate() + 6);
+      return { start: mon, end: sun };
+    },
+    roundFor(storeId, week) { return this.rounds.find(r => r.storeId === storeId && r.week === (week || this.weekKey())) || null; },
+    async roundMark(storeId, productId, status) {
+      const week = this.weekKey(), ses = RS.auth.session();
+      let r = this.roundFor(storeId, week);
+      const now = new Date().toISOString();
+      if (!r) {
+        r = { id: u.uid(), storeId, week, author: (ses && ses.nick) || this.settings.profile.name || 'Convidado', checked: {}, total: 0, done: 0, startedAt: now, finishedAt: null, updatedAt: now };
+        this.rounds.unshift(r);
+        this.log('round', 'Ronda semanal', 'Iniciada · semana ' + week, storeId);
+      }
+      if (status) r.checked[productId] = { s: status, t: Date.now(), by: r.author };
+      else delete r.checked[productId];
+      const ids = this.products.filter(p => p.storeId === storeId).map(p => p.id);
+      r.total = ids.length;
+      r.done = ids.filter(id => r.checked[id]).length;
+      r.updatedAt = now;
+      await this.persist();
+      this.syncNative();
+      this.emit('round');
+      return r;
+    },
+    async roundFinish(storeId) {
+      const r = this.roundFor(storeId);
+      if (!r) return null;
+      r.finishedAt = new Date().toISOString(); r.updatedAt = r.finishedAt;
+      this.log('round', 'Ronda semanal', 'Concluída · ' + r.done + ' de ' + r.total + ' conferidos', storeId);
+      await this.persist();
+      this.syncNative();
+      this.emit('round');
+      return r;
+    },
+
+    /* ----- Relatório de perdas (baixas por vencimento/avaria) ----- */
+    LOSS_REASONS: ['vencido', 'avaria'],
+    losses({ days = 30, storeId } = {}) {
+      const since = Date.now() - days * 864e5;
+      const rows = this.history.filter(m => m.type === 'out' && m.t >= since && this.LOSS_REASONS.includes(m.reason) && (!storeId || m.storeId === storeId));
+      const sum = { value: 0, units: 0, count: rows.length, byReason: {}, byProduct: {}, byStore: {}, byWeek: {} };
+      rows.forEach(m => {
+        const q = Number(m.qty) || 0, v = q * (Number(m.cost) || 0);
+        sum.value += v; sum.units += q;
+        const br = sum.byReason[m.reason] = sum.byReason[m.reason] || { value: 0, units: 0 }; br.value += v; br.units += q;
+        const bp = sum.byProduct[m.name] = sum.byProduct[m.name] || { value: 0, units: 0, store: m.storeName }; bp.value += v; bp.units += q;
+        const bs = sum.byStore[m.storeName || '—'] = sum.byStore[m.storeName || '—'] || { value: 0, units: 0 }; bs.value += v; bs.units += q;
+        const wk = this.weekKey(m.t); const bw = sum.byWeek[wk] = sum.byWeek[wk] || { value: 0, units: 0 }; bw.value += v; bw.units += q;
+      });
+      sum.rows = rows;
+      return sum;
+    },
+
+    /* ----- Exportar / importar uma loja (arquivo .json) ----- */
+    exportStore(storeId) {
+      const st = this.find(storeId);
+      if (!st) return null;
+      return {
+        format: 'rsstock-store', version: 1, exportedAt: new Date().toISOString(),
+        store: { name: st.name, address: st.address, color: st.color, notes: st.notes },
+        products: this.products.filter(p => p.storeId === storeId).map(p => ({ name: p.name, barcode: p.barcode, category: p.category, quantity: p.quantity, unit: p.unit, expiry: p.expiry, batch: p.batch, location: p.location, notes: p.notes, cost: p.cost }))
+      };
+    },
+    async importStore(data, { mode = 'new', targetId } = {}) {
+      if (!data || data.format !== 'rsstock-store' || !Array.isArray(data.products)) throw new Error('Arquivo de loja inválido');
+      let st;
+      if (mode === 'merge' && targetId && this.find(targetId)) st = this.find(targetId);
+      else st = await this.saveStore({ name: (data.store && data.store.name) || 'Loja importada', address: (data.store && data.store.address) || '', color: (data.store && data.store.color) || undefined });
+      const now = new Date().toISOString();
+      data.products.forEach(p => this.products.unshift(RS.Product(Object.assign({}, p, { id: u.uid(), storeId: st.id, createdAt: now, updatedAt: now }))));
+      this.log('import', 'Importação de loja', u.plural(data.products.length, 'produto importado', 'produtos importados'), st.id, st.name);
+      await this.persist();
+      this.syncNative();
+      this.emit('all');
+      return { store: st, count: data.products.length };
+    },
 
     on(fn) { listeners.add(fn); return () => listeners.delete(fn); },
     emit(what) { Array.from(listeners).forEach(fn => { if (!listeners.has(fn)) return; try { fn(what); } catch (e) { console.error(e); } }); },
@@ -224,6 +329,7 @@
     current() { return this.stores.find(x => x.id === this.settings.currentStoreId) || this.stores[0] || null; },
     storeName(id) { const st = this.stores.find(x => x.id === id); return st ? st.name : '—'; },
     setCurrent(id) {
+      setTimeout(() => this.syncNative(), 0);   // widget mostra a loja aberta
       if (!this.stores.find(x => x.id === id)) return;
       this.settings.currentStoreId = id;
       this.saveSettings();
@@ -257,6 +363,15 @@
     async removeStore(id) {
       const st = this.stores.find(x => x.id === id);
       if (!st) return;
+      if (RS.auth.isUser() && this.role(id) !== 'owner') {
+        // participante só sai da loja compartilhada; os dados continuam para a equipe
+        try { await RS.repo.leave(id); } catch (e) { RS.ui.toast(RS.auth.client ? (e.message || 'Falha ao sair') : 'Sem conexão', { type: 'err' }); return; }
+        // não apaga nada localmente (isso apagaria os dados da equipe na nuvem): só baixa de novo
+        if (this.settings.currentStoreId === id) { this.settings.currentStoreId = ''; this.saveSettings(); }
+        await this.syncNow(true);
+        this.emit('stores');
+        return;
+      }
       const n = this.products.filter(p => p.storeId === id).length;
       this.stores = this.stores.filter(x => x.id !== id);
       this.products = this.products.filter(p => p.storeId !== id);
@@ -288,7 +403,7 @@
         storeName: storeName || this.storeName(storeId || this.settings.currentStoreId),
         user: (ses && (ses.nick || ses.email)) || this.settings.profile.name || 'Convidado'
       });
-      if (this.history.length > 1000) this.history.length = 1000;
+      if (this.history.length > 1500) this.history.length = 1500;
     },
     async clearHistory() { this.history = []; await this.persist(); this.emit('history'); },
 
@@ -350,6 +465,7 @@
       this.log(real < 0 ? 'out' : 'in', p.name,
         u.fmtQty(Math.abs(real), p.unit) + (why ? ' · ' + why : '') + ' · ' + u.fmtQty(before, p.unit) + ' → ' + u.fmtQty(after, p.unit) + (note ? ' · “' + note + '”' : ''),
         p.storeId);
+      Object.assign(this.history[0], { qty: Math.abs(real), reason: reason || '', cost: Number(p.cost) || 0 });
       await this.persist();
       this.syncNative();
       this.emit('products');
@@ -414,7 +530,11 @@
       const names = {};
       this.stores.forEach(x => { names[x.id] = x.name; });
       const lite = this.products.map(p => ({ id: p.id, name: p.name, expiry: p.expiry, quantity: p.quantity, unit: p.unit, store: names[p.storeId] || '' }));
-      RS.native.sync(lite, this.settings.notif);
+      // dados para o widget e o resumo semanal
+      let loss = { value: 0 }; try { loss = this.losses({ days: 7 }); } catch (e) { /* */ }
+      const pendingRounds = this.stores.filter(st => { const r = this.roundFor(st.id); return !r || !r.finishedAt; }).map(st => st.name);
+      const notif = Object.assign({}, this.settings.notif, { weeklyLoss: Math.round(loss.value * 100) / 100, pendingRounds, currency: 'R$', currentStore: (this.current() || {}).name || '' });
+      RS.native.sync(lite, notif);
     },
 
     /* ----- Filtros / ordenação ----- */

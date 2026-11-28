@@ -7,9 +7,10 @@
   const TYPES = {
     add: ['plus', '#12a36b', 'Cadastro'], edit: ['edit', '#7c5cff', 'Edição'], remove: ['trash', '#ff5470', 'Remoção'],
     in: ['download', '#06b6d4', 'Entrada'], out: ['upload', '#ff3b4e', 'Baixa'],
-    'store-add': ['home', '#12a36b', 'Loja criada'], 'store-edit': ['home', '#7c5cff', 'Loja editada'], 'store-remove': ['home', '#ff5470', 'Loja excluída']
+    'store-add': ['home', '#12a36b', 'Loja criada'], 'store-edit': ['home', '#7c5cff', 'Loja editada'], 'store-remove': ['home', '#ff5470', 'Loja excluída'],
+    round: ['check', '#10b981', 'Ronda'], team: ['user', '#3b82f6', 'Equipe'], import: ['download', '#f59e0b', 'Importação']
   };
-  const FILTERS = [['all', 'Tudo'], ['out', 'Baixas'], ['in', 'Entradas'], ['add', 'Cadastros'], ['edit', 'Edições'], ['remove', 'Remoções'], ['store', 'Lojas']];
+  const FILTERS = [['all', 'Tudo'], ['out', 'Baixas'], ['in', 'Entradas'], ['add', 'Cadastros'], ['edit', 'Edições'], ['remove', 'Remoções'], ['round', 'Rondas'], ['store', 'Lojas']];
 
   function time(t) { const d = new Date(t); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
   function dayLabel(t) {

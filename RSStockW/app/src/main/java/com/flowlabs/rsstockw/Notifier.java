@@ -22,6 +22,8 @@ import java.util.List;
 final class Notifier {
     static final String CHANNEL_ID = "expiry_alerts";
     static final int NOTIF_ID = 4242;
+    static final String CHANNEL_WEEKLY = "weekly_summary";
+    static final int WEEKLY_ID = 4243;
 
     private Notifier() {
     }
@@ -37,6 +39,9 @@ final class Notifier {
         ch.setLightColor(Color.parseColor("#7C5CFF"));
         ch.enableVibration(true);
         nm.createNotificationChannel(ch);
+        NotificationChannel wk = new NotificationChannel(CHANNEL_WEEKLY, "Resumo semanal", NotificationManager.IMPORTANCE_DEFAULT);
+        wk.setDescription("Resumo da semana: vencidos, o que vence, perdas e rondas.");
+        nm.createNotificationChannel(wk);
     }
 
     static boolean enabled(Context c) {
@@ -84,6 +89,12 @@ final class Notifier {
     static int checkAndNotify(Context c, boolean test) {
         JSONObject settings = Store.settings(c);
         if (!test && !settings.optBoolean("enabled", true)) return 0;
+        if (!test) {
+            // no máximo um alerta diário (o alarme inexato pode disparar mais de uma vez)
+            String today = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(new java.util.Date());
+            if (today.equals(Store.prefs(c).getString(Store.KEY_LAST_NOTIFIED, ""))) return 0;
+            Store.prefs(c).edit().putString(Store.KEY_LAST_NOTIFIED, today).apply();
+        }
         int daysBefore = settings.optInt("daysBefore", 7);
         boolean includeExpired = settings.optBoolean("notifyExpired", true);
 
@@ -168,5 +179,81 @@ final class Notifier {
         NotificationManager nm = (NotificationManager) c.getSystemService(Context.NOTIFICATION_SERVICE);
         if (nm != null) nm.notify(NOTIF_ID, b.build());
         return items.size();
+    }
+
+    /** Resumo semanal automático: vencidos, o que vence em 7 dias, perdas da semana e rondas pendentes. */
+    static int weekly(Context c, boolean test) {
+        JSONObject settings = Store.settings(c);
+        if (!test && !settings.optBoolean("weekly", true)) return 0;
+        createChannel(c);
+        JSONArray arr = Store.products(c);
+        int expired = 0, week = 0, total = 0;
+        List<Item> items = new ArrayList<Item>();
+        for (int i = 0; i < arr.length(); i++) {
+            JSONObject o = arr.optJSONObject(i);
+            if (o == null) continue;
+            long d = daysUntil(o.optString("expiry", ""));
+            if (d == Long.MAX_VALUE) continue;
+            total++;
+            if (d < 0) expired++;
+            else if (d <= 7) {
+                week++;
+                Item it = new Item();
+                it.name = o.optString("name", "Produto");
+                it.store = o.optString("store", "");
+                it.days = d;
+                items.add(it);
+            }
+        }
+        Collections.sort(items, new Comparator<Item>() {
+            @Override
+            public int compare(Item a, Item b) {
+                return a.days < b.days ? -1 : (a.days == b.days ? 0 : 1);
+            }
+        });
+        double loss = settings.optDouble("weeklyLoss", 0);
+        JSONArray pend = settings.optJSONArray("pendingRounds");
+        boolean remind = settings.optBoolean("roundReminder", true);
+
+        String title = "Resumo da semana · RS Stock";
+        StringBuilder sb = new StringBuilder();
+        sb.append(expired).append(expired == 1 ? " vencido" : " vencidos")
+                .append(" · ").append(week).append(week == 1 ? " vence em 7 dias" : " vencem em 7 dias");
+        String shortText = sb.toString();
+        StringBuilder big = new StringBuilder(shortText);
+        if (loss > 0) big.append("\n💸 Perdas na semana: R$ ").append(String.format(new java.util.Locale("pt", "BR"), "%.2f", loss));
+        int max = Math.min(items.size(), 5);
+        for (int i = 0; i < max; i++) {
+            Item it = items.get(i);
+            big.append("\n• ").append(it.name).append(" — ").append(label(it.days)).append(it.store.length() > 0 ? " · " + it.store : "");
+        }
+        if (items.size() > max) big.append("\n+").append(items.size() - max).append(" outros");
+        if (remind && pend != null && pend.length() > 0) {
+            big.append("\n✅ Ronda pendente: ");
+            for (int i = 0; i < pend.length(); i++) big.append(i > 0 ? ", " : "").append(pend.optString(i));
+        }
+        if (total == 0) big.append("\nCadastre produtos para receber o resumo completo.");
+
+        Intent open = new Intent(c, MainActivity.class);
+        open.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        open.putExtra("open", "weekly");
+        int flags = PendingIntent.FLAG_UPDATE_CURRENT;
+        if (Build.VERSION.SDK_INT >= 23) flags |= PendingIntent.FLAG_IMMUTABLE;
+        PendingIntent pi = PendingIntent.getActivity(c, 3, open, flags);
+
+        Notification.Builder b = Build.VERSION.SDK_INT >= 26
+                ? new Notification.Builder(c, CHANNEL_WEEKLY)
+                : new Notification.Builder(c);
+        b.setSmallIcon(R.drawable.ic_notify)
+                .setContentTitle(title)
+                .setContentText(shortText)
+                .setStyle(new Notification.BigTextStyle().bigText(big.toString()).setBigContentTitle(title))
+                .setColor(Color.parseColor("#10B981"))
+                .setAutoCancel(true)
+                .setContentIntent(pi)
+                .setCategory(Notification.CATEGORY_REMINDER);
+        NotificationManager nm = (NotificationManager) c.getSystemService(Context.NOTIFICATION_SERVICE);
+        if (nm != null) nm.notify(WEEKLY_ID, b.build());
+        return 1;
     }
 }

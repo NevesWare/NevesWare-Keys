@@ -118,3 +118,12 @@ Pacote: `com.flowlabs.rsstockw` · Ícones em `res/mipmap-*` (inclui ícone adap
   qualquer tela e DPI): sem efeitos pesados, barras do sistema visíveis, escala pela largura da tela, cores simples.
   Opções detalhadas em “Avançado”.
 - Versão exibida na abertura e no login.
+
+## v2.1.0 — equipe, ronda, perdas, widget
+- **Widget "Validades"** na tela inicial do Android (segure a tela › Widgets › RS Stock): contagem por cor da loja aberta e os 3 próximos a vencer. Atualiza a cada mudança e todo dia.
+- **Resumo semanal automático** por notificação (dia e hora em Ajustes › Notificações): vencidos, o que vence em 7 dias, perdas em R$ e rondas pendentes.
+- **Ronda semanal de validade** (Início › Ronda): conferir / ajustar / descartar cada produto, progresso, conclusão registrada no histórico.
+- **Relatório de perdas** (Início › Perdas): baixas por "Vencido" e "Avaria" em R$ (campo *Custo unitário* no produto), por motivo, semana, produto e loja; compartilhar em texto.
+- **Exportar / importar loja** (Minhas lojas › ⚙ › Exportar; ⬇ Importar): arquivo `Loja-<nome>.rsstock.json` com todos os produtos.
+- **Loja online compartilhada / equipe** (Minhas lojas › Equipe): código de convite, entrar com código (🔑), papéis dono/editor/visualizador, sincronização ao vivo (Supabase Realtime).
+- Servidor: aplicar `docs/migrations/002_equipe_rondas_perdas.sql` (SQL Editor do Supabase). Sem ela o app continua sincronizando, mas equipe/rondas na nuvem ficam desativadas.

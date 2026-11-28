@@ -103,6 +103,7 @@
     sleep(ms) { return new Promise(r => setTimeout(r, ms)); },
     debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; },
     clamp(v, a, b) { return Math.min(b, Math.max(a, v)); },
+    money(v) { return 'R$ ' + (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); },
     fmtQty(q, unit) {
       const n = Number(q) || 0;
       return (Number.isInteger(n) ? n : n.toLocaleString('pt-BR', { maximumFractionDigits: 3 })) + ' ' + (unit || 'un');

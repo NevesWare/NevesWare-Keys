@@ -442,7 +442,14 @@ public class MainActivity extends Activity {
     }
 
     void deliverDeepLink(Intent intent) {
-        if (intent == null || intent.getData() == null) return;
+        if (intent == null) return;
+        String open = intent.getStringExtra("open");
+        if (open != null) {
+            intent.removeExtra("open");
+            // abre o resumo semanal quando o app já terminou de iniciar
+            js("(function f(n){if(window.RS&&RS.weekly&&window.RS.app&&document.querySelector('.hotbar')){setTimeout(function(){RS.weekly.show()},600)}else if(n<40){setTimeout(function(){f(n+1)},250)}})(0)");
+        }
+        if (intent.getData() == null) return;
         String url = intent.getDataString();
         if (url == null || !url.startsWith("rsstockw://") || url.equals(lastDeepLink)) return;
         lastDeepLink = url;

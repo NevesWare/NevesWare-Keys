@@ -81,6 +81,11 @@
           <button class="sc glass-lite" data-go="history" style="--tc:#6366f1"><span class="ti">${I('clock', 19)}</span><em class="num">${s.history.length > 999 ? '999+' : s.history.length}</em><span><b>Histórico</b><small>Movimentações</small></span></button>
           <button class="sc glass-lite" data-go="settings.data" style="--tc:#f59e0b"><span class="ti">${I('db', 19)}</span><span><b>Backup</b><small>Salvar e restaurar</small></span></button>
         </div>
+        <div class="shortcuts">
+          <button class="sc glass-lite" data-go="round" style="--tc:#10b981"><span class="ti">${I('check', 19)}</span>${(() => { const st = s.current(); const r = st && s.roundFor(st.id); return r ? `<em class="num">${r.done}/${r.total}</em>` : ''; })()}<span><b>Ronda</b><small>Conferir validades</small></span></button>
+          <button class="sc glass-lite" data-go="losses" style="--tc:#ef4444"><span class="ti">${I('alert', 19)}</span><span><b>Perdas</b><small>Relatório em R$</small></span></button>
+          <button class="sc glass-lite" data-go="widget-help" style="--tc:#0ea5e9"><span class="ti">${I('phone', 19)}</span><span><b>Widget</b><small>Tela inicial</small></span></button>
+        </div>
 
         <div class="group-label">Preferências</div>
         <div class="rows glass-lite">
@@ -256,6 +261,7 @@
 
   /* ============================== Notificações ============================== */
   const DAYS = [1, 3, 5, 7, 15, 30];
+  const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
   RS.screens['settings.notifications'] = {
     tab: 'settings',
     bar: false,
@@ -289,6 +295,18 @@
           ${toggle('notif.inAppBadge', 'zap', '#f59e0b', 'Contador no sino', 'Mostra a quantidade de alertas na tela inicial')}
         </div>
 
+        <div class="group-label">Resumo semanal</div>
+        <div class="group glass-lite">
+          ${toggle('notif.weekly', 'calendar', '#10b981', 'Resumo semanal automático', 'Vencidos, o que vence na semana, perdas em R$ e rondas pendentes')}
+          ${toggle('notif.roundReminder', 'check', '#3b82f6', 'Lembrar da ronda semanal', 'Avisa se a ronda da semana ainda não foi concluída')}
+        </div>
+        <div class="chips" style="padding-top:8px">${WEEKDAYS.map((d, i) => `<button class="chip glass-lite ${n.weeklyDay === i ? 'on' : ''}" data-wday="${i}">${d}</button>`).join('')}</div>
+        <div class="group glass-lite" style="margin-top:8px">
+          <label class="cell"><span class="ci" style="--cc:#10b981">${I('clock', 18)}</span><span class="ct"><b>Horário do resumo semanal</b></span>
+            <input type="time" value="${String(n.weeklyHour).padStart(2, '0')}:00" step="3600" data-wtime style="background:none;border:0;outline:0;font-size:1rem;font-weight:600;color:var(--accent);color-scheme:${s.isDark() ? 'dark' : 'light'}"></label>
+        </div>
+        <button class="btn ghost block" data-test-week style="margin-top:12px">${I('calendar', 20)}Ver resumo semanal agora</button>
+
         <button class="btn ghost block" data-test style="margin-top:22px">${I('bell', 20)}Enviar notificação de teste</button>
         ${RS.native.isApp ? `<button class="btn block" data-sys style="margin-top:8px;color:var(--text-2)">Abrir ajustes do sistema</button>` : ''}`);
     },
@@ -320,6 +338,17 @@
           const n = RS.native.testNotification('RS Stock', c.alerts ? c.alerts + ' produtos precisam de atenção' : 'Tudo em dia ✨');
           ui.toast(n === -1 && !RS.native.isApp ? 'Teste enviado (navegador)' : 'Notificação enviada', { type: 'ok', icon: 'bell' });
         }
+      });
+      root.querySelector('[data-wtime]').addEventListener('change', e => {
+        const h = Number(e.target.value.split(':')[0]);
+        if (isNaN(h)) return;
+        s.set('notif.weeklyHour', h);
+        ui.toast('Resumo semanal às ' + String(h).padStart(2, '0') + ':00', { type: 'ok', icon: 'calendar' });
+      });
+      root.addEventListener('click', e => {
+        const w = e.target.closest('[data-wday]');
+        if (w) { ui.tap(); s.set('notif.weeklyDay', Number(w.dataset.wday)); root.querySelectorAll('[data-wday]').forEach(x => x.classList.toggle('on', x === w)); return; }
+        if (e.target.closest('[data-test-week]')) { ui.tap(); RS.weekly.show(); if (RS.native.isApp) { RS.native.testWeekly(); ui.toast('Resumo semanal enviado nas notificações', { type: 'ok', icon: 'calendar' }); } }
       });
       root.querySelector('[data-time]').addEventListener('change', e => {
         const [h, m] = e.target.value.split(':').map(Number);

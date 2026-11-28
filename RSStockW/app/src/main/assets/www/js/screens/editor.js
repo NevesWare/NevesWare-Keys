@@ -18,7 +18,7 @@
 
   function form(p, isNew) {
     const cats = categories();
-    const hasMore = p.batch || p.location || p.notes;
+    const hasMore = p.batch || p.location || p.notes || p.cost;
     return `
       <div class="field" data-f="name">
         <label>Nome do produto</label>
@@ -64,7 +64,7 @@
       </div>
 
       <button type="button" class="cell glass-lite" data-act="more" style="border-radius:18px;min-height:54px">
-        <span class="ct"><b style="font-size:.9rem">Mais detalhes</b><small>Lote, local de armazenamento e observações</small></span>
+        <span class="ct"><b style="font-size:.9rem">Mais detalhes</b><small>Lote, local, custo e observações</small></span>
         <span class="cv" data-more-ic>${ui.icon(hasMore ? 'down' : 'chev', 20)}</span>
       </button>
       <div data-more class="${hasMore ? '' : 'hidden'}" style="margin-top:16px">
@@ -74,6 +74,8 @@
           <div class="field"><label class="label">Local <span class="opt">opcional</span></label>
             <div class="input"><input name="location" value="${u.esc(p.location)}" placeholder="Ex.: Prateleira 2" autocomplete="off"></div></div>
         </div>
+        <div class="field"><label class="label">Custo unitário (R$) <span class="opt">para o relatório de perdas</span></label>
+          <div class="input"><span class="lead">R$</span><input name="cost" type="number" inputmode="decimal" min="0" step="0.01" value="${p.cost ? u.esc(p.cost) : ''}" placeholder="0,00"></div></div>
         <div class="field"><label class="label">Observações <span class="opt">opcional</span></label>
           <div class="input"><textarea name="notes" placeholder="Anotações sobre o produto">${u.esc(p.notes)}</textarea></div></div>
       </div>
@@ -169,6 +171,7 @@
               category: $in('category').value,
               batch: $in('batch').value.trim(),
               location: $in('location').value.trim(),
+              cost: Math.max(0, Number(String($in('cost').value).replace(',', '.')) || 0),
               notes: $in('notes').value.trim(),
               storeId: p.storeId
             };
@@ -220,7 +223,7 @@
   /* Dar baixa (saída) ou entrada, com motivo — registrado no histórico. */
   function moveSheet(id, mode) {
     const p = s.byId(id);
-    if (!p) return Promise.resolve(null);
+    if (!p || !s.canEdit(p.storeId)) { if (p) ui.toast('Você é visualizador nesta loja — só consulta', { type: 'warn', icon: 'eye' }); return Promise.resolve(null); }
     const out = mode === 'out';
     const reasons = out ? ['venda', 'vencido', 'avaria', 'uso', 'troca', 'ajuste'] : ['reposicao', 'ajuste', 'troca'];
     const names = Object.assign({ reposicao: 'Reposição / compra' }, s.REASONS);
@@ -302,11 +305,13 @@
           ${kv('Código de barras', p.barcode)}
           ${kv('Lote', p.batch)}
           ${kv('Local', p.location)}
+          ${p.cost ? kv('Custo unitário', u.money(p.cost)) : ''}
           ${kv('Observações', p.notes, true)}
         </div>
         <div class="btn-row" style="margin-top:12px">
           <button class="btn sm" data-a="out" style="background:color-mix(in srgb,var(--c-soon) 16%,transparent);color:var(--c-soon)">${ui.icon('upload', 18)}Dar baixa</button>
           <button class="btn ghost sm" data-a="in">${ui.icon('download', 18)}Entrada</button></div>
+        ${p.status === 'expired' && Number(p.quantity) > 0 && s.canEdit(p.storeId) ? `<button class="btn danger sm block" data-a="discard" style="margin-top:10px">${ui.icon('trash', 18)}Descartar vencido (${u.esc(u.fmtQty(p.quantity, p.unit))})</button>` : ''}
         ${logs.length ? `<div class="group-label">Últimas movimentações</div><div class="card glass-lite" style="padding:4px 14px">${logs.map(e => `<div class="log"><span class="lt"><small><b style="display:inline;font-size:inherit">${u.esc(s.LOG_LABEL[e.type] || '')}</b> · ${u.esc(e.detail)}</small></span><time>${new Date(e.t).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</time></div>`).join('')}</div>` : ''}`,
       foot: `<div class="btn-row">
           <button class="btn danger sm" data-a="del" aria-label="Excluir" style="flex:.6">${ui.icon('trash', 18)}</button>
@@ -319,6 +324,12 @@
           ui.tap();
           const a = b.dataset.a;
           if (a === 'out' || a === 'in') { ctl.close(); setTimeout(() => moveSheet(id, a), 280); }
+          else if (a === 'discard') {
+            const yes = await ui.confirm({ title: 'Descartar vencido?', message: `Dá baixa de ${u.esc(u.fmtQty(p.quantity, p.unit))} de “${u.esc(p.name)}” como <b>vencido</b>. Entra no relatório de perdas${p.cost ? ' (' + u.money(p.cost * p.quantity) + ')' : ''}.`, confirm: 'Descartar', danger: true, icon: 'trash' });
+            if (!yes) return;
+            await s.move(id, -Number(p.quantity), 'vencido', 'Descarte');
+            ctl.close(); ui.toast('Baixa por vencimento registrada', { type: 'ok', icon: 'check' });
+          }
           else if (a === 'edit') { ctl.close(); setTimeout(() => open(s.products.find(x => x.id === id)), 300); }
           else if (a === 'dup') {
             ctl.close();
@@ -336,9 +347,11 @@
     });
   }
 
+  const viewerBlock = () => { if (s.canEdit()) return false; ui.toast('Você é visualizador nesta loja — só consulta', { type: 'warn', icon: 'eye' }); return true; };
   RS.editor = {
-    open: p => open(p ? s.products.find(x => x.id === p.id) : null),
+    open: p => { if (viewerBlock()) return; open(p ? s.products.find(x => x.id === p.id) : null); },
     openWithBarcode(code) {
+      if (viewerBlock()) return;
       const match = s.byBarcode(code);
       open(null, match ? { barcode: code, name: match.name, category: match.category, unit: match.unit } : { barcode: code });
       if (match) setTimeout(() => ui.toast('Produto reconhecido — informe a nova validade', { type: 'ok', icon: 'scan' }), 500);
