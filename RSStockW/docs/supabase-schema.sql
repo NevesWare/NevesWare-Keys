@@ -1,0 +1,36 @@
+-- RS Stock — banco no Supabase (projeto "RSStock")
+-- Já aplicado no projeto pelas migrações: rsstock_core_schema, rsstock_function_grants, rsstock_fix_profile_guard.
+-- Resumo do que existe:
+--
+-- TABELAS (todas com RLS: cada conta vê só os próprios dados; administradores veem tudo)
+--   profiles      — 1 por conta: nick (único, sem diferenciar maiúsculas), email, nome, role (user/admin),
+--                   status (active/blocked), versão do app, aparelho, último acesso
+--   stores        — lojas da conta
+--   products      — estoque de cada loja (store_id)
+--   movements     — histórico/log: add, edit, remove, in (entrada), out (baixa), store-*
+--   app_releases  — versões publicadas pelo RS Admin (version_code, version_name, notes, mandatory, apk_url)
+--
+-- STORAGE
+--   bucket "apks" (público para download; só admin envia/apaga)
+--
+-- FUNÇÕES (RPC)
+--   email_for_nick(nick)       — login por nick (público)
+--   nick_available(nick)       — checagem no cadastro (público)
+--   touch_session(code, nome, aparelho) — registra acesso e devolve cargo/situação
+--   claim_admin()              — a PRIMEIRA conta que entrar no RS Admin vira admin; depois só confere
+--   admin_stats(), admin_accounts() — painel do admin (só admin)
+--
+-- EDGE FUNCTION "admin-users" (usa a chave de serviço no servidor, confere se quem chama é admin)
+--   update_email, set_password, send_reset, confirm_email, block, unblock, set_role,
+--   update_profile, create_user, delete_user
+--
+-- GATILHOS
+--   on_auth_user_created  → cria o profile com o nick do cadastro
+--   on_auth_user_email    → mantém o e-mail do profile em dia
+--   profiles_guard        → impede usuário comum de mudar o próprio cargo/situação
+--
+-- ATUALIZAÇÕES (migração rsstock_release_fingerprints)
+--   app_releases.sha256 / apk_version_code / package_name — lidos do APK pelo RS Admin
+--   profiles.app_sha256 — impressão digital do APK instalado em cada aparelho
+--   check_update(sha, version_code) — o servidor responde { up_to_date, installable, release }
+--   admin_update_stats() — atualizados x desatualizados (painel)

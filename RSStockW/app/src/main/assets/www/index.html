@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="color-scheme" content="dark light">
+  <meta name="theme-color" content="#07080d">
+  <meta name="mobile-web-app-capable" content="yes">
+  <link rel="icon" href="img/logo.png">
+  <title>RS Stock</title>
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <!-- Fundo: manchas de cor desfocadas que dão vida ao vidro fosco -->
+  <div class="bg" aria-hidden="true">
+    <i class="blob b1"></i><i class="blob b2"></i><i class="blob b3"></i>
+    <svg class="coca-wave" viewBox="0 0 400 140" preserveAspectRatio="none" aria-hidden="true">
+      <path d="M0 0H400V94C330 106 250 88 170 98C110 106 50 92 0 102Z" fill="#e4000f"/>
+      <path d="M0 102C50 92 110 106 170 98C250 88 330 106 400 94" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+    </svg>
+    <div class="bubbles" id="bubbles"></div>
+    <div class="grain"></div>
+  </div>
+
+  <div id="app" aria-live="polite"></div>
+  <div id="layer"></div>
+  <div id="toasts" role="status"></div>
+
+  <!-- Tela de abertura -->
+  <div id="splash" role="progressbar" aria-label="Carregando RS Stock">
+    <div class="splash-center">
+      <img class="app-logo lg splash-logo" src="img/logo.png" alt="" aria-hidden="true">
+      <h1 class="splash-title">RS Stock</h1>
+      <p class="splash-sub">Estoque e validades sob controle</p>
+      <div class="loader-line"><i id="splash-bar"></i></div>
+      <p class="splash-status" id="splash-status">Iniciando…</p>
+      <p class="splash-ver" id="splash-ver">Versão 2.0.0</p>
+    </div>
+    <footer class="splash-foot">
+      <strong>FlowLabs Studio</strong>
+      <span>© <span id="splash-year">2026</span> · Todos os direitos reservados</span>
+    </footer>
+  </div>
+
+  <script>
+    /* Resgate: se a abertura travar, oferece abrir em modo seguro (tema padrão, sem efeitos pesados) */
+    (function () {
+      var t = setTimeout(function () {
+        var sp = document.getElementById('splash');
+        if (!sp || sp.classList.contains('done')) return;
+        var box = document.createElement('div');
+        box.style.cssText = 'position:absolute;left:24px;right:24px;bottom:120px;text-align:center;color:#fff;font:14px sans-serif';
+        box.innerHTML = '<p style="opacity:.8;margin-bottom:14px">A abertura está demorando.</p><button id="rescue" style="padding:14px 22px;border-radius:16px;border:0;background:#7c5cff;color:#fff;font-weight:700;font-size:15px">Abrir em modo seguro</button>';
+        sp.appendChild(box);
+        document.getElementById('rescue').onclick = function () {
+          try {
+            var k = 'rs.settings.v1', st = JSON.parse(localStorage.getItem(k) || '{}');
+            st.theme = 'dark'; st.bg = 'gradient'; st.compat = st.compat || {}; st.compat.lite = true; st.compat.noTransitions = true; st.compat.init = true;
+            localStorage.setItem(k, JSON.stringify(st));
+          } catch (e) { try { localStorage.removeItem('rs.settings.v1'); } catch (e2) {} }
+          location.reload();
+        };
+      }, 12000);
+      window.__rsBootDone = function () { clearTimeout(t); };
+      window.addEventListener('error', function (e) { window.__rsLastError = (e && e.message) || 'erro'; });
+    })();
+  </script>
+  <script src="js/vendor/supabase.min.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/services/native.js"></script>
+  <script src="js/services/storage.js"></script>
+  <script src="js/services/auth.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/fx.js"></script>
+  <script src="js/services/scanner.js"></script>
+  <script src="js/services/exporter.js"></script>
+  <script src="js/services/updater.js"></script>
+  <script src="js/screens/intro.js"></script>
+  <script src="js/screens/auth.js"></script>
+  <script src="js/screens/home.js"></script>
+  <script src="js/screens/stores.js"></script>
+  <script src="js/screens/history.js"></script>
+  <script src="js/screens/products.js"></script>
+  <script src="js/screens/editor.js"></script>
+  <script src="js/screens/export.js"></script>
+  <script src="js/screens/settings.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

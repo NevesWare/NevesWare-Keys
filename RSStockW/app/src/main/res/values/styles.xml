@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Tema simples e compatível com qualquer Android 5.0+ (sem recursos de versões específicas) -->
+    <style name="AppTheme" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:colorPrimary">@color/colorPrimary</item>
+        <item name="android:colorPrimaryDark">@color/bgDark</item>
+        <item name="android:colorAccent">@color/colorAccent</item>
+        <item name="android:windowBackground">@color/bgDark</item>
+        <item name="android:statusBarColor">@color/bgDark</item>
+        <item name="android:navigationBarColor">@color/bgDark</item>
+    </style>
+</resources>
