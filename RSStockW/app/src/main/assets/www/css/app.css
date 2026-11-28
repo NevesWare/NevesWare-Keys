@@ -1024,7 +1024,7 @@ svg { flex-shrink: 0; }
 [data-lite] .view { will-change: auto; }
 
 /* Sem transições entre telas */
-[data-no-transitions] .view, [data-no-transitions] .view * { animation: none !important; }
+[data-no-transitions] .stagger > *, [data-no-transitions] .view .stagger > * { animation: none !important; }
 [data-no-transitions] .cola-wipe { display: none !important; }
 [data-no-transitions] .sheet { transition-duration: .18s; }
 
@@ -1426,3 +1426,32 @@ svg { flex-shrink: 0; }
 /* diálogos/avisos/carregamento animam opacidade e já são quase opacos: sem desfoque = sem pisca */
 .dialog.glass, .toast.glass, .loading-card.glass, .save-bar.glass { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
 .loading-overlay { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+
+/* Reduzida (padrão): troca na hora + deslize curtinho do conteúdo novo (só transform) */
+.view.r-in-right { animation: rIn .22s cubic-bezier(.2,.8,.2,1) both; --rx: 10px; --ry: 0px; }
+.view.r-in-left { animation: rIn .22s cubic-bezier(.2,.8,.2,1) both; --rx: -10px; --ry: 0px; }
+.view.r-in-up { animation: rIn .22s cubic-bezier(.2,.8,.2,1) both; --rx: 0px; --ry: 8px; }
+@keyframes rIn { from { transform: translate3d(var(--rx), var(--ry), 0); } to { transform: none; } }
+.view.r-in-right .stagger > *, .view.r-in-left .stagger > *, .view.r-in-up .stagger > * { animation: none; }
+:root[data-anim="reduzida"] .stagger > * { animation: none; }
+
+/* Créditos: cubo 3D numa camada própria e sem vidro por perto (o 3D + vidro fosco piscava) */
+.scene3d { isolation: isolate; will-change: transform; transform: translateZ(0); }
+.view[data-screen="settings.credits"] .glass, .view[data-screen="settings.credits"] .glass-lite { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+:root[data-theme="dark"] .view[data-screen="settings.credits"] .icon-btn.glass { background: rgba(255,255,255,.08); }
+.scene3d::after { animation: none !important; }
+.anim-pick [data-anim-pick="reduzida"] .ap i { --f: translateX(18%); --o: .85; }
+.btn[disabled][data-top-save] { opacity: .45; }
+/* cartão do catálogo nos créditos e lista */
+.catalog-card { display: flex; align-items: center; gap: 12px; width: 100%; max-width: 380px; margin-top: 18px; padding: 14px; border-radius: 20px; text-align: left; transition: transform .2s var(--spring); }
+.catalog-card:active { transform: scale(.97); }
+.catalog-card .cc-ic { width: 44px; height: 44px; border-radius: 14px; flex-shrink: 0; display: grid; place-items: center; background: rgba(var(--accent-rgb), .18); color: var(--accent); }
+.catalog-card .cc-t { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.catalog-card .cc-t b { font-size: .9rem; }
+.catalog-card .cc-t small { font-size: .72rem; color: var(--text-2); }
+.catalog-card .cc-n { text-align: right; flex-shrink: 0; line-height: 1.1; }
+.catalog-card .cc-n b { display: block; font-size: 1.3rem; font-weight: 800; color: var(--accent); }
+.catalog-card .cc-n small { font-size: .62rem; color: var(--text-3); }
+.cl-item { display: flex; align-items: center; gap: 12px; }
+.cl-img { width: 42px; height: 42px; border-radius: 12px; object-fit: contain; background: #fff; flex-shrink: 0; }
+.credits3d { overflow-y: auto; justify-content: safe center; padding-bottom: 12px; }

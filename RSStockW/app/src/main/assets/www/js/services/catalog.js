@@ -103,6 +103,34 @@
       write(m);
       return p;
     },
+    /** Quantos produtos o catálogo compartilhado tem (guardado para mostrar sem internet). */
+    async count() {
+      const c = RS.auth && RS.auth.client;
+      let n = null;
+      try { const cached = JSON.parse(localStorage.getItem('rs.catalog.count') || 'null'); if (cached) n = cached.n; } catch (e) { /* */ }
+      if (!c) return { n, cached: true };
+      try {
+        const { count, error } = await c.from('catalog').select('barcode', { count: 'exact', head: true });
+        if (error) throw error;
+        try { localStorage.setItem('rs.catalog.count', JSON.stringify({ n: count, t: Date.now() })); } catch (e) { /* */ }
+        return { n: count, cached: false };
+      } catch (e) { return { n, cached: true }; }
+    },
+    /** Página da lista do catálogo (com busca por nome, marca ou código). */
+    async page({ q = '', from = 0, size = 60 } = {}) {
+      const c = RS.auth && RS.auth.client;
+      const clean = String(q || '').replace(/[,()%*]/g, ' ').trim();
+      if (!c) {   // sem conexão: mostra o que este aparelho já conhece
+        const all = Object.values(read()).filter(x => x.p).map(x => x.p);
+        const f = clean ? all.filter(p => RS.u.norm(p.name + ' ' + p.brand + ' ' + p.barcode).includes(RS.u.norm(clean))) : all;
+        return { rows: f.slice(from, from + size), total: f.length, offline: true };
+      }
+      let qb = c.from('catalog').select('barcode,name,brand,size,category,image_url,source', { count: 'exact' }).order('name').range(from, from + size - 1);
+      if (clean) qb = /^\d+$/.test(clean) ? qb.like('barcode', clean + '%') : qb.or(`name.ilike.%${clean}%,brand.ilike.%${clean}%`);
+      const { data, count, error } = await qb;
+      if (error) throw error;
+      return { rows: data || [], total: count || 0, offline: false };
+    },
     /** Quem cadastra um código que não estava em nenhuma base ensina o catálogo de todos. */
     async contribute(code, name, category, size) {
       code = String(code || '').replace(/\D/g, '');

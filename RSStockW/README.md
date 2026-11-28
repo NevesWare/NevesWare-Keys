@@ -164,3 +164,9 @@ Pacote: `com.flowlabs.rsstockw` · Ícones em `res/mipmap-*` (inclui ícone adap
 ## v2.7.0 — transições sem piscar
 - Causa do pisca: no WebView do Android, animar a opacidade de uma tela que contém vidro fosco (backdrop-filter) desliga e religa o desfoque no começo e no fim da animação.
 - Agora as telas nunca animam opacidade: **Suave**/**Deslizar** empurram uma tela com a outra (só movimento, sem sobreposição); **Desvanecer**/**Zoom**/**Subir** usam uma cortina lisa da cor do fundo. Entrada em cascata só com movimento. Diálogos, avisos e carregamento sem desfoque (já eram quase opacos).
+
+## v2.8.0 — sem pisca no modo compatibilidade, animação "Reduzida", catálogo nos Créditos
+- Pisca no modo compatibilidade: ele desligava as animações das telas, mas a tela antiga só saía depois do tempo da animação → as duas ficavam empilhadas. Agora o modo compatibilidade usa a animação "Reduzida" e a troca é imediata.
+- Nova animação **Reduzida** (padrão): troca na hora + deslize curto do conteúdo, só transform. Usuários antigos migram para ela uma vez.
+- Aparência: "Animação das telas" logo após Tema e botão **Salvar** fixo no topo (além da barra Salvar/Descartar). Ícone novo → "Salvar e reabrir".
+- Créditos: cartão "Sistema de código de barras" com o total do catálogo; toque abre a lista de todos os produtos cadastrados (busca por nome/marca/código, rolagem infinita, "Cadastrar validade"). Cubo 3D isolado e sem vidro na tela (não pisca).

@@ -183,7 +183,7 @@
 
   /* ============================== Aparência ============================== */
   const ICONS = [['default', 'Padrão'], ['dark', 'Escuro'], ['light', 'Claro'], ['coca', 'Coca'], ['riosul', 'Rio Sul']];
-  const ANIMS = [['suave', 'Suave'], ['deslizar', 'Deslizar'], ['desvanecer', 'Desvanecer'], ['zoom', 'Zoom'], ['subir', 'Subir'], ['nenhuma', 'Nenhuma']];
+  const ANIMS = [['reduzida', 'Reduzida'], ['suave', 'Suave'], ['deslizar', 'Deslizar'], ['desvanecer', 'Desvanecer'], ['zoom', 'Zoom'], ['subir', 'Subir'], ['nenhuma', 'Nenhuma']];
   /* Rascunho da aparência: muda na hora para você ver, e só fica valendo ao tocar em Salvar */
   const AP_KEYS = ['theme', 'accent', 'blur', 'bg', 'compact', 'haptics', 'fullscreen', 'anim'];
   const AP = { active: false, snap: '', icon: 'default', iconSaved: 'default' };
@@ -200,6 +200,8 @@
     if (!b) return;
     b.classList.toggle('show', apDirty());
     b.querySelector('[data-save-label]').textContent = iconChanged() ? 'Salvar e reabrir' : 'Salvar aparência';
+    const top = root.querySelector('[data-top-save]');
+    if (top) top.disabled = !apDirty();
   }
   function apDiscard() {
     try { JSON.parse(AP.snap).forEach((v, i) => { s.settings[AP_KEYS[i]] = v; }); } catch (e) { /* */ }
@@ -243,13 +245,15 @@
           ${[['dark', 'Escuro'], ['light', 'Claro'], ['system', 'Sistema'], ['coca', 'Coca'], ['riosul', 'Rio Sul']].map(([k, l]) => `<button class="theme-card ${st.theme === k ? 'on' : ''}" data-theme-pick="${k}"><div class="pv ${k}"><i></i></div>${l}</button>`).join('')}
         </div>
 
+        <div class="group-label">Animação das telas</div>
+        <div class="anim-pick">${ANIMS.map(([k, l]) => `<button class="glass-lite ${(st.anim || 'reduzida') === k ? 'on' : ''}" data-anim-pick="${k}"><span class="ap"><i></i></span>${l}</button>`).join('')}</div>
+        <p class="hint">Escolha e toque em <b>Salvar</b>. <b>Reduzida</b> é a padrão (mais leve e sem piscar). ${s.compatInfo().noTransitions ? '<br>⚠️ Com o <b>modo compatibilidade</b> ligado, o app usa sempre a Reduzida.' : ''}</p>
+
         <div class="group-label">Ícone do app</div>
         <div class="icon-picker">${ICONS.map(([k, l]) => `<button class="icon-opt ${curIcon === k ? 'on' : ''}" data-icon="${k}"><img src="img/icon-${k}.png" alt=""><span>${l}</span></button>`).join('')}</div>
         <p class="hint" data-icon-hint>${RS.native.isApp ? (AP.icon !== AP.iconSaved ? '✨ Novo ícone escolhido — toque em <b>Salvar</b>: o app fecha e abre já com ele.' : 'O ícone é independente do tema: dá para usar o tema Coca com o ícone escuro, por exemplo.') : 'A troca de ícone funciona no app Android.'}</p>
 
-        <div class="group-label">Animação das telas</div>
-        <div class="anim-pick">${ANIMS.map(([k, l]) => `<button class="glass-lite ${(st.anim || 'suave') === k ? 'on' : ''}" data-anim-pick="${k}"><span class="ap"><i></i></span>${l}</button>`).join('')}</div>
-        <p class="hint">Toque em uma aba embaixo para ver a animação escolhida. <b>Suave</b> é o padrão.</p>
+
 
 
         
@@ -281,7 +285,7 @@
           ${toggle('compact', 'layers', '#6366f1', 'Lista compacta', 'Mostra mais produtos por tela')}
           ${toggle('haptics', 'zap', '#0ea5e9', 'Vibração ao tocar', 'Resposta tátil leve nos botões')}
         </div>
-        <div style="height:90px"></div>`) + saveBar();
+        <div style="height:90px"></div>`, `<button class="btn primary sm" data-ap="save" data-top-save ${apDirty() ? '' : 'disabled'} style="min-width:92px">${I('check', 16)}Salvar</button>`) + saveBar();
     },
     onBack() { if (!apDirty()) { AP.active = false; return false; } apLeave().then(ok => { if (ok) RS.app.back(); }); return true; },
     unmount() { if (this._offAp) this._offAp(); },
@@ -310,6 +314,7 @@
           s.set('anim', an.dataset.animPick);
           root.querySelectorAll('[data-anim-pick]').forEach(x => x.classList.toggle('on', x === an));
           updSaveBar(root);
+          ui.toast('Animação “' + an.textContent.trim() + '” — toque em Salvar', { icon: 'sparkle' });
           return;
         }
         const ap = e.target.closest('[data-ap]');
@@ -835,13 +840,22 @@
             <span class="glass-lite">${I('scan', 14)}ZXing · Apache 2.0</span>
             <span class="glass-lite">${I('code', 14)}Android WebView</span>
           </div>
+          <button class="catalog-card glass-lite" data-catalog>
+            <span class="cc-ic">${I('scan', 22, 2.2)}</span>
+            <span class="cc-t"><b>Sistema de código de barras</b><small>Escaneou, preencheu: nome, gramatura e categoria</small></span>
+            <span class="cc-n"><b class="num" data-cat-count>…</b><small>produtos<br>cadastrados</small></span>
+          </button>
           <button class="btn ghost sm" data-site style="margin-top:18px">${I('globe', 16)}Site da FlowLabs <span class="soon-tag">Em breve</span></button>
           <p class="hint" style="text-align:center;margin-top:14px">Arraste o cubo para girar · Feito no Brasil 💜<br>© ${cfg.year} FlowLabs Studio · Todos os direitos reservados</p>
         </div>`;
     },
     mount(root) {
       bindCommon(root);
-      root.addEventListener('click', e => { if (e.target.closest('[data-site]')) { ui.tap(); openSite(); } });
+      root.addEventListener('click', e => {
+        if (e.target.closest('[data-site]')) { ui.tap(); openSite(); }
+        if (e.target.closest('[data-catalog]')) { ui.tap(); RS.app.go('catalog-list'); }
+      });
+      RS.catalog.count().then(r => { const el = root.querySelector('[data-cat-count]'); if (el) el.textContent = r.n == null ? '—' : Number(r.n).toLocaleString('pt-BR'); });
       // Girar o cubo com o dedo
       const scene = root.querySelector('[data-scene]'), cube = root.querySelector('[data-cube]');
       let x0 = null, y0 = null, rx = -22, ry = 0, vx = 0, raf = 0;

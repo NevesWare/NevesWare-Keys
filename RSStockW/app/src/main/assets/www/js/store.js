@@ -13,7 +13,8 @@
     blur: 24,
     bg: 'aurora',             // 'aurora' | 'gradient' | 'solid'
     compact: false,
-    anim: 'suave',            // estilo das transições: suave | deslizar | desvanecer | zoom | subir | nenhuma
+    anim: 'reduzida',         // estilo das transições: reduzida | suave | deslizar | desvanecer | zoom | subir | nenhuma
+    animV: 2,
     haptics: true,
     fullscreen: true,
     introSeen: false,
@@ -63,6 +64,8 @@
       // reaberto pela troca de ícone: as configurações vêm guardadas do lado nativo
       const rs = RS.native.takeRestoreSettings && RS.native.takeRestoreSettings();
       if (rs) { try { this.settings = merge(DEFAULTS, JSON.parse(rs)); this.saveSettings(); this._iconRestarted = true; setTimeout(() => { try { RS.ui.toast('Ícone e aparência salvos ✨', { type: 'ok', icon: 'sparkle' }); } catch (e) { /* */ } }, 4200); } catch (e) { /* */ } }
+      // 2.8: a animação padrão passou a ser "Reduzida" (a antiga padrão piscava em alguns aparelhos)
+      if ((this.settings.animV || 1) < 2) { this.settings.anim = 'reduzida'; this.settings.animV = 2; this.saveSettings(); }
       if (this.settings.theme === 'coca2') { this.settings.theme = 'coca'; this.saveSettings(); } // Coca 2.0 foi removido
       this.autoCompat();
       if (this.settings.theme === 'coca') { /* tema especial mantém tudo vermelho */ }
@@ -282,7 +285,7 @@
       root.dataset.layout = cp.layout;
 
       root.dataset.bg = s.bg;
-      root.dataset.anim = s.anim || 'suave';
+      root.dataset.anim = s.anim || 'reduzida';
       const flag = (name, on) => { if (on) root.setAttribute(name, ''); else root.removeAttribute(name); };
       flag('data-compact', s.compact);
       flag('data-contrast', s.a11y.contrast);

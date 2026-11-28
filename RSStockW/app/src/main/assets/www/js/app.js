@@ -56,13 +56,14 @@
     const view = document.createElement('main');
     view.className = 'view' + (scr.bar === false ? ' no-bar' : '');
     view.id = 'view';
+    view.dataset.screen = current.name;
     view.innerHTML = scr.render(current.params || {});
 
     const old = currentView;
     if (old) old.removeAttribute('id');
     // sobras de transições anteriores (toques rápidos) saem na hora
     Array.from(stage.children).forEach(v => { if (v !== old) v.remove(); });
-    if (old) old.classList.remove('p-in-right', 'p-in-left', 'c-in-zoom', 'c-in-up', 'c-in-right', 'c-in-left');
+    if (old) old.classList.remove('p-in-right', 'p-in-left', 'c-in-zoom', 'c-in-up', 'c-in-right', 'c-in-left', 'r-in-right', 'r-in-left', 'r-in-up');
 
     // Atualização da MESMA tela (sincronização, dados mudaram): sem animação de entrada
     // e mantendo a rolagem — antes a tela "piscava" e voltava para o topo.
@@ -82,12 +83,19 @@
     /* Transições sem piscar no Android: as telas NUNCA mudam de opacidade (isso desliga/liga o vidro
        fosco dos cartões e causava o pisca). Ou elas se empurram (só movimento), ou uma cortina lisa
        cobre a troca. */
-    const style = s.settings.anim || 'suave';
+    // modo compatibilidade: só a animação "Reduzida" (mais leve); acessibilidade "reduzir movimento": nenhuma
+    const style = s.compatInfo().noTransitions ? 'reduzida' : (s.settings.anim || 'reduzida');
     const reduce = s.settings.a11y.reduceMotion || style === 'nenhuma';
     const side = { forward: 1, 'tab-right': 1, back: -1, 'tab-left': -1 }[dir] || 0;
     const pushStyle = (style === 'suave' || style === 'deslizar') && side !== 0;
     if (!old || reduce || !dir || dir === 'none') {
       if (old) old.remove();
+    } else if (style === 'reduzida') {
+      // troca na hora (sem sobreposição) e o conteúdo novo só desliza um pouquinho
+      old.remove();
+      const rc = side > 0 ? 'r-in-right' : side < 0 ? 'r-in-left' : 'r-in-up';
+      view.classList.add(rc);
+      setTimeout(() => view.classList.remove(rc), 240);
     } else if (pushStyle) {
       const ms = style === 'suave' ? 360 : 420;
       view.classList.add(side > 0 ? 'p-in-right' : 'p-in-left');

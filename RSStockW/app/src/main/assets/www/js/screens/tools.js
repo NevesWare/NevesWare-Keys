@@ -273,4 +273,79 @@
     },
     mount(root) { root.addEventListener('click', e => { if (e.target.closest('[data-back]')) { ui.tap(); RS.app.back(); } }); }
   };
+
+  /* ============================== Catálogo de códigos de barras (lista) ============================== */
+  const cstate = { q: '' };
+  RS.screens['catalog-list'] = {
+    tab: 'settings',
+    bar: false,
+    render() {
+      return `
+        <header class="topbar"><button class="icon-btn glass" data-back aria-label="Voltar">${I('back')}</button>
+          <div class="grow"><p class="eyebrow" data-cl-total>Carregando…</p><h1 class="page-title">Produtos cadastrados</h1></div>
+          <button class="icon-btn glass" data-cl-scan aria-label="Escanear">${I('scan')}</button></header>
+        <label class="search glass">${I('search', 20)}
+          <input data-cl-q type="search" placeholder="Buscar por nome, marca ou código…" value="${u.esc(cstate.q)}" autocomplete="off" enterkeyhint="search"></label>
+        <div class="scroll" data-cl-list style="padding-top:10px">${ui.skeleton(8)}</div>`;
+    },
+    mount(root) {
+      const list = root.querySelector('[data-cl-list]'), total = root.querySelector('[data-cl-total]'), inp = root.querySelector('[data-cl-q]');
+      let from = 0, done = false, busy = false, seq = 0;
+      const row = p => `<button class="item glass-lite cl-item" data-cl="${u.esc(p.barcode)}">
+          ${p.image_url ? `<img class="cl-img" src="${u.esc(p.image_url)}" alt="" loading="lazy">` : `<span class="ic">${u.esc(u.initials(p.name))}</span>`}
+          <span class="body"><span class="name">${u.esc(p.name)}</span><span class="meta num">${u.esc(p.barcode)}${p.size ? ' · ' + u.esc(p.size) : ''}${p.category ? ' · ' + u.esc(p.category) : ''}</span></span></button>`;
+      const load = async (reset) => {
+        if (busy && !reset) return;
+        if (reset) { from = 0; done = false; list.innerHTML = ui.skeleton(8); }
+        if (done) return;
+        busy = true; const my = ++seq;
+        try {
+          const r = await RS.catalog.page({ q: cstate.q, from, size: 60 });
+          if (my !== seq) return;
+          if (reset) list.innerHTML = '<div class="list" data-cl-rows></div>';
+          const box = list.querySelector('[data-cl-rows]');
+          box.insertAdjacentHTML('beforeend', r.rows.map(row).join(''));
+          from += r.rows.length;
+          done = r.rows.length < 60 || from >= r.total;
+          total.textContent = (cstate.q ? r.total.toLocaleString('pt-BR') + ' encontrados' : r.total.toLocaleString('pt-BR') + ' produtos no catálogo') + (r.offline ? ' · sem conexão' : '');
+          if (!from) list.innerHTML = `<div class="empty glass-lite"><div class="art">${I('search', 34)}</div><h3>Nada encontrado</h3><p>Tente outro nome, marca ou o começo do código.</p></div>`;
+          list.querySelectorAll('.cl-img').forEach(im => { if (!im.dataset.b) { im.dataset.b = 1; im.addEventListener('error', () => { im.style.visibility = 'hidden'; }); } });
+        } catch (e) {
+          if (reset) list.innerHTML = `<div class="empty glass-lite"><div class="art">${I('cloud', 34)}</div><h3>Sem conexão</h3><p>Conecte à internet para ver a lista completa do catálogo.</p></div>`;
+          total.textContent = 'Sem conexão';
+        } finally { busy = false; }
+      };
+      load(true);
+      list.addEventListener('scroll', () => { if (list.scrollTop + list.clientHeight > list.scrollHeight - 600) load(false); }, { passive: true });
+      inp.addEventListener('input', u.debounce(() => { cstate.q = inp.value.trim(); load(true); }, 350));
+      inp.addEventListener('keydown', e => { if (e.key === 'Enter') inp.blur(); });
+      root.addEventListener('click', async e => {
+        if (e.target.closest('[data-back]')) { ui.tap(); return RS.app.back(); }
+        if (e.target.closest('[data-cl-scan]')) {
+          ui.tap();
+          const code = await RS.scanner.scan();
+          if (code) { inp.value = code; cstate.q = code; load(true); }
+          return;
+        }
+        const it = e.target.closest('[data-cl]');
+        if (!it) return;
+        ui.tap();
+        const code = it.dataset.cl;
+        const name = it.querySelector('.name').textContent, meta = it.querySelector('.meta').textContent;
+        const own = s.byBarcode(code);
+        ui.sheet({
+          title: 'Produto do catálogo',
+          body: `<div class="detail-top"><span class="ic">${u.esc(u.initials(name))}</span><div style="min-width:0"><h2>${u.esc(name)}</h2><p class="faint num" style="margin-top:4px">${u.esc(meta)}</p></div></div>
+            ${own ? `<p class="hint" style="margin-top:12px">${I('check', 14)} Já está no seu estoque em ${u.esc(s.storeName(own.storeId))}.</p>` : ''}`,
+          foot: `<div class="btn-row">${own ? `<button class="btn ghost" data-own>${I('box', 18)}Ver no estoque</button>` : ''}<button class="btn primary" data-add>${I('plus', 18)}Cadastrar validade</button></div>`,
+          onMount(el, ctl) {
+            el.addEventListener('click', ev => {
+              if (ev.target.closest('[data-add]')) { ctl.close(); setTimeout(() => RS.editor.openWithBarcode(code), 300); }
+              if (ev.target.closest('[data-own]')) { ctl.close(); setTimeout(() => RS.detail.open(own.id), 300); }
+            });
+          }
+        });
+      });
+    }
+  };
 })();
