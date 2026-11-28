@@ -187,8 +187,13 @@
         <div class="theme-cards">
           ${[['dark', 'Escuro'], ['light', 'Claro'], ['system', 'Sistema'], ['coca', 'Coca'], ['coca2', 'Coca 2.0']].map(([k, l]) => `<button class="theme-card ${st.theme === k ? 'on' : ''}" data-theme-pick="${k}"><div class="pv ${k}"><i></i></div>${l}</button>`).join('')}
         </div>
-        ${st.theme === 'coca2' ? `<p class="hint">Coca 2.0: fundo animado com a garrafa enchendo o copo com gelo, transição “derramando” entre as telas e efeitos novos em cada tela. O ícone do app também fica vermelho.</p>` : ''}
-        ${st.theme === 'coca' ? `<p class="hint">Tema especial vermelho e branco: muda as cores, o fundo com bolhas, as transições e também o ícone do app na tela inicial do celular.</p>` : ''}
+        ${(st.theme === 'coca' || st.theme === 'coca2') && RS.native.isApp ? `<div class="card glass-lite" style="display:flex;align-items:center;gap:12px;margin-top:10px">
+          <img src="img/logo-coca.png" alt="" style="width:40px;height:40px;border-radius:12px">
+          <span style="flex:1"><b style="display:block;font-size:.9rem">Ícone vermelho do app</b><small class="muted">${RS.native.appIcon() === 'coca' ? 'Ativo' : 'Opcional — muda quando você sair do app'}</small></span>
+          <button class="btn ghost sm" data-icon="${RS.native.appIcon() === 'coca' ? 'default' : 'coca'}">${RS.native.appIcon() === 'coca' ? 'Padrão' : 'Usar'}</button></div>` : ''}
+        ${!(st.theme === 'coca' || st.theme === 'coca2') && RS.native.appIcon() === 'coca' ? `<button class="btn ghost block sm" data-icon="default" style="margin-top:10px">Voltar ao ícone padrão do app</button>` : ''}
+        ${st.theme === 'coca2' ? `<p class="hint">Coca 2.0: fundo animado com a garrafa enchendo o copo com gelo, transição “derramando” entre as telas e efeitos novos em cada tela. Se quiser, ative também o ícone vermelho do app logo acima.</p>` : ''}
+        ${st.theme === 'coca' ? `<p class="hint">Tema especial vermelho e branco: muda as cores, o fundo com bolhas, e as transições. O ícone vermelho do app é opcional (botão acima).</p>` : ''}
 
         <div class="${st.theme === 'coca' || st.theme === 'coca2' ? 'hidden' : ''}">
         <div class="group-label">Cor de destaque</div>
@@ -219,6 +224,12 @@
     mount(root) {
       bindCommon(root);
       root.addEventListener('click', e => {
+        const ic = e.target.closest('[data-icon]');
+        if (ic) {
+          ui.tap();
+          RS.native.setAppIcon(ic.dataset.icon);
+          return ui.alert({ title: 'Ícone agendado', message: 'O ícone do app muda quando você sair do app. Depois, abra pelo novo ícone na tela inicial (pode levar alguns segundos para aparecer).', icon: 'sparkle' });
+        }
         const t = e.target.closest('[data-theme-pick],[data-accent],[data-bg]');
         if (!t) return;
         ui.tap();
@@ -227,8 +238,7 @@
           s.set('theme', t.dataset.themePick);
           if (RS.fx) RS.fx.burst(innerWidth / 2, innerHeight / 3);
           RS.app.refresh();
-          if ((t.dataset.themePick === 'coca' || t.dataset.themePick === 'coca2') && was !== 'coca' && was !== 'coca2') ui.toast('Tema Coca ativado · o ícone do app também muda', { type: 'ok', icon: 'sparkle', duration: 3800 });
-          else if ((was === 'coca' || was === 'coca2') && t.dataset.themePick !== 'coca' && t.dataset.themePick !== 'coca2') ui.toast('Ícone do app voltou ao padrão', { icon: 'sparkle' });
+          if ((t.dataset.themePick === 'coca' || t.dataset.themePick === 'coca2') && was !== 'coca' && was !== 'coca2') ui.toast('Tema Coca ativado', { type: 'ok', icon: 'sparkle' });
         } else if (t.dataset.accent) {
           s.set('accent', t.dataset.accent);
           root.querySelectorAll('[data-accent]').forEach(x => x.classList.toggle('on', x === t));

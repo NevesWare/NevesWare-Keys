@@ -65,10 +65,12 @@
     },
 
     /* Troca o ícone do app na tela inicial do Android ('default' | 'coca'). */
+    /* Pede a troca do ícone; o Android aplica quando o app sair da tela. */
     setAppIcon(name) {
-      if (!B || !B.setAppIcon) return;
-      try { if (B.getAppIcon() !== name) B.setAppIcon(name); } catch (e) { /* */ }
+      if (!B || !B.setAppIcon) return false;
+      try { B.setAppIcon(name); return true; } catch (e) { return false; }
     },
+    appIcon() { if (!B || !B.getAppIcon) return 'default'; try { return B.getAppIcon(); } catch (e) { return 'default'; } },
 
     setOrientation(mode) { if (B && B.setOrientation) { try { B.setOrientation(mode); } catch (e) { /* */ } } },
     setGpu(on) { if (B && B.setGpuRendering) { try { B.setGpuRendering(!!on); } catch (e) { /* */ } } },

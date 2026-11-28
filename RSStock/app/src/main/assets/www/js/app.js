@@ -306,6 +306,11 @@
       if (info.insetTop != null) App.setInsets(info.insetTop, info.insetBottom);
     } catch (e) { /* */ }
 
+    // Se o Android reabriu em modo seguro (fechou da última vez), volta o tema para o padrão uma única vez
+    try {
+      const info0 = RS.native.info();
+      if (info0.safeMode && !sessionStorage.getItem('rs.safeApplied')) { sessionStorage.setItem('rs.safeApplied', '1'); s.safeReset(); }
+    } catch (e) { /* */ }
     step(16, 'Carregando preferências…');
     await u.sleep(250);
     await s.load();
@@ -323,6 +328,7 @@
     const first = !s.settings.introSeen && !session;
     RS.app.start(first ? 'intro' : session ? 'home' : 'auth', 'up');
     document.getElementById('splash').classList.add('done');
+    if (window.__rsBootDone) window.__rsBootDone();
 
     if (session && s.settings.security.pin) await RS.pin.lock();
     if (session) RS.app.welcome();

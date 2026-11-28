@@ -183,7 +183,8 @@
       RS.native.setImmersive(s.fullscreen !== false);
       RS.native.setOrientation(cp.orientation);
       RS.native.setGpu(s.compat.gpu !== false && !cp.safe);
-      RS.native.setAppIcon(this.isCoca() ? 'coca' : 'default');
+      // O ícone NÃO troca mais sozinho (trocar com o app aberto fazia o Android fechá-lo).
+      // A troca é opcional, pelo botão em Aparência, e só acontece quando o app sai da tela.
       if (RS.fx) RS.fx.update();
       document.querySelectorAll('img.app-logo').forEach(i => { i.src = RS.logoSrc(); });
     },
@@ -437,6 +438,16 @@
       this.applyAppearance();
       this.syncNative();
     }
+  };
+
+  /* Abertura em modo seguro (chamado pelo resgate da splash ou pelo Android depois de um fechamento) */
+  store.safeReset = function () {
+    try {
+      const st = JSON.parse(localStorage.getItem(SKEY) || '{}');
+      st.theme = 'dark'; st.bg = 'gradient';
+      st.compat = Object.assign({}, st.compat || {}, { lite: true, noTransitions: true, init: true });
+      localStorage.setItem(SKEY, JSON.stringify(st));
+    } catch (e) { localStorage.removeItem(SKEY); }
   };
 
   if (window.matchMedia) {

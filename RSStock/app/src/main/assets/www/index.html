@@ -112,6 +112,29 @@
     </footer>
   </div>
 
+  <script>
+    /* Resgate: se a abertura travar, oferece abrir em modo seguro (tema padrão, sem efeitos pesados) */
+    (function () {
+      var t = setTimeout(function () {
+        var sp = document.getElementById('splash');
+        if (!sp || sp.classList.contains('done')) return;
+        var box = document.createElement('div');
+        box.style.cssText = 'position:absolute;left:24px;right:24px;bottom:120px;text-align:center;color:#fff;font:14px sans-serif';
+        box.innerHTML = '<p style="opacity:.8;margin-bottom:14px">A abertura está demorando.</p><button id="rescue" style="padding:14px 22px;border-radius:16px;border:0;background:#7c5cff;color:#fff;font-weight:700;font-size:15px">Abrir em modo seguro</button>';
+        sp.appendChild(box);
+        document.getElementById('rescue').onclick = function () {
+          try {
+            var k = 'rs.settings.v1', st = JSON.parse(localStorage.getItem(k) || '{}');
+            st.theme = 'dark'; st.bg = 'gradient'; st.compat = st.compat || {}; st.compat.lite = true; st.compat.noTransitions = true; st.compat.init = true;
+            localStorage.setItem(k, JSON.stringify(st));
+          } catch (e) { try { localStorage.removeItem('rs.settings.v1'); } catch (e2) {} }
+          location.reload();
+        };
+      }, 12000);
+      window.__rsBootDone = function () { clearTimeout(t); };
+      window.addEventListener('error', function (e) { window.__rsLastError = (e && e.message) || 'erro'; });
+    })();
+  </script>
   <script src="js/vendor/supabase.min.js"></script>
   <script src="js/config.js"></script>
   <script src="js/utils.js"></script>

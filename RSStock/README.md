@@ -105,3 +105,9 @@ Pacote: `com.flowlabs.rsstock` · Ícones em `res/mipmap-*` (inclui ícone adapt
   atual é lido do próprio Android (antes podia entrar em ciclo de abre-e-fecha).
 - Se o motor do WebView parar, a tela é recriada em vez de fechar o app.
 - Fechou logo após abrir? O app volta em **modo seguro** e mostra o relatório do erro com o botão **Copiar**.
+
+## v1.3.2 — correção definitiva do "não abre"
+- O ícone do app **não troca mais sozinho** ao escolher o tema Coca/Coca 2.0 (era o que fazia o Android fechar o app
+  em ciclo). Agora é um botão opcional em Aparência e a troca só acontece com o app fora da tela.
+- Resgate na abertura: se travar por 12 s, aparece “Abrir em modo seguro” (tema padrão, sem efeitos pesados).
+- Depois de um fechamento, o app reabre com o tema padrão e em modo seguro.
