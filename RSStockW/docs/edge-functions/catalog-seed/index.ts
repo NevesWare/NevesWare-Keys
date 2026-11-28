@@ -56,18 +56,42 @@ function toRow(p: any) {
   };
 }
 
-function searchUrl(job: any, page: number) {
-  const q = new URLSearchParams({ action: "process", json: "1", page_size: String(PAGE_SIZE), page: String(page), fields: FIELDS, sort_by: "unique_scans_n" });
-  if (job.kind === "term") {
-    q.set("search_terms", job.params.q); q.set("search_simple", "1");
-  } else {
-    let i = 0;
-    for (const [type, tag] of [["categories", job.params.categories], ["countries", job.params.countries]]) {
-      if (!tag) continue;
-      q.set(`tagtype_${i}`, type); q.set(`tag_contains_${i}`, "contains"); q.set(`tag_${i}`, tag); i++;
-    }
+const slug = (t: string) => t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+
+/** API v2 (oficial): filtra por categoria/país/marca. */
+function v2Url(job: any, page: number) {
+  const q = new URLSearchParams({ fields: FIELDS, page_size: String(PAGE_SIZE), page: String(page), sort_by: "unique_scans_n" });
+  if (job.kind === "term") q.set("brands_tags", slug(job.params.q));
+  if (job.params.categories) q.set("categories_tags_en", job.params.categories);
+  if (job.params.countries) q.set("countries_tags_en", job.params.countries);
+  return "https://world.openfoodfacts.org/api/v2/search?" + q.toString();
+}
+/** Busca por texto (search-a-licious), para marcas cujo nome não bate com a etiqueta. */
+function textUrl(job: any, page: number) {
+  let query = job.params.q || "";
+  if (job.kind === "tag") {   // filtros por etiqueta na linguagem do search-a-licious
+    const parts: string[] = [];
+    if (job.params.countries) parts.push(`countries:"en:${job.params.countries}"`);
+    if (job.params.categories) parts.push(`categories:"en:${job.params.categories}"`);
+    query = parts.join(" AND ");
   }
-  return "https://world.openfoodfacts.org/cgi/search.pl?" + q.toString();
+  const q = new URLSearchParams({ q: query, page_size: String(PAGE_SIZE), page: String(page), fields: FIELDS });
+  return "https://search.openfoodfacts.org/search?" + q.toString();
+}
+
+async function getJson(url: string) {
+  const r = await fetch(url, { headers: { "User-Agent": UA, "Accept": "application/json" }, signal: AbortSignal.timeout(25000) });
+  if (r.status === 429 || r.status >= 500 || r.status === 400) throw new Error("HTTP " + r.status + " " + url.split("?")[0]);
+  if (!r.ok) return { products: [] };
+  return await r.json();
+}
+/** Normaliza as duas respostas para { products: [...] } */
+function productsOf(body: any): any[] {
+  const list = Array.isArray(body.products) ? body.products : Array.isArray(body.hits) ? body.hits : [];
+  // marcas do search-a-licious vêm como etiqueta ("xx:coca-cola") → "Coca Cola"
+  const pretty = (b: string) => String(b || "").replace(/^[a-z]{2}:/i, "").replace(/-/g, " ").replace(/\s+/g, " ").trim()
+    .replace(/\b\p{L}/gu, (c: string) => c.toUpperCase());
+  return list.map((p: any) => ({ ...p, brands: (Array.isArray(p.brands) ? p.brands : String(p.brands || "").split(",")).map(pretty).filter(Boolean).join(", ") }));
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -88,19 +112,28 @@ Deno.serve(async (req) => {
     const page = job.next_page;
     let body: any = null;
     try {
-      const r = await fetch(searchUrl(job, page), { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(25000) });
-      if (r.status === 429 || r.status >= 500) throw new Error("HTTP " + r.status);
-      body = await r.json();
+      // principal: search-a-licious (estável); reserva: API v2
+      try {
+        body = await getJson(textUrl(job, page));
+      } catch (e1) {
+        log.push(job.id + " search-a-licious falhou, tentando v2");
+        await sleep(GAP_MS);
+        body = await getJson(v2Url(job, page));
+      }
     } catch (e) {
       failures++;
-      await db.from("catalog_seed").update({ last_error: String(e).slice(0, 200), updated_at: new Date().toISOString() }).eq("id", job.id);
-      if (failures >= 3) { log.push("muitas falhas, pausando"); break; }
+      const errs = (job.params.err || 0) + 1;   // depois de 3 erros a tarefa é pulada
+      await db.from("catalog_seed").update({ params: { ...job.params, err: errs }, done: errs >= 3, last_error: String(e).slice(0, 200), updated_at: new Date().toISOString() }).eq("id", job.id);
+      log.push(job.id + " erro: " + String(e).slice(0, 80));
+      if (failures >= 4) { log.push("muitas falhas, pausando"); break; }
       await sleep(20000);
       continue;
     }
     pages++;
-    const prods: any[] = Array.isArray(body.products) ? body.products : [];
+    const prods: any[] = productsOf(body);
     let rows = prods.map(toRow).filter(Boolean) as any[];
+    const jobCat = /dairy/.test(job.params.categories || "") ? "Laticínios" : job.params.categories ? "Bebidas" : "";
+    if (jobCat) rows.forEach((r) => { if (!r.category) r.category = jobCat; });
     if (job.br_only) rows = rows.filter((r) => /^(789|790)/.test(r.barcode));
     // dedup na página
     const seen = new Set<string>(); rows = rows.filter((r) => (seen.has(r.barcode) ? false : (seen.add(r.barcode), true)));
@@ -123,7 +156,7 @@ Deno.serve(async (req) => {
   }
 
   const { count: left } = await db.from("catalog_seed").select("id", { count: "exact", head: true }).eq("done", false);
-  const again = (left || 0) > 0 && failures < 3;
+  const again = (left || 0) > 0 && failures < 4;
   if (again) {
     // continua em segundo plano numa nova execução
     // @ts-ignore EdgeRuntime existe no Supabase
