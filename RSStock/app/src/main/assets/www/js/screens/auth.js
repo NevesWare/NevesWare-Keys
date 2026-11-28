@@ -97,10 +97,12 @@
         }
         if (t.dataset.act === 'site') return RS.openSite();
         if (t.dataset.act === 'forgot') {
-          const email = await RS.askText('Recuperar senha', 'Seu e-mail');
+          const email = await RS.askText('Recuperar senha', 'Seu e-mail ou nick');
           if (email == null) return;
           const r = await RS.auth.resetPassword(email);
-          if (r.code === 'not_configured') comingSoon();
+          if (r.code === 'not_configured') return comingSoon();
+          if (r.ok) ui.alert({ title: 'Verifique seu e-mail', message: 'Enviamos um link para você criar uma nova senha.', icon: 'mail' });
+          else ui.toast(r.message, { type: 'err' });
           return;
         }
         if (t.dataset.submit != null) {
@@ -117,13 +119,39 @@
             if (!v('id') || !v('password')) return ui.toast('Informe seu nick/e-mail e senha', { type: 'warn' });
             r = await withSpinner(t, () => RS.auth.signIn(v('id').trim(), v('password')));
           }
-          if (r.ok) return RS.app.start('home');
+          if (r.ok && r.needsConfirm) {
+            await ui.alert({ title: 'Confirme seu e-mail', message: `Enviamos um link de confirmação para <b>${u.esc(r.email)}</b>. Abra o e-mail, confirme e depois entre com seu nick ou e-mail.`, icon: 'mail' });
+            root.querySelector('[data-tab="signin"]').click();
+            return;
+          }
+          if (r.ok) return afterLogin();
           if (r.code === 'not_configured') return comingSoon();
           ui.toast(r.message || 'Não foi possível entrar', { type: 'err' });
         }
       });
     }
   };
+
+  /* Depois de entrar: carrega a conta da nuvem e oferece trazer os dados do convidado. */
+  async function afterLogin() {
+    const L = ui.loading('Entrando na sua conta', 'Sincronizando lojas e estoques…');
+    await RS.store.loadAccount();
+    await RS.store.syncNow(true);
+    L.step('Tudo pronto!', 100);
+    await L.done(700);
+    RS.app.start('home');
+    const g = RS.repo.guestData();
+    if (g && ((g.products && g.products.length) || (g.stores && g.stores.length))) {
+      const ok = await ui.confirm({ title: 'Trazer dados do convidado?', message: `Encontramos ${u.plural((g.stores || []).length, 'loja', 'lojas')} e ${u.plural((g.products || []).length, 'produto', 'produtos')} salvos neste aparelho no modo convidado. Deseja enviar para a sua conta?`, confirm: 'Enviar', cancel: 'Agora não', icon: 'cloud' });
+      if (ok) {
+        const L2 = ui.loading('Enviando para a nuvem', 'Copiando lojas e produtos…');
+        const done = await RS.store.importGuest();
+        await L2.done(600);
+        ui.toast(done ? 'Dados do convidado salvos na sua conta' : 'Não foi possível enviar agora — tentaremos de novo', { type: done ? 'ok' : 'warn', icon: 'cloud' });
+      }
+    }
+    RS.app.welcome();
+  }
 
   async function withSpinner(btn, fn) {
     const html = btn.innerHTML;

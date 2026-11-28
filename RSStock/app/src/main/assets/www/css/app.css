@@ -982,3 +982,12 @@ svg { flex-shrink: 0; }
 .me-card b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* Faixa do tema Coca acompanha a altura do topo (entalhe/câmera) */
 :root[data-theme="coca"] .coca-wave { top: 0; height: calc(var(--safe-top) + 128px); }
+
+/* ---------- Atualização ---------- */
+.update-wall { position: fixed; inset: 0; z-index: 95; display: grid; place-items: center; padding: 24px; background: var(--bg); }
+.update-card { position: relative; width: min(100%, 380px); border-radius: 30px; padding: 26px 20px 20px; text-align: center; animation: rise .5s var(--ease) both; }
+.update-card h2 { font-size: 1.4rem; font-weight: 750; margin: 12px 0 6px; }
+.update-card p.muted { font-size: .88rem; line-height: 1.5; }
+.update-ic { width: 72px; height: 72px; border-radius: 24px; margin: 0 auto 14px; display: grid; place-items: center; color: #fff; background: linear-gradient(135deg, var(--accent), var(--accent-2)); box-shadow: 0 16px 40px rgba(var(--accent-rgb), .4); animation: bob 2.4s ease-in-out infinite; }
+@keyframes bob { 50% { transform: translateY(-6px); } }
+.update-notes { text-align: left; font-size: .84rem; line-height: 1.55; color: var(--text-2); background: var(--glass); border: 1px solid var(--stroke); border-radius: 16px; padding: 12px 14px; margin-top: 14px; max-height: 160px; overflow: auto; }

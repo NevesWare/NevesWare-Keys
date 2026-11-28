@@ -32,6 +32,20 @@
     });
   }
 
+  function syncBadge() {
+    const st = RS.repo.status;
+    if (st.syncing) return '<span class="soon-tag">Sincronizando…</span>';
+    if (st.pending) return `<span class="soon-tag" style="background:color-mix(in srgb,var(--c-mid) 25%,transparent);color:var(--c-mid)">${st.pending} pendente${st.pending > 1 ? 's' : ''}</span>`;
+    return '<span class="soon-tag" style="background:color-mix(in srgb,var(--c-ok) 22%,transparent);color:var(--c-ok)">Em dia</span>';
+  }
+  function ago(iso) {
+    if (!iso) return 'nunca';
+    const m = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+    if (m < 1) return 'agora mesmo'; if (m < 60) return 'há ' + m + ' min';
+    const h = Math.round(m / 60); if (h < 24) return 'há ' + h + ' h';
+    return new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  }
+
   function userLabel() {
     const ses = RS.auth.session();
     if (!ses || ses.kind === 'guest') return 'Convidado · dados salvos neste aparelho';
@@ -74,7 +88,7 @@
           ${row('settings.notifications', 'bell', '#f43f5e', 'Notificações', 'Alertas de validade', s.settings.notif.enabled ? s.settings.notif.daysBefore + ' dias' : 'Off')}
           ${row('settings.a11y', 'a11y', '#10b981', 'Acessibilidade', 'Texto, contraste e movimento')}
           ${row('settings.security', 'lock', '#0ea5e9', 'Segurança', 'PIN e senha da conta', s.settings.security.pin ? 'PIN ativo' : '')}
-          ${row('account', 'cloud', '#3b82f6', 'Conta na nuvem', 'Sincronizar com sua conta', '<span class="soon-tag">Em breve</span>')}
+          ${row('account', 'cloud', '#3b82f6', RS.auth.isUser() ? 'Minha conta' : 'Criar conta / Entrar', RS.auth.isUser() ? 'Backup na nuvem ativo' : 'Salve seus dados na nuvem', RS.auth.isUser() ? syncBadge() : '<span class="soon-tag">Grátis</span>')}
         </div>
 
         <div class="group-label">Sobre</div>
@@ -92,7 +106,7 @@
         ui.tap();
         const g = t.dataset.go;
         if (g === 'site') return openSite();
-        if (g === 'account') return RS.app.go('auth', { from: 'settings', tab: 'signup' });
+        if (g === 'account') return RS.auth.isUser() ? RS.app.go('settings.account') : RS.app.go('auth', { from: 'settings', tab: 'signup' });
         if (g === 'export') return RS.app.go('export', {}, { tab: true });
         if (g === 'logout') {
           const ok = await ui.confirm({
@@ -102,6 +116,7 @@
           });
           if (!ok) return;
           const L = ui.loading('Saindo', 'Encerrando sessão…');
+          if (RS.auth.isUser()) await RS.repo.push();
           await RS.auth.signOut();
           await L.done(800);
           return RS.app.start('auth');
@@ -364,11 +379,11 @@
         <div class="group-label">Senha da conta</div>
         <div class="group glass-lite">
           <button class="cell" data-pass><span class="ci" style="--cc:#f59e0b">${I('key', 18)}</span>
-            <span class="ct"><b>Alterar senha</b><small>${RS.auth.isGuest() ? 'Disponível quando você tiver uma conta' : 'Atualize a senha de acesso'}</small></span><span class="soon-tag">Em breve</span></button>
+            <span class="ct"><b>Alterar senha</b><small>${RS.auth.isGuest() ? 'Crie uma conta para usar' : 'Atualize a senha de acesso'}</small></span>${I('chev', 18)}</button>
           <button class="cell" data-reset><span class="ci" style="--cc:#3b82f6">${I('mail', 18)}</span>
-            <span class="ct"><b>Recuperar senha por e-mail</b></span><span class="soon-tag">Em breve</span></button>
+            <span class="ct"><b>Recuperar senha por e-mail</b><small>Enviamos um link para criar nova senha</small></span>${I('chev', 18)}</button>
         </div>
-        <p class="hint" style="margin-top:16px">Seus dados ficam salvos somente neste aparelho enquanto você usa o modo convidado.</p>`);
+        <p class="hint" style="margin-top:16px">${RS.auth.isUser() ? 'Seus dados ficam salvos no aparelho e com backup na sua conta.' : 'No modo convidado os dados ficam só neste aparelho.'}</p>`);
     },
     mount(root) {
       bindCommon(root);
@@ -380,9 +395,24 @@
         } else if (e.target.closest('[data-unpin]')) {
           const ok = await RS.pin.verify('Confirme o PIN atual');
           if (ok) { s.set('security.pin', ''); s.set('security.lockOnResume', false); ui.toast('PIN removido', { type: 'ok' }); RS.app.refresh(); }
-        } else if (e.target.closest('[data-pass],[data-reset]')) {
+        } else if (e.target.closest('[data-pass]')) {
           ui.tap();
-          ui.alert({ title: 'Em breve', message: 'Contas com e-mail e senha chegarão em uma próxima atualização, com sincronização na nuvem.', icon: 'key' });
+          if (!RS.auth.isUser()) return RS.app.go('auth', { from: 'settings', tab: 'signup' });
+          const p1 = await RS.askText('Nova senha', 'Mínimo 6 caracteres');
+          if (!p1) return;
+          if (p1.length < 6) return ui.toast('A senha precisa ter 6+ caracteres', { type: 'warn' });
+          const p2 = await RS.askText('Confirme a nova senha', 'Repita a senha');
+          if (p1 !== p2) return ui.toast('As senhas não coincidem', { type: 'warn' });
+          const r = await RS.auth.changePassword(p1);
+          ui.toast(r.ok ? 'Senha alterada' : (r.message || 'Não foi possível alterar'), { type: r.ok ? 'ok' : 'err', icon: 'key' });
+        } else if (e.target.closest('[data-reset]')) {
+          ui.tap();
+          const ses = RS.auth.session();
+          const email = (ses && ses.email) || await RS.askText('Recuperar senha', 'Seu e-mail ou nick');
+          if (!email) return;
+          const r = await RS.auth.resetPassword(email);
+          if (r.ok) ui.alert({ title: 'Verifique seu e-mail', message: 'Enviamos um link para você criar uma nova senha.', icon: 'mail' });
+          else ui.toast(r.message || 'Disponível com uma conta', { type: 'err' });
         }
       });
     }
@@ -398,9 +428,15 @@
         <div class="card glass" style="display:flex;align-items:center;gap:16px">
           <span class="ci" style="width:52px;height:52px;border-radius:18px;display:grid;place-items:center;background:rgba(var(--accent-rgb),.18);color:var(--accent)">${I('db', 24)}</span>
           <span><b style="font-size:1.3rem" class="num">${c.total}</b> <span class="muted">${c.total === 1 ? 'produto' : 'produtos'}</span><br>
-            <small class="faint">${u.plural(c.units, 'unidade', 'unidades')} em estoque · armazenados neste aparelho</small></span>
+            <small class="faint">${u.plural(c.units, 'unidade', 'unidades')} em estoque · ${RS.auth.isUser() ? 'aparelho + nuvem' : 'somente neste aparelho'}</small></span>
         </div>
-        <div class="group-label">Backup</div>
+        <div class="group-label">Backup na nuvem</div>
+        <div class="group glass-lite">
+          ${RS.auth.isUser() ? `
+          <button class="cell" data-sync><span class="ci" style="--cc:#3b82f6">${I('cloud', 18)}</span><span class="ct"><b>Sincronizar agora</b><small>Último backup: ${ago(RS.repo.status.lastSync)}${RS.repo.status.error ? ' · ' + u.esc(RS.repo.status.error) : ''}</small></span>${syncBadge()}</button>` : `
+          <button class="cell" data-login><span class="ci" style="--cc:#3b82f6">${I('cloud', 18)}</span><span class="ct"><b>Ativar backup na nuvem</b><small>Crie uma conta grátis e acesse de qualquer aparelho</small></span>${I('chev', 18)}</button>`}
+        </div>
+        <div class="group-label">Arquivo de backup</div>
         <div class="group glass-lite">
           <button class="cell" data-backup><span class="ci" style="--cc:#10b981">${I('download', 18)}</span><span class="ct"><b>Criar backup</b><small>Salva um arquivo .json com tudo</small></span>${I('chev', 18)}</button>
           <label class="cell"><span class="ci" style="--cc:#3b82f6">${I('upload', 18)}</span><span class="ct"><b>Restaurar backup</b><small>Importa um arquivo criado pelo RS Stock</small></span>${I('chev', 18)}
@@ -415,6 +451,15 @@
     mount(root) {
       bindCommon(root);
       root.addEventListener('click', async e => {
+        if (e.target.closest('[data-sync]')) {
+          ui.tap();
+          const L = ui.loading('Sincronizando', 'Enviando e baixando dados…');
+          const ok = await s.syncNow(true);
+          await L.done(600);
+          ui.toast(ok ? 'Backup na nuvem em dia' : 'Sem conexão — tentaremos de novo depois', { type: ok ? 'ok' : 'warn', icon: 'cloud' });
+          return RS.app.refresh();
+        }
+        if (e.target.closest('[data-login]')) { ui.tap(); return RS.app.go('auth', { from: 'settings', tab: 'signup' }); }
         if (e.target.closest('[data-backup]')) {
           ui.tap();
           const L = ui.loading('Criando backup', 'Empacotando dados…');
@@ -469,6 +514,77 @@
   };
 
   /* ============================== Créditos ============================== */
+  /* ============================== Minha conta ============================== */
+  RS.screens['settings.account'] = {
+    tab: 'settings',
+    bar: false,
+    render() {
+      const ses = RS.auth.session() || {}, st = RS.repo.status, pf = RS.auth.profile || {};
+      return sub('Minha conta', `
+        <div class="card glass" style="text-align:center;padding:24px 18px">
+          <span class="me-avatar" style="display:block;margin:0 auto 12px;--av:${(cfg.accents[s.settings.profile.color] || {}).a}"><span>${u.esc(u.initials(s.settings.profile.name || ses.nick || 'R S'))}</span></span>
+          <b style="font-size:1.15rem;display:block">@${u.esc(ses.nick || '')}</b>
+          <p class="muted" style="font-size:.84rem;margin-top:4px">${u.esc(ses.email || '')}</p>
+          ${pf.role === 'admin' ? '<span class="soon-tag" style="margin-top:8px">Administrador</span>' : ''}
+        </div>
+        <div class="group-label">Nuvem</div>
+        <div class="group glass-lite">
+          <button class="cell" data-sync><span class="ci" style="--cc:#3b82f6">${I('cloud', 18)}</span><span class="ct"><b>Sincronizar agora</b><small>Último backup: ${ago(st.lastSync)}</small></span>${syncBadge()}</button>
+        </div>
+        <div class="group-label">Dados de acesso</div>
+        <div class="group glass-lite">
+          <button class="cell" data-nick><span class="ci" style="--cc:#8b5cf6">${I('user', 18)}</span><span class="ct"><b>Alterar nick</b><small>@${u.esc(ses.nick || '')}</small></span>${I('chev', 18)}</button>
+          <button class="cell" data-email><span class="ci" style="--cc:#06b6d4">${I('mail', 18)}</span><span class="ct"><b>Alterar e-mail</b><small>Enviaremos uma confirmação</small></span>${I('chev', 18)}</button>
+          <button class="cell" data-go-sec><span class="ci" style="--cc:#f59e0b">${I('key', 18)}</span><span class="ct"><b>Senha e segurança</b></span>${I('chev', 18)}</button>
+        </div>
+        <button class="btn danger block" data-out style="margin-top:20px">${I('logout', 18)}Sair da conta</button>`);
+    },
+    mount(root) {
+      bindCommon(root);
+      this._off = s.on(w => { if (w === 'sync') { const b = root.querySelector('[data-sync] .soon-tag'); if (b) b.outerHTML = syncBadge(); } });
+      root.addEventListener('click', async e => {
+        const t = e.target.closest('[data-sync],[data-nick],[data-email],[data-go-sec],[data-out]');
+        if (!t) return;
+        ui.tap();
+        if (t.dataset.sync != null) {
+          const L = ui.loading('Sincronizando', 'Enviando e baixando dados…');
+          const ok = await s.syncNow(true);
+          await L.done(600);
+          ui.toast(ok ? 'Backup na nuvem em dia' : 'Sem conexão — tentaremos de novo depois', { type: ok ? 'ok' : 'warn', icon: 'cloud' });
+          return RS.app.refresh();
+        }
+        if (t.dataset.nick != null) {
+          const v = await RS.askText('Novo nick', 'letras, números, _ ou .', (RS.auth.session() || {}).nick || '');
+          if (!v) return;
+          if (!/^[a-zA-Z0-9_.]{3,24}$/.test(v)) return ui.toast('Nick inválido (3 a 24 caracteres)', { type: 'warn' });
+          const r = await RS.auth.updateProfile({ nick: v });
+          ui.toast(r.ok ? 'Nick atualizado' : r.message, { type: r.ok ? 'ok' : 'err' });
+          return RS.app.refresh();
+        }
+        if (t.dataset.email != null) {
+          const v = await RS.askText('Novo e-mail', 'voce@email.com');
+          if (!v) return;
+          if (!/^\S+@\S+\.\S+$/.test(v)) return ui.toast('E-mail inválido', { type: 'warn' });
+          const r = await RS.auth.changeEmail(v);
+          if (r.ok) ui.alert({ title: 'Confirme o novo e-mail', message: 'Enviamos um link de confirmação. A troca vale depois que você confirmar.', icon: 'mail' });
+          else ui.toast(r.message, { type: 'err' });
+          return;
+        }
+        if (t.dataset.goSec != null) return RS.app.go('settings.security');
+        if (t.dataset.out != null) {
+          const ok = await ui.confirm({ title: 'Sair da conta?', message: 'Seus dados continuam salvos na nuvem. Para ver de novo, é só entrar.', confirm: 'Sair', danger: true, icon: 'logout' });
+          if (!ok) return;
+          const L = ui.loading('Saindo', 'Enviando últimas alterações…');
+          await RS.repo.push();
+          await RS.auth.signOut();
+          await L.done(700);
+          RS.app.start('auth');
+        }
+      });
+    },
+    unmount() { if (this._off) this._off(); }
+  };
+
   RS.screens['settings.credits'] = {
     tab: 'settings',
     bar: false,
@@ -587,8 +703,9 @@
         <div class="group glass-lite">
           <div class="cell static"><span class="ct"><b>Plataforma</b></span><span class="cv">${info.platform === 'android' ? 'Android' + (info.sdk ? ' (API ' + info.sdk + ')' : '') : 'Web'}</span></div>
           ${info.device ? `<div class="cell static"><span class="ct"><b>Aparelho</b></span><span class="cv">${u.esc(info.device)}</span></div>` : ''}
-          <div class="cell static"><span class="ct"><b>Armazenamento</b></span><span class="cv">Local (neste aparelho)</span></div>
-          <div class="cell static"><span class="ct"><b>Sincronização na nuvem</b></span><span class="cv"><span class="soon-tag">Em breve</span></span></div>
+          <div class="cell static"><span class="ct"><b>Armazenamento</b></span><span class="cv">${RS.auth.isUser() ? 'Aparelho + nuvem' : 'Local (neste aparelho)'}</span></div>
+          <div class="cell static"><span class="ct"><b>Sincronização na nuvem</b></span><span class="cv">${RS.auth.isUser() ? 'Ativa' : 'Entre com uma conta'}</span></div>
+          <button class="cell" data-check-update><span class="ct"><b>Procurar atualização</b><small>Versão instalada: ${u.esc(info.version || cfg.version)}</small></span>${I('refresh', 18)}</button>
         </div>
         <div class="group-label">Como funciona</div>
         <div class="card glass-lite"><p class="muted" style="font-size:.88rem;line-height:1.6">
@@ -596,6 +713,9 @@
           <span class="tag-exp">Vencido</span> <b style="color:var(--c-soon)">menos de 7 dias</b>, <b style="color:var(--c-mid)">7 a 30 dias</b> e <b style="color:var(--c-ok)">mais de 30 dias</b>.
           Dê baixa ou entrada no estoque, acompanhe tudo no histórico e exporte em PDF, imagem, texto ou planilha com o nome da loja.</p></div>`);
     },
-    mount(root) { bindCommon(root); }
+    mount(root) {
+      bindCommon(root);
+      root.addEventListener('click', e => { if (e.target.closest('[data-check-update]')) { ui.tap(); RS.updater.check(true); } });
+    }
   };
 })();

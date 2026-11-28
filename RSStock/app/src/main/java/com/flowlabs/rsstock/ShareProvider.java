@@ -62,6 +62,7 @@ public class ShareProvider extends ContentProvider {
         if (n.endsWith(".txt")) return "text/plain";
         if (n.endsWith(".csv")) return "text/csv";
         if (n.endsWith(".json")) return "application/json";
+        if (n.endsWith(".apk")) return "application/vnd.android.package-archive";
         return "application/octet-stream";
     }
 

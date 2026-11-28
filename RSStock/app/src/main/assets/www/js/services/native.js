@@ -38,6 +38,7 @@
   }
 
   RS.native = {
+    _wait(id, fn) { pending[id] = fn; },
     isApp: !!B,
 
     info() {

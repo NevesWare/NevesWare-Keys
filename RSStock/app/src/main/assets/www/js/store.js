@@ -78,6 +78,45 @@
       }
       this.syncNative();
       this.emit('all');
+      if (RS.auth.isUser()) this.syncNow(true);
+    },
+
+    /* Puxa da nuvem (enviando antes o que estiver pendente) e aplica no app. */
+    async syncNow(silent) {
+      const data = await RS.repo.pull();
+      if (!data) {
+        if (!silent && RS.repo.status.error) RS.ui.toast('Sem conexão — seus dados ficam salvos no aparelho', { type: 'warn', icon: 'cloud' });
+        return false;
+      }
+      this.stores = (data.stores || []).map(x => RS.Store(x));
+      this.products = (data.products || []).map(p => RS.Product(p));
+      this.history = data.history || [];
+      if (!this.find(this.settings.currentStoreId)) { this.settings.currentStoreId = this.stores[0] ? this.stores[0].id : ''; this.saveSettings(); }
+      this.syncNative();
+      this.emit('all');
+      if (!silent) RS.ui.toast('Tudo sincronizado com a nuvem', { type: 'ok', icon: 'cloud' });
+      return true;
+    },
+    find(id) { return this.stores.find(x => x.id === id); },
+
+    /* Leva os dados do modo convidado para a conta logada. */
+    async importGuest() {
+      const g = RS.repo.guestData();
+      if (!g) return false;
+      const merged = {
+        stores: this.stores.concat((g.stores || []).filter(x => !this.find(x.id))),
+        products: this.products.concat((g.products || []).filter(p => !this.products.find(x => x.id === p.id))),
+        history: (g.history || []).concat(this.history)
+      };
+      this.stores = merged.stores.map(x => RS.Store(x));
+      this.products = merged.products.map(p => RS.Product(p));
+      this.history = merged.history;
+      if (!this.find(this.settings.currentStoreId) && this.stores[0]) { this.settings.currentStoreId = this.stores[0].id; this.saveSettings(); }
+      const r = await RS.repo.uploadAll({ stores: this.stores, products: this.products, history: this.history });
+      if (r && r.ok) RS.repo.clearGuest();
+      this.syncNative();
+      this.emit('all');
+      return r && r.ok;
     },
 
     async persist() { await RS.repo.save({ stores: this.stores, products: this.products, history: this.history }); },

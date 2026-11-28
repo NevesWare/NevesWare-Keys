@@ -247,7 +247,7 @@
   }, 120));
 
   /* ----- API chamada pelo Android ----- */
-  window.App = {
+  window.App = Object.assign(window.App || {}, {
     setInsets(top, bottom) {
       const r = document.documentElement.style;
       r.setProperty('--safe-top', Math.max(top, 8) + 'px');
@@ -259,7 +259,7 @@
       if (dp > 0 && f && f.scrollIntoView) setTimeout(() => f.scrollIntoView({ block: 'center', behavior: 'smooth' }), 120);
     },
     handleBack() {
-      if (RS.pin.locked) return false;
+      if (RS.pin.locked || (RS.updater && RS.updater.blocking)) return false;
       if (ui.closeTop()) return true;
       if (currentScreen && currentScreen.onBack && currentScreen.onBack()) return true;
       if (RS.app.back()) return true;
@@ -271,8 +271,10 @@
       if (current && away && !document.querySelector('.sheet.show')) RS.app.refresh();
       if (away && s.settings.security.pin && s.settings.security.lockOnResume && !RS.pin.locked && current && current.name !== 'auth' && current.name !== 'intro') RS.pin.lock();
       hiddenAt = 0;
+      if (away && RS.updater) RS.updater.check();
+      if (away && RS.auth.isUser()) { RS.auth.touch(); RS.repo.push(); }
     }
-  };
+  });
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) hiddenAt = Date.now();
     else if (!RS.native.isApp) App.onResume();
@@ -311,6 +313,7 @@
 
     if (session && s.settings.security.pin) await RS.pin.lock();
     if (session) RS.app.welcome();
+    setTimeout(() => RS.updater && RS.updater.check(false), 1500);
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);

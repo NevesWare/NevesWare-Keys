@@ -40,7 +40,9 @@ public class WebBridge {
             JSONObject o = new JSONObject();
             o.put("platform", "android");
             o.put("sdk", Build.VERSION.SDK_INT);
-            o.put("version", a.getPackageManager().getPackageInfo(a.getPackageName(), 0).versionName);
+            android.content.pm.PackageInfo pi = a.getPackageManager().getPackageInfo(a.getPackageName(), 0);
+            o.put("version", pi.versionName);
+            o.put("versionCode", pi.versionCode);
             o.put("device", Build.MANUFACTURER + " " + Build.MODEL);
             o.put("insetTop", a.insetTop);
             o.put("insetBottom", a.insetBottom);
@@ -120,6 +122,28 @@ public class WebBridge {
                 a.setFullscreenMode(on);
             }
         });
+    }
+
+    /** Baixa o APK da atualização e abre o instalador. */
+    @JavascriptInterface
+    public void downloadUpdate(String url, String cb) {
+        Updater.download(a, url, cb);
+    }
+
+    /** Instala o APK já baixado (depois de o usuário liberar a permissão). */
+    @JavascriptInterface
+    public void installUpdate(final String cb) {
+        a.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                Updater.install(a, cb);
+            }
+        });
+    }
+
+    @JavascriptInterface
+    public boolean hasDownloadedUpdate() {
+        return Updater.file(a).exists();
     }
 
     /** Troca o ícone da tela inicial: "default" ou "coca" (activity-alias). */

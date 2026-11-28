@@ -7,7 +7,8 @@ RS.screens = {};
 
 RS.config = {
   appName: 'RS Stock',
-  version: '1.0.0',
+  version: '1.1.0',
+  versionCode: 2,
   studio: 'FlowLabs Studio',
   year: new Date().getFullYear(),
 
@@ -15,15 +16,17 @@ RS.config = {
   siteUrl: '',
 
   /* Supabase (futuro): https://supabase.com → Project Settings → API */
+  /* Supabase (projeto RSStock). A chave publicável é pública por natureza — a segurança
+     fica nas regras RLS do banco. Nunca coloque aqui a chave service_role. */
   supabase: {
-    url: '',      // ex.: 'https://xxxx.supabase.co'
-    anonKey: '',  // chave pública "anon"
-    tables: { products: 'products', profiles: 'profiles' }
+    url: 'https://yycbznbocdylbghutdrp.supabase.co',
+    anonKey: 'sb_publishable_mZUjcoDsUf1CYahMdGtK5g_ZJjRXos3'
   },
 
   features: {
-    accounts: false,   // login com nick/senha e cadastro com e-mail
-    cloudSync: false,  // sincronizar produtos com o Supabase
+    accounts: true,    // login com nick/e-mail e cadastro com e-mail
+    cloudSync: true,   // backup/sincronização na nuvem
+    updates: true,     // verificação de atualização do app
     site: false        // botão "Visitar site"
   },
 
