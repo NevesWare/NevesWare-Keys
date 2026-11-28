@@ -35,7 +35,7 @@
     async init() {
       if (!this.isConfigured()) return;
       this.client = window.supabase.createClient(cfg.supabase.url, cfg.supabase.anonKey, {
-        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storage: window.localStorage, storageKey: 'rs.sb.auth' }
+        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, flowType: 'implicit', storage: window.localStorage, storageKey: 'rs.sb.auth' }
       });
       try {
         const { data } = await this.client.auth.getSession();
@@ -87,29 +87,66 @@
       } catch (e) { return { ok: false, message: msg(e) }; }
     },
 
-    async signUp({ nick, email, password, name }) {
-      if (!nick || !email || !password) return { ok: false, message: 'Preencha todos os campos.' };
+    /* Cadastro só com nick + senha (a função "signup" do servidor cria a conta já confirmada). */
+    async signUp({ nick, password, name }) {
+      if (!nick || !password) return { ok: false, message: 'Preencha o nick e a senha.' };
       if (!this.client) return { ok: false, code: 'not_configured' };
       if (!/^[a-zA-Z0-9_.]{3,24}$/.test(nick)) return { ok: false, message: 'O nick deve ter 3 a 24 caracteres (letras, números, _ ou .).' };
       try {
-        const { data: free, error: e1 } = await this.client.rpc('nick_available', { p_nick: nick });
-        if (e1) throw e1;
-        if (!free) return { ok: false, message: 'Este nick já está em uso.' };
-        const { data, error } = await this.client.auth.signUp({ email: email.trim(), password, options: { data: { nick: nick.trim(), name: name || '' } } });
+        const { data, error } = await this.client.functions.invoke('signup', { body: { nick: nick.trim(), password, name: name || '' } });
+        if (error) {
+          let m = error.message;
+          try { const b = await error.context.json(); m = b.error || m; } catch (e) { /* */ }
+          return { ok: false, message: msg(m) };
+        }
+        if (!data || !data.ok) return { ok: false, message: (data && data.error) || 'Não foi possível criar a conta.' };
+        return this.signIn(nick.trim(), password);
+      } catch (e) { return { ok: false, message: msg(e) }; }
+    },
+
+    /* Login com Google: abre o navegador e volta pelo link rsstock://login-callback */
+    async signInGoogle() {
+      if (!this.client) return { ok: false, code: 'not_configured' };
+      try {
+        const { data, error } = await this.client.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: 'rsstock://login-callback', skipBrowserRedirect: true, queryParams: { prompt: 'select_account' } } });
         if (error) throw error;
-        if (!data.session) return { ok: true, needsConfirm: true, email: email.trim() };
-        write({ kind: 'user', id: data.user.id, email: data.user.email, nick: nick.trim() });
-        await this.touch();
+        RS.native.openUrl(data.url);
+        return { ok: true, pending: true };
+      } catch (e) {
+        const m = msg(e);
+        return { ok: false, message: /provider is not enabled|Unsupported provider/i.test(m) ? 'O login com Google ainda não foi ativado no servidor.' : m };
+      }
+    },
+
+    /* Chamado quando o Android abre rsstock://login-callback#access_token=… */
+    async handleCallback(url) {
+      if (!this.client || !url) return { ok: false };
+      try {
+        const frag = url.includes('#') ? url.split('#')[1] : (url.split('?')[1] || '');
+        const q = new URLSearchParams(frag);
+        if (q.get('error_description')) return { ok: false, message: q.get('error_description') };
+        let res;
+        if (q.get('access_token')) res = await this.client.auth.setSession({ access_token: q.get('access_token'), refresh_token: q.get('refresh_token') });
+        else if (q.get('code')) res = await this.client.auth.exchangeCodeForSession(q.get('code'));
+        else return { ok: false };
+        if (res.error) throw res.error;
+        const u = res.data.user || (res.data.session && res.data.session.user);
+        write({ kind: 'user', id: u.id, email: u.email, nick: (u.user_metadata && u.user_metadata.nick) || '' });
+        const p = await this.touch();
+        if (p && p.status === 'blocked') { await this.signOut(); return { ok: false, message: 'Esta conta está bloqueada. Fale com o suporte.' }; }
         return { ok: true };
       } catch (e) { return { ok: false, message: msg(e) }; }
     },
+
+    isInternalEmail(e) { return /@nick\.rsstock\.app$/i.test(e || ''); },
 
     async resetPassword(email) {
       if (!this.client) return { ok: false, code: 'not_configured' };
       try {
         let e = (email || '').trim();
         if (e && !e.includes('@')) { const r = await this.client.rpc('email_for_nick', { p_nick: e }); e = r.data || ''; }
-        if (!e) return { ok: false, message: 'Informe seu e-mail ou nick.' };
+        if (!e) return { ok: false, message: 'Informe seu nick.' };
+        if (this.isInternalEmail(e)) return { ok: false, message: 'Sua conta não tem e-mail cadastrado. Peça ao suporte para redefinir a senha.' };
         const { error } = await this.client.auth.resetPasswordForEmail(e);
         if (error) throw error;
         return { ok: true };

@@ -227,6 +227,7 @@ public class MainActivity extends Activity {
             @Override
             public void onPageFinished(WebView view, String url) {
                 pushInsets();
+                deliverDeepLink(getIntent());
                 // a partir daqui a interface já desenhou o próprio fundo
                 getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(
                         darkUi ? Color.parseColor("#07080D") : Color.parseColor("#EEF1F7")));
@@ -424,6 +425,24 @@ public class MainActivity extends Activity {
             return;
         }
         super.onActivityResult(requestCode, resultCode, data);
+    }
+
+    /** Entrega rsstock://login-callback… ao JavaScript (login com Google). */
+    private String lastDeepLink = null;
+
+    void deliverDeepLink(Intent intent) {
+        if (intent == null || intent.getData() == null) return;
+        String url = intent.getDataString();
+        if (url == null || !url.startsWith("rsstock://") || url.equals(lastDeepLink)) return;
+        lastDeepLink = url;
+        js("window.App&&App.onDeepLink&&App.onDeepLink(" + Store.quote(url) + ")");
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        deliverDeepLink(intent);
     }
 
     @Override

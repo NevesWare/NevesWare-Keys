@@ -12,8 +12,8 @@
 
   function signinForm() {
     return `<form data-form="signin" onsubmit="return false">
-      <div class="field"><label>Nick ou e-mail</label><div class="input"><span class="lead">${I('user', 18)}</span>
-        <input name="id" placeholder="seu_nick ou voce@email.com" autocomplete="username" autocapitalize="none"></div></div>
+      <div class="field"><label>Nick</label><div class="input"><span class="lead">${I('user', 18)}</span>
+        <input name="id" placeholder="seu_nick" autocomplete="username" autocapitalize="none"></div></div>
       <div class="field"><label>Senha</label>${pwField('password', 'Sua senha', 'current-password')}</div>
       <div style="text-align:right;margin:-4px 4px 18px"><button type="button" class="link" data-act="forgot">Esqueci minha senha</button></div>
       <button class="btn primary block" data-submit>${I('logout', 20)}Entrar</button>
@@ -24,10 +24,9 @@
     return `<form data-form="signup" onsubmit="return false">
       <div class="field"><label>Nick</label><div class="input"><span class="lead">${I('user', 18)}</span>
         <input name="nick" placeholder="Escolha um nome de usuário" autocomplete="username" autocapitalize="none" maxlength="24"></div></div>
-      <div class="field"><label>E-mail</label><div class="input"><span class="lead">${I('mail', 18)}</span>
-        <input name="email" type="email" placeholder="voce@email.com" autocomplete="email" autocapitalize="none"></div></div>
       <div class="field"><label>Senha</label>${pwField('password', 'Mínimo de 6 caracteres', 'new-password')}</div>
       <div class="field"><label>Confirmar senha</label>${pwField('confirm', 'Repita a senha', 'new-password')}</div>
+      <p class="hint" style="margin:-4px 4px 14px">Só nick e senha — sem e-mail. Guarde sua senha.</p>
       <button class="btn primary block" data-submit>${I('sparkle', 20)}Criar conta</button>
     </form>`;
   }
@@ -56,7 +55,8 @@
 
         ${fromSettings ? '' : `
         <div class="divider">ou</div>
-        <button class="btn ghost block" data-act="guest">${I('user', 20)}Entrar como convidado</button>`}
+        <button class="btn ghost block google-btn" data-act="google"><svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>Continuar com Google</button>
+        <button class="btn ghost block" data-act="guest" style="margin-top:8px">${I('user', 20)}Entrar como convidado</button>`}
         <button class="btn block" data-act="site" style="margin-top:8px;color:var(--text-2)">${I('globe', 18)}Visitar site ${cfg.features.site && cfg.siteUrl ? '' : '<span class="soon-tag">Em breve</span>'}</button>
 
         <footer class="auth-foot"><strong>${cfg.studio}</strong><br>© ${cfg.year} · Todos os direitos reservados</footer>
@@ -96,8 +96,14 @@
           return RS.app.welcome();
         }
         if (t.dataset.act === 'site') return RS.openSite();
+        if (t.dataset.act === 'google') {
+          const r = await RS.auth.signInGoogle();
+          if (r.ok) ui.toast('Conclua o login no navegador e volte para o app', { icon: 'globe', duration: 4000 });
+          else ui.toast(r.message || 'Não foi possível abrir o Google', { type: 'err' });
+          return;
+        }
         if (t.dataset.act === 'forgot') {
-          const email = await RS.askText('Recuperar senha', 'Seu e-mail ou nick');
+          const email = await RS.askText('Recuperar senha', 'Seu nick');
           if (email == null) return;
           const r = await RS.auth.resetPassword(email);
           if (r.code === 'not_configured') return comingSoon();
@@ -110,13 +116,13 @@
           const v = n => (f.querySelector(`[name="${n}"]`) || {}).value || '';
           let r;
           if (f.dataset.form === 'signup') {
-            if (!v('nick') || !v('email') || !v('password')) return ui.toast('Preencha todos os campos', { type: 'warn' });
-            if (!/^\S+@\S+\.\S+$/.test(v('email'))) return ui.toast('E-mail inválido', { type: 'warn' });
+            if (!v('nick') || !v('password')) return ui.toast('Preencha o nick e a senha', { type: 'warn' });
+            if (!/^[a-zA-Z0-9_.]{3,24}$/.test(v('nick').trim())) return ui.toast('Nick: 3 a 24 letras, números, _ ou .', { type: 'warn' });
             if (v('password').length < 6) return ui.toast('A senha precisa ter 6+ caracteres', { type: 'warn' });
             if (v('password') !== v('confirm')) return ui.toast('As senhas não coincidem', { type: 'warn' });
-            r = await withSpinner(t, () => RS.auth.signUp({ nick: v('nick').trim(), email: v('email').trim(), password: v('password') }));
+            r = await withSpinner(t, () => RS.auth.signUp({ nick: v('nick').trim(), password: v('password') }));
           } else {
-            if (!v('id') || !v('password')) return ui.toast('Informe seu nick/e-mail e senha', { type: 'warn' });
+            if (!v('id') || !v('password')) return ui.toast('Informe seu nick e senha', { type: 'warn' });
             r = await withSpinner(t, () => RS.auth.signIn(v('id').trim(), v('password')));
           }
           if (r.ok && r.needsConfirm) {
@@ -133,6 +139,7 @@
   };
 
   /* Depois de entrar: carrega a conta da nuvem e oferece trazer os dados do convidado. */
+  RS.afterLogin = () => afterLogin();
   async function afterLogin() {
     const L = ui.loading('Entrando na sua conta', 'Sincronizando lojas e estoques…');
     await RS.store.loadAccount();

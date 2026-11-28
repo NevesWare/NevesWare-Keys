@@ -253,6 +253,15 @@
       r.setProperty('--safe-top', Math.max(top, 8) + 'px');
       r.setProperty('--safe-bottom', Math.max(bottom, 6) + 'px');
     },
+    /* Volta do login com Google (rsstock://login-callback) */
+    async onDeepLink(url) {
+      if (!url || !/login-callback/.test(url)) return;
+      const L = ui.loading('Entrando com Google', 'Confirmando sua conta…');
+      const r = await RS.auth.handleCallback(url);
+      await L.done(400);
+      if (r.ok) return RS.afterLogin();
+      if (r.message) ui.toast(r.message, { type: 'err' });
+    },
     setKeyboard(dp) {
       document.documentElement.classList.toggle('kb-open', dp > 0);
       const f = document.activeElement;

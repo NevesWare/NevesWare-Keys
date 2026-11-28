@@ -38,7 +38,15 @@
             android:screenOrientation="portrait"
             android:windowSoftInputMode="adjustNothing"
             android:exported="true"
-            android:configChanges="orientation|screenSize|keyboardHidden|uiMode|screenLayout|smallestScreenSize"/>
+            android:configChanges="orientation|screenSize|keyboardHidden|uiMode|screenLayout|smallestScreenSize">
+            <!-- Volta do login com Google -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="rsstock" android:host="login-callback"/>
+            </intent-filter>
+        </activity>
 
         <!-- Ícone padrão -->
         <activity-alias

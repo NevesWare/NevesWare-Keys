@@ -524,7 +524,7 @@
         <div class="card glass" style="text-align:center;padding:24px 18px">
           <span class="me-avatar" style="display:block;margin:0 auto 12px;--av:${(cfg.accents[s.settings.profile.color] || {}).a}"><span>${u.esc(u.initials(s.settings.profile.name || ses.nick || 'R S'))}</span></span>
           <b style="font-size:1.15rem;display:block">@${u.esc(ses.nick || '')}</b>
-          <p class="muted" style="font-size:.84rem;margin-top:4px">${u.esc(ses.email || '')}</p>
+          <p class="muted" style="font-size:.84rem;margin-top:4px">${RS.auth.isInternalEmail(ses.email) ? 'Conta com nick e senha' : u.esc(ses.email || '')}</p>
           ${pf.role === 'admin' ? '<span class="soon-tag" style="margin-top:8px">Administrador</span>' : ''}
         </div>
         <div class="group-label">Nuvem</div>
@@ -534,7 +534,7 @@
         <div class="group-label">Dados de acesso</div>
         <div class="group glass-lite">
           <button class="cell" data-nick><span class="ci" style="--cc:#8b5cf6">${I('user', 18)}</span><span class="ct"><b>Alterar nick</b><small>@${u.esc(ses.nick || '')}</small></span>${I('chev', 18)}</button>
-          <button class="cell" data-email><span class="ci" style="--cc:#06b6d4">${I('mail', 18)}</span><span class="ct"><b>Alterar e-mail</b><small>Enviaremos uma confirmação</small></span>${I('chev', 18)}</button>
+          <button class="cell" data-email><span class="ci" style="--cc:#06b6d4">${I('mail', 18)}</span><span class="ct"><b>${RS.auth.isInternalEmail(ses.email) ? 'Adicionar e-mail' : 'Alterar e-mail'}</b><small>Opcional · ajuda a recuperar a senha</small></span>${I('chev', 18)}</button>
           <button class="cell" data-go-sec><span class="ci" style="--cc:#f59e0b">${I('key', 18)}</span><span class="ct"><b>Senha e segurança</b></span>${I('chev', 18)}</button>
         </div>
         <button class="btn danger block" data-out style="margin-top:20px">${I('logout', 18)}Sair da conta</button>`);
