@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">RS Admin</string>
+    <string name="channel_alerts">Avisos</string>
+    <string name="channel_alerts_desc">Avisos do painel administrativo.</string>
+</resources>

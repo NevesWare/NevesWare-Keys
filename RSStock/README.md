@@ -9,6 +9,12 @@ Desenvolvido por **FlowLabs Studio**.
 
 ## Recursos
 
+- **Contas na nuvem (Supabase)**: criar conta com nick + e-mail, entrar por nick ou e-mail, recuperar/alterar senha,
+  alterar nick/e-mail, modo convidado offline. Ao entrar, os dados do convidado podem ser enviados para a conta.
+- **Backup na nuvem**: tudo salva no aparelho na hora e sincroniza em segundo plano (funciona sem internet e envia depois).
+- **Atualizações pelo RS Admin**: ao abrir, o app confere a última versão publicada. Obrigatória = tela bloqueante com
+  “Atualizar agora”; opcional = aviso. O APK é baixado e o instalador do Android abre.
+
 - **Várias lojas**: crie, edite e exclua lojas (ex.: Mercado Rio Sul, Guanabara). Cada loja tem o próprio estoque;
   troque de loja pelo topo da tela inicial ou de Produtos.
 - **Cores por prazo**: ⚫ vencido (tag VENCIDO) · 🔴 menos de 7 dias · 🟡 7 a 30 dias · 🟢 mais de 30 dias.
