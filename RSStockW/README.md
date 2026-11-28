@@ -144,3 +144,14 @@ Pacote: `com.flowlabs.rsstockw` · Ícones em `res/mipmap-*` (inclui ícone adap
 - Corrigido o "piscar": ao sincronizar, a tela atual era recriada (voltava ao topo e refazia a animação de entrada). Agora atualiza no lugar, mantendo a rolagem.
 - Transições refeitas só com transform/opacity (sem blur animado nem véus). Estilos em Aparência › Animação das telas: **Suave** (padrão), Deslizar, Desvanecer, Zoom, Subir, Nenhuma.
 - Aparência com rascunho: muda na hora para visualizar; barra **Salvar / Descartar**; ao sair sem salvar pergunta. Se o ícone mudou, "Salvar e reabrir": o app fecha e abre já pelo ícone novo (ativa o novo, reabre por ele, depois desativa os antigos; configurações guardadas no nativo).
+
+## v2.6.0 — escaneou, preencheu
+- Ao ler (ou digitar) o código de barras, o cadastro busca o produto e preenche **nome com marca e gramatura** (ex.: "Leite Integral Italac 1L") e **categoria**. Você só escolhe validade, quantidade e unidade.
+- Ordem da busca: seu estoque → cache do aparelho → servidor (Edge Function `product-lookup`: catálogo compartilhado `catalog` → Cosmos/Bluesoft, se configurado → Open Food Facts) → Open Food Facts direto do celular, se o servidor não responder.
+- Tudo que é encontrado fica salvo no catálogo do Supabase: a próxima leitura sai na hora para todo mundo. Códigos que não estão em nenhuma base são aprendidos quando alguém logado cadastra (RPC `catalog_contribute`; nunca sobrescreve dados oficiais).
+- Banco: `docs/migrations/003_catalogo_produtos.sql` (aplicada). Função: `docs/edge-functions/product-lookup/index.ts` (publicada).
+
+### Ligar o Cosmos (opcional, melhor cobertura de produtos brasileiros)
+1. Crie uma conta em cosmos.bluesoft.com.br e copie o seu token da API.
+2. No Supabase: Edge Functions › Secrets (ou Project Settings › Edge Functions) › Add secret: nome `COSMOS_TOKEN`, valor = seu token.
+3. Pronto — a função passa a consultar o Cosmos antes do Open Food Facts. O token fica só no servidor, nunca no APK.

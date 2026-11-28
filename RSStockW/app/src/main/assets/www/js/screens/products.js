@@ -158,11 +158,8 @@
           const code = await RS.scanner.scan();
           if (!code) return;
           const p = s.byBarcode(code);
-          if (p) RS.detail.open(p.id);
-          else {
-            const add = await ui.confirm({ title: 'Produto não encontrado', message: `Nenhum produto com o código <b>${u.esc(code)}</b>. Deseja cadastrar?`, confirm: 'Cadastrar', icon: 'scan' });
-            if (add) RS.editor.openWithBarcode(code);
-          }
+          if (p && p.storeId === s.settings.currentStoreId) RS.detail.open(p.id);
+          else RS.editor.openWithBarcode(code);   // busca nome/gramatura automaticamente
         }
       });
 

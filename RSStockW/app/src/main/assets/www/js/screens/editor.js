@@ -100,6 +100,7 @@
       : s.lotsOf(p.id).map(l => ({ id: l.id, expiry: l.expiry, quantity: l.quantity }));
     if (!lots.length) lots.push({ id: p.id, expiry: p.expiry, quantity: p.quantity });
     const removedLots = [];
+    let lookState = { code: '', found: null };
     ui.sheet({
       title: isNew ? 'Novo produto' : 'Editar produto',
       headExtra: `<button type="button" class="chip glass-lite" data-act="store" style="height:32px;max-width:46%">${RS.storeBadge(curStore, 20)}<span data-store-name style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${u.esc(curStore.name)}</span></button>`,
@@ -128,23 +129,56 @@
         $in('name').addEventListener('input', () => { ctl.$('[data-f="name"]').classList.remove('err'); ctl.$('[data-f="name"] .err-msg').classList.add('hidden'); });
         $in('name').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $in('barcode').focus(); } });
 
-        const checkBarcode = () => {
+        /* Código de barras → busca o produto (seu estoque, catálogo, Open Food Facts…) e preenche */
+        let lookSeq = 0;
+        const fillFrom = r => {
+          $in('name').value = r.name;
+          $in('name').dispatchEvent(new Event('input'));
+          if (r.category) {
+            if (!ctl.$$('[data-cat]').some(b => b.dataset.cat === r.category)) {
+              const b = document.createElement('button'); b.type = 'button'; b.className = 'chip glass-lite'; b.dataset.cat = r.category; b.textContent = r.category;
+              const nb = ctl.$('[data-act="newcat"]'); if (nb) nb.before(b);
+            }
+            setCat(r.category);
+          }
+          if (r.unit && cfg.units.includes(r.unit)) $in('unit').value = r.unit;
+          if (r.cost && !$in('cost').value) $in('cost').value = r.cost;
+        };
+        const checkBarcode = async () => {
           const code = $in('barcode').value.trim();
           const hint = ctl.$('[data-bc-hint]');
-          const match = code && s.byBarcode(code);
-          if (!match || match.id === p.id || $in('name').value === match.name) { hint.classList.add('hidden'); return; }
+          if (!/^\d{6,14}$/.test(code)) { hint.classList.add('hidden'); return; }
+          const seq = ++lookSeq;
           hint.classList.remove('hidden');
-          hint.innerHTML = `Já existe <b>${u.esc(match.name)}</b> com este código. <button type="button" class="link" data-act="fill">Usar dados</button>`;
-          hint.querySelector('[data-act="fill"]').onclick = () => {
-            $in('name').value = match.name;
-            setCat(match.category);
-            $in('unit').value = match.unit;
-            ui.toast('Dados preenchidos — ajuste a validade', { type: 'ok' });
-            hint.classList.add('hidden');
-          };
+          hint.innerHTML = `<span class="bc-look"><span class="spinner sm"></span>Buscando o produto…</span>`;
+          const r = await RS.catalog.lookup(code);
+          if (seq !== lookSeq || !document.body.contains(hint)) return;
+          lookState = { code, found: r };
+          if (!r) {
+            hint.innerHTML = `<span class="bc-look miss">${ui.icon('search', 15)} Não encontrei esse código nas bases. Digite o nome uma vez — ${RS.auth.isUser() ? 'ele fica salvo para as próximas leituras de todos.' : 'na próxima leitura ele já aparece.'}</span>`;
+            if (!$in('name').value) setTimeout(() => $in('name').focus(), 150);
+            return;
+          }
+          const same = $in('name').value.trim() && u.norm($in('name').value) === u.norm(r.name);
+          const auto = !$in('name').value.trim();
+          if (auto) fillFrom(r);
+          hint.innerHTML = `<span class="bc-found">${r.image_url ? `<img src="${u.esc(r.image_url)}" alt="" data-bcimg>` : `<span class="bi">${ui.icon('check', 16, 2.6)}</span>`}
+            <span class="bt"><b>${u.esc(r.name)}</b><small>${[r.size, r.category, 'via ' + (RS.catalog.SOURCE[r.source] || r.source)].filter(Boolean).map(u.esc).join(' · ')}</small></span>
+            ${auto || same ? '' : `<button type="button" class="link" data-act="usefound">Usar</button>`}</span>`;
+          const img = hint.querySelector('[data-bcimg]');
+          if (img) img.addEventListener('error', () => { img.style.display = 'none'; });
+          const ub = hint.querySelector('[data-act="usefound"]');
+          if (ub) ub.onclick = () => { fillFrom(r); ub.style.display = 'none'; ui.toast('Dados preenchidos', { type: 'ok' }); };
+          if (auto) {
+            ui.tap(12);
+            ui.toast('Produto encontrado — agora só a validade e a quantidade', { type: 'ok', icon: 'scan' });
+            const d = ctl.$('.lot-row [name="lexp"]');
+            if (d && !d.value) setTimeout(() => { d.scrollIntoView({ block: 'center', behavior: 'smooth' }); d.closest('.lot-row').classList.add('pulse'); }, 250);
+          }
         };
         $in('barcode').addEventListener('change', checkBarcode);
-        if (p.barcode) checkBarcode();
+        $in('barcode').addEventListener('input', u.debounce(() => { const v = $in('barcode').value.trim(); if (/^\d{8}$|^\d{12,14}$/.test(v)) checkBarcode(); }, 600));
+        if (p.barcode) setTimeout(checkBarcode, 50);
 
         const setCat = c => {
           $in('category').value = c || '';
@@ -220,6 +254,7 @@
             const prev = t.innerHTML;
             t.innerHTML = '<span class="spinner sm"></span>Salvando…';
             await s.saveLots(data, lotData, removedLots);
+            if (data.barcode && lookState.code === data.barcode && (!lookState.found || lookState.found.source === 'user')) RS.catalog.contribute(data.barcode, data.name, data.category, '');
             await u.sleep(250);
             ui.toast(isNew ? `“${data.name}” adicionado` + (lotData.length > 1 ? ` com ${lotData.length} datas` : '') : 'Alterações salvas', { type: 'ok' });
             if (t.dataset.save === 'again') {
@@ -464,9 +499,7 @@
     open: p => { if (viewerBlock()) return; open(p ? s.products.find(x => x.id === p.id) : null); },
     openWithBarcode(code) {
       if (viewerBlock()) return;
-      const match = s.byBarcode(code);
-      open(null, match ? { barcode: code, name: match.name, category: match.category, unit: match.unit } : { barcode: code });
-      if (match) setTimeout(() => ui.toast('Produto reconhecido — informe a nova validade', { type: 'ok', icon: 'scan' }), 500);
+      open(null, { barcode: code });   // a busca automática preenche nome, gramatura e categoria
     }
   };
   RS.detail = { open: detail };
