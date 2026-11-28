@@ -71,7 +71,8 @@
       const body = root.querySelector('[data-body]');
       const load = async () => {
         try {
-          const s = cache.stats = await api.stats();
+          const [s, us] = await Promise.all([api.stats(), api.updateStats().catch(() => null)]);
+          cache.stats = s;
           const rel = s.latest_release;
           const k = (icon, color, label, value, sub = '') => `<div class="kpi glass-lite" style="--tc:${color}"><span class="ti">${I(icon, 18)}</span><b class="num">${value}</b><span>${label}</span>${sub ? `<small>${sub}</small>` : ''}</div>`;
           body.innerHTML = `
@@ -89,6 +90,11 @@
             <div class="card glass-lite">${bars(s.signups || [], '#7c5cff')}</div>
             <div class="group-label">Movimentações · 14 dias</div>
             <div class="card glass-lite">${bars(s.activity || [], '#10b981')}</div>
+            ${us ? `<div class="group-label">Atualização dos aparelhos</div>
+            <div class="mini-stats" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-top:0">
+              <div class="glass-lite"><b class="num" style="color:var(--c-ok)">${us.up_to_date}</b><small>atualizados</small></div>
+              <div class="glass-lite"><b class="num" style="color:var(--c-danger)">${us.outdated}</b><small>desatualizados</small></div>
+              <div class="glass-lite"><b class="num">${us.unknown}</b><small>sem dados</small></div></div>` : ''}
             <div class="group-label">Versões em uso</div>
             <div class="rows glass-lite">${(s.versions || []).map(v => `<div class="row static"><span class="ri" style="--tc:#06b6d4">${I('phone', 16)}</span><span class="ct"><b>RS Stock ${u.esc(v.version)}</b></span><span class="cv num">${u.plural(v.n, 'conta', 'contas')}</span></div>`).join('') || '<p class="hint" style="padding:14px">Sem dados ainda.</p>'}</div>
             <div class="group-label">Última versão publicada</div>
@@ -113,6 +119,8 @@
     if (a.role === 'admin') tags.push('<span class="tag t-admin">Admin</span>');
     if (a.status === 'blocked') tags.push('<span class="tag t-block">Bloqueada</span>');
     if (!a.email_confirmed) tags.push('<span class="tag t-warn">E-mail pendente</span>');
+    if (a.up_to_date === true) tags.push('<span class="tag t-ok">Atualizado</span>');
+    if (a.up_to_date === false) tags.push('<span class="tag t-block">Desatualizado</span>');
     return `<button class="acc glass-lite" data-acc="${a.id}">${avatar(a)}
       <span class="ct"><b>@${u.esc(a.nick)} ${tags.join('')}</b><small>${u.esc(a.email || '')}</small>
       <small class="faint">${a.stores} lojas · ${a.products} produtos · v${u.esc(a.app_version_name || '—')} · visto ${ago(a.last_seen_at)}</small></span>${I('chev', 18)}</button>`;
@@ -312,12 +320,14 @@
         const r = cache.releases || [];
         list.innerHTML = r.length ? `<div class="list">${r.map((x, i) => `<div class="rel glass-lite ${i === 0 && x.published ? 'latest' : ''}">
           <div class="rel-top"><span class="ri" style="--tc:${x.mandatory ? '#ff3b4e' : '#7c5cff'}">${I('package', 18)}</span>
-            <span class="ct"><b>v${u.esc(x.version_name)} <small class="faint">· código ${x.version_code}</small></b><small>${dt(x.created_at)}${x.apk_size ? ' · ' + mb(x.apk_size) : ''}</small></span>
+            <span class="ct"><b>v${u.esc(x.version_name)} <small class="faint">· nº ${x.version_code}</small></b><small>${dt(x.created_at)}${x.apk_size ? ' · ' + mb(x.apk_size) : ''}</small>
+              <small class="faint">APK: versionCode ${x.apk_version_code ?? '—'}${x.sha256 ? ' · ' + x.sha256.slice(0, 10) + '…' : ''}</small></span>
             ${i === 0 && x.published ? '<span class="tag t-ok">Atual</span>' : ''}${!x.published ? '<span class="tag">Oculta</span>' : ''}</div>
           ${x.notes ? `<p class="rel-notes">${u.esc(x.notes).replace(/\n/g, '<br>')}</p>` : ''}
           <div class="rel-actions">
             <button class="chip glass-lite tog ${x.mandatory ? 'on' : ''}" data-mand="${x.id}">${I(x.mandatory ? 'lock' : 'zap', 14)}${x.mandatory ? 'Obrigatória' : 'Opcional'}</button>
             <button class="chip glass-lite" data-pub="${x.id}">${I(x.published ? 'eyeOff' : 'eye', 14)}${x.published ? 'Ocultar' : 'Publicar'}</button>
+            <button class="chip glass-lite" data-edit="${x.id}">${I('edit', 14)}Editar</button>
             <button class="chip glass-lite" data-link="${x.id}">${I('copy', 14)}Link</button>
             <button class="chip glass-lite" data-del="${x.id}" style="color:var(--c-danger)">${I('trash', 14)}</button>
           </div></div>`).join('')}</div>` : `<div class="empty glass-lite"><div class="art">${I('package', 34)}</div><h3>Nenhuma versão ainda</h3><p>Publique o primeiro APK. Quem estiver com versão mais antiga verá o aviso de atualização.</p></div>`;
@@ -326,14 +336,23 @@
       if (cache.releases) draw();
       load();
       root.addEventListener('click', async e => {
-        const t = e.target.closest('[data-publish],[data-refresh],[data-retry],[data-mand],[data-pub],[data-del],[data-link]');
+        const t = e.target.closest('[data-publish],[data-refresh],[data-retry],[data-mand],[data-pub],[data-del],[data-link],[data-edit]');
         if (!t) return;
         ui.tap();
         if (t.dataset.publish != null) return publish(load);
         if (t.dataset.refresh != null || t.dataset.retry != null) return load();
-        const rel = (cache.releases || []).find(x => String(x.id) === (t.dataset.mand || t.dataset.pub || t.dataset.del || t.dataset.link));
+        const rel = (cache.releases || []).find(x => String(x.id) === (t.dataset.mand || t.dataset.pub || t.dataset.del || t.dataset.link || t.dataset.edit));
         if (!rel) return;
         try {
+          if (t.dataset.edit) {
+            const r = await RS.admin.form('Editar versão', [['version_code', 'Número da versão', '', String(rel.version_code)], ['version_name', 'Nome da versão', '', rel.version_name], ['notes', 'Novidades (opcional)', '', rel.notes || '']], 'Salvar');
+            if (!r) return;
+            const code = parseInt(r.version_code, 10);
+            if (!code) return ui.toast('Número inválido', { type: 'warn' });
+            if ((cache.releases || []).some(o => o.id !== rel.id && o.version_code === code)) return ui.toast('Já existe uma versão com esse número', { type: 'warn' });
+            await api.patchRelease(rel.id, { version_code: code, version_name: r.version_name, notes: r.notes });
+            ui.toast('Versão atualizada', { type: 'ok' });
+          }
           if (t.dataset.mand) { await api.patchRelease(rel.id, { mandatory: !rel.mandatory }); ui.toast(!rel.mandatory ? 'Agora é obrigatória' : 'Agora é opcional', { type: 'ok' }); }
           if (t.dataset.pub) { await api.patchRelease(rel.id, { published: !rel.published }); ui.toast(rel.published ? 'Versão ocultada' : 'Versão publicada', { type: 'ok' }); }
           if (t.dataset.link) { try { await navigator.clipboard.writeText(rel.apk_url); ui.toast('Link do APK copiado', { type: 'ok', icon: 'copy' }); } catch (e3) { ui.alert({ title: 'Link do APK', message: u.esc(rel.apk_url) }); } return; }
@@ -349,17 +368,18 @@
 
   function publish(done) {
     const next = Math.max(1, ...(cache.releases || []).map(r => r.version_code)) + ((cache.releases || []).length ? 1 : 1);
-    let file = null, mandatory = false;
+    let file = null, mandatory = false, info = null;
     ui.sheet({
       title: 'Publicar nova versão',
       body: `
         <label class="apk-drop glass-lite" data-drop>${I('upload', 28, 1.8)}<b data-fname>Escolher o APK</b><small data-fsize>Arquivo .apk gerado no AIDE</small>
           <input type="file" accept=".apk,application/vnd.android.package-archive,application/octet-stream" class="sr" data-file></label>
+        <div class="apk-info hidden" data-info></div>
         <div class="row2" style="margin-top:14px">
-          <div class="field"><label>Código da versão</label><div class="input"><input data-code type="number" inputmode="numeric" value="${next}"></div></div>
+          <div class="field"><label>Número da versão</label><div class="input"><input data-code type="number" inputmode="numeric" value="${next}"></div></div>
           <div class="field"><label>Nome da versão</label><div class="input"><input data-name placeholder="Ex.: 1.2.0" autocomplete="off"></div></div>
         </div>
-        <p class="hint" style="margin-top:-6px">O código precisa ser igual ao <b>versionCode</b> do build.gradle do APK e maior que o da versão instalada nos aparelhos.</p>
+        <p class="hint" style="margin-top:-6px">Você escolhe o número e o nome. O servidor reconhece a versão instalada pela <b>impressão digital do APK</b>, então não precisa bater com o build.gradle.</p>
         <div class="field" style="margin-top:12px"><label>Novidades (aparece para o usuário)</label><div class="input"><textarea data-notes placeholder="• Correções e melhorias"></textarea></div></div>
         <button type="button" class="cell glass-lite" data-mand style="border-radius:18px"><span class="ci" style="--cc:#ff3b4e">${I('lock', 18)}</span>
           <span class="ct"><b>Atualização obrigatória</b><small>O app fica bloqueado até a pessoa atualizar</small></span><span class="switch"></span></button>
@@ -367,19 +387,48 @@
       foot: `<button class="btn primary block" data-send>${I('upload', 20)}Enviar e publicar</button>`,
       onMount(el, ctl) {
         const $ = s => ctl.$(s);
-        $('[data-file]').addEventListener('change', e => {
+        $('[data-file]').addEventListener('change', async e => {
           file = e.target.files && e.target.files[0];
+          info = null;
           if (!file) return;
           $('[data-fname]').textContent = file.name;
-          $('[data-fsize]').textContent = mb(file.size);
+          $('[data-fsize]').textContent = mb(file.size) + ' · lendo o APK…';
           $('[data-drop]').classList.add('picked');
-          const m = file.name.match(/(\d+\.\d+(\.\d+)?)/);
-          if (m && !$('[data-name]').value) $('[data-name]').value = m[1];
+          const box = $('[data-info]');
+          box.classList.remove('hidden');
+          box.innerHTML = '<span class="spinner sm"></span> Lendo versão e impressão digital…';
+          try {
+            info = await RS.apk.inspect(file);
+            $('[data-fsize]').textContent = mb(file.size);
+            const rels = cache.releases || [];
+            const dup = rels.find(r => r.sha256 && r.sha256 === info.sha256);
+            const lastApk = Math.max(0, ...rels.filter(r => r.published && r.apk_version_code).map(r => r.apk_version_code));
+            const wrongPkg = info.packageName && info.packageName !== RS.config.targetPackage;
+            const warns = [];
+            if (wrongPkg) warns.push(`<p class="w-err">${I('alert', 14)} Este APK é de outro app (${u.esc(info.packageName)}). Envie o APK do RS Stock (${RS.config.targetPackage}).</p>`);
+            if (dup) warns.push(`<p class="w-err">${I('alert', 14)} Este mesmo APK já foi publicado como v${u.esc(dup.version_name)}.</p>`);
+            if (info.versionCode && lastApk && info.versionCode < lastApk) warns.push(`<p class="w-warn">${I('alert', 14)} O versionCode deste APK (${info.versionCode}) é menor que o da última versão publicada (${lastApk}). O Android não instala versão menor por cima — aumente o versionCode no build.gradle.</p>`);
+            box.innerHTML = `<div class="apk-grid">
+                <div><small>Pacote</small><b>${u.esc(info.packageName || '—')}</b></div>
+                <div><small>versionCode do APK</small><b class="num">${info.versionCode ?? '—'}</b></div>
+                <div><small>versionName do APK</small><b>${u.esc(info.versionName || '—')}</b></div>
+                <div><small>Impressão digital</small><b class="num">${info.sha256.slice(0, 12)}…</b></div></div>${warns.join('')}`;
+            info.blocked = !!(wrongPkg || dup);
+            if (!$('[data-name]').dataset.touched) $('[data-name]').value = info.versionName || '';
+            const suggested = Math.max(next, info.versionCode || 0);
+            if (!$('[data-code]').dataset.touched) $('[data-code]').value = suggested;
+          } catch (err2) {
+            box.innerHTML = `<p class="w-warn">${I('alert', 14)} ${u.esc(err2.message)} — preencha a versão manualmente.</p>`;
+            info = { sha256: null, versionCode: null, packageName: '', blocked: false };
+          }
         });
+        ['[data-code]', '[data-name]'].forEach(sel => $(sel).addEventListener('input', e => { e.target.dataset.touched = '1'; }));
         $('[data-mand]').onclick = () => { ui.tap(); mandatory = !mandatory; $('[data-mand] .switch').classList.toggle('on', mandatory); };
         $('[data-send]').onclick = async () => {
           const code = parseInt($('[data-code]').value, 10), name = $('[data-name]').value.trim();
           if (!file) return ui.toast('Escolha o arquivo APK', { type: 'warn' });
+          if (!info) return ui.toast('Aguarde a leitura do APK', { type: 'warn' });
+          if (info.blocked) return ui.toast('Corrija o aviso em vermelho antes de publicar', { type: 'err' });
           if (!code || !name) return ui.toast('Preencha o código e o nome da versão', { type: 'warn' });
           if ((cache.releases || []).some(r => r.version_code === code)) return ui.toast('Já existe uma versão com esse código', { type: 'warn' });
           const btn = $('[data-send]'); btn.disabled = true;
@@ -389,7 +438,8 @@
             const path = `rsstock-${code}-${Date.now()}.apk`;
             const url = await api.uploadApk(file, path, setP);
             const me = RS.admin.me || {};
-            await api.saveRelease({ version_code: code, version_name: name, notes: $('[data-notes]').value.trim(), mandatory, apk_path: path, apk_url: url, apk_size: file.size, published: true, created_by: me.id || null });
+            await api.saveRelease({ version_code: code, version_name: name, notes: $('[data-notes]').value.trim(), mandatory, apk_path: path, apk_url: url, apk_size: file.size, published: true, created_by: me.id || null,
+              sha256: info.sha256, apk_version_code: info.versionCode, package_name: info.packageName || null });
             ctl.close();
             ui.toast(`v${name} publicada${mandatory ? ' como obrigatória' : ''}`, { type: 'ok', icon: 'check', duration: 3500 });
             done();

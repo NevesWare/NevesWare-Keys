@@ -142,6 +142,11 @@ public class WebBridge {
     }
 
     @JavascriptInterface
+    public String apkSha256() {
+        return Updater.installedSha256(a);
+    }
+
+    @JavascriptInterface
     public boolean hasDownloadedUpdate() {
         return Updater.file(a).exists();
     }

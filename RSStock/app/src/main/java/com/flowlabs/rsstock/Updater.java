@@ -21,6 +21,29 @@ final class Updater {
     private Updater() {
     }
 
+    /** SHA-256 do APK instalado (cache até o app ser atualizado). O servidor compara com o APK publicado. */
+    static String installedSha256(android.content.Context c) {
+        try {
+            android.content.pm.PackageInfo pi = c.getPackageManager().getPackageInfo(c.getPackageName(), 0);
+            String key = "apk_sha_" + pi.lastUpdateTime;
+            android.content.SharedPreferences sp = Store.prefs(c);
+            String cached = sp.getString("apk_sha_key", "");
+            if (key.equals(cached)) return sp.getString("apk_sha", "");
+            java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
+            java.io.FileInputStream in = new java.io.FileInputStream(c.getApplicationInfo().sourceDir);
+            byte[] buf = new byte[128 * 1024];
+            int n;
+            while ((n = in.read(buf)) > 0) md.update(buf, 0, n);
+            in.close();
+            StringBuilder sb = new StringBuilder();
+            for (byte b : md.digest()) sb.append(String.format("%02x", b));
+            sp.edit().putString("apk_sha_key", key).putString("apk_sha", sb.toString()).apply();
+            return sb.toString();
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
     static File file(MainActivity a) {
         return new File(ShareProvider.dir(a), FILE);
     }

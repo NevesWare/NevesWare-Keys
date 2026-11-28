@@ -18,9 +18,12 @@ Painel administrativo do **RS Stock** — FlowLabs Studio. Pacote: `com.flowlabs
 3. Para dar acesso a outra pessoa: Contas › escolha a conta › **Tornar admin**.
 
 ## Publicar uma atualização
-1. No `RSStock/app/build.gradle`, aumente `versionCode` (ex.: 2 → 3) e `versionName` (ex.: 1.1.0 → 1.2.0).
-2. Compile o APK no AIDE.
-3. RS Admin › Versões › **Publicar nova versão** → escolha o APK, informe o mesmo código/nome, escreva as novidades
-   e marque “Atualização obrigatória” se necessário.
+1. Compile o APK do RS Stock no AIDE (de preferência aumentando o `versionCode` no build.gradle — o Android não instala
+   um APK com versionCode **menor** que o instalado).
+2. RS Admin › Versões › **Publicar nova versão** → escolha o APK. O admin lê sozinho o pacote, o versionCode, o versionName
+   e calcula a **impressão digital (SHA-256)** do arquivo.
+3. Ajuste o **número** e o **nome da versão** como quiser, escreva as novidades e marque “Atualização obrigatória” se precisar.
+4. Os aparelhos enviam a impressão digital do APK instalado; o servidor (`check_update`) compara com a última versão
+   publicada e responde se está atualizado. O painel mostra quantos aparelhos estão atualizados/desatualizados.
 
 Banco: veja `docs/supabase-schema.sql`.

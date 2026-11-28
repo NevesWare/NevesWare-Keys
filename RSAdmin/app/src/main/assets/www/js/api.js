@@ -59,6 +59,7 @@
 
     stats: async () => must(await db.rpc('admin_stats')),
     accounts: async () => must(await db.rpc('admin_accounts')),
+    updateStats: async () => must(await db.rpc('admin_update_stats')),
 
     async account(id) {
       const [p, st, pr, mv] = await Promise.all([

@@ -155,7 +155,8 @@
       try {
         const info = RS.native.info();
         const { data, error } = await this.client.rpc('touch_session', {
-          p_version_code: Number(info.versionCode) || cfg.versionCode, p_version_name: info.version || cfg.version, p_device: info.device || navigator.userAgent.slice(0, 80)
+          p_version_code: Number(info.versionCode) || cfg.versionCode, p_version_name: info.version || cfg.version,
+          p_device: info.device || navigator.userAgent.slice(0, 80), p_sha: RS.native.apkSha() || null
         });
         if (error) throw error;
         this.profile = data;

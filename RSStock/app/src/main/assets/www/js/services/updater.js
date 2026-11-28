@@ -20,12 +20,13 @@
   const prevProgress = window.App.onUpdateProgress;
   window.App.onUpdateProgress = pct => { if (onProgress) onProgress(pct); if (prevProgress) prevProgress(pct); };
 
+  /* O servidor compara a impressão digital (SHA-256) do APK instalado com a da última versão publicada. */
   async function latest() {
     const db = RS.auth.client;
     if (!db) return null;
-    const { data, error } = await db.from('app_releases').select('*').eq('published', true).order('version_code', { ascending: false }).limit(1);
-    if (error || !data || !data.length) return null;
-    return data[0];
+    const { data, error } = await db.rpc('check_update', { p_sha: RS.native.apkSha() || null, p_version_code: currentCode() });
+    if (error || !data) return null;
+    return data;
   }
 
   /* Baixa e instala. Devolve true se o instalador abriu. */
@@ -94,7 +95,7 @@
       foot: `<div class="btn-row"><button class="btn ghost" data-later>Depois</button><button class="btn primary" data-up>${ui.icon('download', 20)}Atualizar</button></div>`,
       onMount(el, ctl) {
         const st = ctl.$('[data-st]'), bar = ctl.$('[data-bar]');
-        ctl.$('[data-later]').onclick = () => { localStorage.setItem(SKIP, String(rel.version_code)); ctl.close(); };
+        ctl.$('[data-later]').onclick = () => { localStorage.setItem(SKIP, String(rel.sha256 || rel.version_code)); ctl.close(); };
         ctl.$('[data-up]').onclick = () => { ui.tap(); installAgain(rel, (t, p) => { st.textContent = t; if (p != null) bar.style.width = p + '%'; }); };
       }
     });
@@ -106,14 +107,15 @@
       if (!RS.config.features.updates) return;
       if (!manual && Date.now() - lastCheck < 20 * 60000) return;
       lastCheck = Date.now();
-      let rel = null;
-      try { rel = await latest(); } catch (e) { rel = null; }
-      if (!rel || rel.version_code <= currentCode()) {
-        if (manual) ui.toast(rel ? 'Você já está na versão mais recente' : 'Não foi possível verificar agora', { type: rel ? 'ok' : 'warn', icon: 'check' });
+      let res = null;
+      try { res = await latest(); } catch (e) { res = null; }
+      const rel = res && res.release;
+      if (!res || !rel || res.up_to_date || !res.installable) {
+        if (manual) ui.toast(!res ? 'Não foi possível verificar agora' : 'Você já está na versão mais recente', { type: res ? 'ok' : 'warn', icon: 'check' });
         return;
       }
       if (rel.mandatory) return blocking(rel);
-      if (!manual && localStorage.getItem(SKIP) === String(rel.version_code)) return;
+      if (!manual && localStorage.getItem(SKIP) === String(rel.sha256 || rel.version_code)) return;
       optional(rel);
     }
   };

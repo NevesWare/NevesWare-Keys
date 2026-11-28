@@ -39,6 +39,8 @@
 
   RS.native = {
     _wait(id, fn) { pending[id] = fn; },
+    /* Impressão digital (SHA-256) do APK instalado — o servidor usa para saber se está atualizado. */
+    apkSha() { if (!B || !B.apkSha256) return ''; try { return B.apkSha256() || ''; } catch (e) { return ''; } },
     isApp: !!B,
 
     info() {

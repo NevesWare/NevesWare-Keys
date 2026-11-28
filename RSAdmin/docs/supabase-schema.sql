@@ -28,3 +28,9 @@
 --   on_auth_user_created  → cria o profile com o nick do cadastro
 --   on_auth_user_email    → mantém o e-mail do profile em dia
 --   profiles_guard        → impede usuário comum de mudar o próprio cargo/situação
+--
+-- ATUALIZAÇÕES (migração rsstock_release_fingerprints)
+--   app_releases.sha256 / apk_version_code / package_name — lidos do APK pelo RS Admin
+--   profiles.app_sha256 — impressão digital do APK instalado em cada aparelho
+--   check_update(sha, version_code) — o servidor responde { up_to_date, installable, release }
+--   admin_update_stats() — atualizados x desatualizados (painel)

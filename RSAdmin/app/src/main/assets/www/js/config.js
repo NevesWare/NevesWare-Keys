@@ -11,5 +11,6 @@ RS.config = {
      são as regras RLS e a função "admin-users" (que confere se você é admin). */
   supabase: { url: 'https://yycbznbocdylbghutdrp.supabase.co', anonKey: 'sb_publishable_mZUjcoDsUf1CYahMdGtK5g_ZJjRXos3' },
   releasesBucket: 'apks',
+  targetPackage: 'com.flowlabs.rsstock',   // pacote do app que recebe as atualizações
   accents: { violet: { name: 'Violeta', a: '#7c5cff', b: '#4cc9ff', rgb: '124, 92, 255' } }
 };

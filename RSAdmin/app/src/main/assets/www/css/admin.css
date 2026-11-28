@@ -58,3 +58,9 @@
 .up-progress i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width .25s; }
 .up-progress small { display: block; text-align: center; font-size: .78rem; color: var(--text-2); margin-top: 8px; }
 .hotbar .hb { flex: 1; }
+.apk-info { margin-top: 12px; padding: 12px; border-radius: 18px; background: var(--glass); border: 1px solid var(--stroke); font-size: .8rem; color: var(--text-2); }
+.apk-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.apk-grid small { display: block; font-size: .68rem; color: var(--text-3); }
+.apk-grid b { display: block; font-size: .86rem; color: var(--text); word-break: break-all; }
+.w-err, .w-warn { display: flex; gap: 6px; align-items: flex-start; margin-top: 10px; font-size: .78rem; line-height: 1.4; }
+.w-err { color: var(--c-danger); } .w-warn { color: var(--c-mid); }
