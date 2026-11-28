@@ -14,9 +14,8 @@ public class ExpiryReceiver extends BroadcastReceiver {
                 Notifier.checkAndNotify(context, false);
             } else if (AlertScheduler.ACTION_WEEKLY.equals(action)) {
                 Notifier.weekly(context, false);
-            } else {
-                AlertScheduler.schedule(context);
             }
+            AlertScheduler.schedule(context); // próximo disparo (alarmes exatos não se repetem sozinhos)
         } catch (Throwable ignored) {
         }
         RSWidget.updateAll(context);

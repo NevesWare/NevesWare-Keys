@@ -20,6 +20,21 @@
     return html;
   }
 
+  /* Um card por produto; se tiver várias datas mostra quantas e a mais próxima */
+  function groupRow(g, opts) {
+    if (g.lots.length === 1) return RS.itemRow(g.lots[0], opts);
+    const p = g.lead;
+    const meta = [g.lots.length + ' datas', u.fmtQty(g.qty, p.unit), p.category].filter(Boolean).join(' · ');
+    return `<button class="item glass-lite s-${p.status} ${opts.sel ? 'sel' : ''}" data-open="${p.id}">
+      ${opts.select ? `<span class="chk">${opts.sel ? ui.icon('check', 14, 3) : ''}</span>` : ''}
+      <span class="ic">${u.esc(u.initials(p.name))}<i class="lot-badge num">${g.lots.length}</i></span>
+      <span class="body"><span class="name">${u.esc(p.name)}</span><span class="meta">${u.esc(meta)}</span>
+        <span class="lot-dots">${g.lots.slice(0, 8).map(l => `<i class="s-${l.status}" title="${u.fmtDate(l.expiry)}"></i>`).join('')}</span></span>
+      <span class="side">${p.status === 'expired' ? '<span class="tag-exp">Vencido</span>' : `<span class="when">${u.esc(u.rel(p.days, true))}</span>`}<span class="date num">${u.fmtShort(p.expiry)}</span></span>
+    </button>`;
+  }
+  const groupsNow = () => s.groups(current());
+
   function current() { return s.query({ text: state.text, status: state.status, date: state.date, category: state.category, sort: s.settings.productsSort }); }
 
   function listHtml() {
@@ -30,8 +45,9 @@
         <p>Cadastre produtos com nome, validade e, se quiser, o código de barras.</p>
         <button class="btn primary" data-act="add">${ui.icon('plus', 20)}Adicionar produto</button></div>`;
     }
-    return list.length ? `<div class="list">${list.map(p => RS.itemRow(p, { select: state.select, sel: state.sel.has(p.id) })).join('')}</div>
-        <p class="hint" style="text-align:center;margin-top:14px">${state.select ? 'Toque para marcar · ' : 'Segure um item para selecionar vários · '}${u.plural(list.length, 'produto', 'produtos')}</p>` :
+    const gs = s.groups(list);
+    return list.length ? `<div class="list">${gs.map(g => groupRow(g, { select: state.select, sel: state.sel.has(g.lead.id) })).join('')}</div>
+        <p class="hint" style="text-align:center;margin-top:14px">${state.select ? 'Toque para marcar · ' : 'Segure um item para selecionar vários · '}${u.plural(gs.length, 'produto', 'produtos')}${list.length > gs.length ? ' · ' + list.length + ' datas' : ''}</p>` :
       `<div class="empty glass-lite"><div class="art">${ui.icon('search', 34, 1.8)}</div><h3>Nada encontrado</h3><p>Tente outro termo ou filtro.</p></div>`;
   }
 
@@ -117,12 +133,13 @@
         else if (a === 'add') RS.editor.open();
         else if (a === 'stores') RS.stores.picker();
         else if (a === 'exit-sel') { state.select = false; state.sel.clear(); refresh(); }
-        else if (a === 'sel-all') { const l = current(); state.sel = state.sel.size === l.length ? new Set() : new Set(l.map(p => p.id)); refresh(); }
+        else if (a === 'sel-all') { const l = groupsNow(); state.sel = state.sel.size === l.length ? new Set() : new Set(l.map(g => g.lead.id)); refresh(); }
         else if (a === 'sel-del') {
           const n = state.sel.size;
           const ok = await ui.confirm({ title: `Excluir ${u.plural(n, 'produto', 'produtos')}?`, message: 'Os itens selecionados serão removidos do estoque.', confirm: 'Excluir', danger: true });
           if (!ok) return;
-          const removed = await s.removeMany(Array.from(state.sel));
+          const all = []; Array.from(state.sel).forEach(id => s.lotsOf(id).forEach(l => all.push(l.id)));
+          const removed = await s.removeMany(all);
           state.select = false; state.sel.clear();
           refresh();
           ui.toast(u.plural(n, 'produto excluído', 'produtos excluídos'), { icon: 'trash', action: { label: 'Desfazer', fn: () => s.restore(removed) } });

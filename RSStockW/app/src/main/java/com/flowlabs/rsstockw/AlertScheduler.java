@@ -8,7 +8,7 @@ import android.os.Build;
 
 import java.util.Calendar;
 
-/** Agenda (ou cancela) a verificação diária de validades no horário escolhido pelo usuário. */
+/** Agenda a verificação diária de validades (horário do usuário) e o resumo semanal, com alarmes exatos. */
 final class AlertScheduler {
     static final String ACTION_CHECK = "com.flowlabs.rsstockw.CHECK_EXPIRY";
     static final String ACTION_WEEKLY = "com.flowlabs.rsstockw.WEEKLY_SUMMARY";
@@ -47,7 +47,17 @@ final class AlertScheduler {
         cal.set(Calendar.MILLISECOND, 0);
         while (cal.getTimeInMillis() <= System.currentTimeMillis()) cal.add(Calendar.DAY_OF_YEAR, 7);
 
-        am.setInexactRepeating(AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(), AlarmManager.INTERVAL_DAY * 7, pi);
+        setExact(am, cal.getTimeInMillis(), pi);
+    }
+
+    /** Alarme exato (toca na hora certa mesmo com o celular em repouso); é reagendado a cada disparo. */
+    private static void setExact(AlarmManager am, long at, PendingIntent pi) {
+        try {
+            if (Build.VERSION.SDK_INT >= 23) am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pi);
+            else am.setExact(AlarmManager.RTC_WAKEUP, at, pi);
+        } catch (SecurityException e) {
+            am.set(AlarmManager.RTC_WAKEUP, at, pi);
+        }
     }
 
     static void schedule(Context c) {
@@ -67,6 +77,6 @@ final class AlertScheduler {
         cal.set(Calendar.MILLISECOND, 0);
         if (cal.getTimeInMillis() <= System.currentTimeMillis()) cal.add(Calendar.DAY_OF_YEAR, 1);
 
-        am.setInexactRepeating(AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(), AlarmManager.INTERVAL_DAY, pi);
+        setExact(am, cal.getTimeInMillis(), pi);
     }
 }

@@ -3,7 +3,8 @@
   const u = RS.u, ui = RS.ui, s = RS.store;
 
   function itemRow(p, opts = {}) {
-    const meta = [u.fmtQty(p.quantity, p.unit), p.category].filter(Boolean).join(' · ');
+    const n = opts.lotsN != null ? opts.lotsN : s.lotsOf(p.id).length;
+    const meta = [u.fmtQty(p.quantity, p.unit) + (n > 1 ? ' nesta data' : ''), n > 1 ? n + ' datas' : p.category].filter(Boolean).join(' · ');
     return `<button class="item glass-lite s-${p.status} ${opts.sel ? 'sel' : ''}" data-open="${p.id}">
       ${opts.select ? `<span class="chk">${opts.sel ? ui.icon('check', 14, 3) : ''}</span>` : ''}
       <span class="ic">${u.esc(u.initials(p.name))}</span>
@@ -70,7 +71,7 @@
 
       <section class="card glass hero-card">
         <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:10px">
-          <div><b class="num hero-num">${c.total}</b> <span class="muted">${c.total === 1 ? 'produto' : 'produtos'}</span>
+          <div><b class="num hero-num">${c.items}</b> <span class="muted">${c.items === 1 ? 'produto' : 'produtos'}${c.total > c.items ? ' · ' + c.total + ' datas' : ''}</span>
             <p class="hero-msg ${c.alerts ? 'alert' : ''}">${msg}</p></div>
           <span class="faint num" style="font-size:.76rem;text-align:right">${(Math.round(c.units * 100) / 100).toLocaleString('pt-BR')}<br>unidades</span>
         </div>

@@ -54,7 +54,54 @@ final class Notifier {
     static final class Item {
         String name;
         String store;
+        String expiry;
+        String qty;
         long days;
+    }
+
+    static final long[] PATTERN = {0, 700, 250, 700, 250, 1200};
+
+    /** Canal conforme o som/vibração escolhidos (no Android 8+ o canal não pode mudar depois de criado). */
+    static String alertChannel(Context c, String sound, boolean vibrate) {
+        String id = "rs_alert_" + sound + (vibrate ? "_v" : "");
+        if (Build.VERSION.SDK_INT < 26) return id;
+        NotificationManager nm = (NotificationManager) c.getSystemService(Context.NOTIFICATION_SERVICE);
+        if (nm == null || nm.getNotificationChannel(id) != null) return id;
+        String name = "alarm".equals(sound) ? "Alertas de validade (alarme)" : "silent".equals(sound) ? "Alertas de validade (silencioso)" : "Alertas de validade";
+        NotificationChannel ch = new NotificationChannel(id, name, NotificationManager.IMPORTANCE_HIGH);
+        ch.setDescription(c.getString(R.string.channel_alerts_desc));
+        ch.enableLights(true);
+        ch.setLightColor(Color.parseColor("#FF3B4E"));
+        ch.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
+        if ("silent".equals(sound)) {
+            ch.setSound(null, null);
+        } else {
+            boolean alarm = "alarm".equals(sound);
+            android.net.Uri uri = android.media.RingtoneManager.getDefaultUri(alarm ? android.media.RingtoneManager.TYPE_ALARM : android.media.RingtoneManager.TYPE_NOTIFICATION);
+            if (uri == null) uri = android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_NOTIFICATION);
+            android.media.AudioAttributes aa = new android.media.AudioAttributes.Builder()
+                    .setUsage(alarm ? android.media.AudioAttributes.USAGE_ALARM : android.media.AudioAttributes.USAGE_NOTIFICATION)
+                    .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build();
+            ch.setSound(uri, aa);
+        }
+        ch.enableVibration(vibrate);
+        if (vibrate) ch.setVibrationPattern(PATTERN);
+        nm.createNotificationChannel(ch);
+        return id;
+    }
+
+    static String ddmm(String iso) {
+        try {
+            String[] p = iso.split("-");
+            return p[2] + "/" + p[1];
+        } catch (Exception e) {
+            return iso;
+        }
+    }
+
+    static String line(Item it, boolean withStore) {
+        return it.name + " — " + it.qty + " · " + label(it.days) + " (" + ddmm(it.expiry) + ")" + (withStore && it.store.length() > 0 ? " · " + it.store : "");
     }
 
     /** Dias entre hoje e a data "AAAA-MM-DD" (negativo = vencido). */
@@ -83,24 +130,30 @@ final class Notifier {
     }
 
     /**
-     * @param test quando true, envia mesmo sem produtos (para o botão "Testar notificação").
+     * Alerta diário. Uma notificação por mercado ("Mercado X: Leite vence amanhã"), com som de
+     * alarme ou de notificação, vibração e, se escolhido, tocando até abrir.
+     * @param test quando true, envia mesmo sem produtos (botão "Testar notificação").
      * @return quantidade de produtos incluídos no alerta.
      */
     static int checkAndNotify(Context c, boolean test) {
         JSONObject settings = Store.settings(c);
         if (!test && !settings.optBoolean("enabled", true)) return 0;
         if (!test) {
-            // no máximo um alerta diário (o alarme inexato pode disparar mais de uma vez)
-            String today = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(new java.util.Date());
-            if (today.equals(Store.prefs(c).getString(Store.KEY_LAST_NOTIFIED, ""))) return 0;
-            Store.prefs(c).edit().putString(Store.KEY_LAST_NOTIFIED, today).apply();
+            // no máximo um alerta por horário configurado (o alarme pode disparar mais de uma vez)
+            String key = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(new java.util.Date())
+                    + "@" + settings.optInt("hour", 9) + ":" + settings.optInt("minute", 0);
+            if (key.equals(Store.prefs(c).getString(Store.KEY_LAST_NOTIFIED, ""))) return 0;
+            Store.prefs(c).edit().putString(Store.KEY_LAST_NOTIFIED, key).apply();
         }
         int daysBefore = settings.optInt("daysBefore", 7);
         boolean includeExpired = settings.optBoolean("notifyExpired", true);
+        String sound = settings.optString("sound", "alarm");
+        boolean vibrate = settings.optBoolean("vibrate", true);
+        boolean insistent = settings.optBoolean("insistent", false);
+        boolean perStore = settings.optBoolean("perStore", true);
 
         JSONArray arr = Store.products(c);
         List<Item> items = new ArrayList<Item>();
-        int expired = 0, today = 0, soon = 0;
         for (int i = 0; i < arr.length(); i++) {
             JSONObject o = arr.optJSONObject(i);
             if (o == null) continue;
@@ -108,17 +161,16 @@ final class Notifier {
             if (d == Long.MAX_VALUE) continue;
             if (d < 0 && !includeExpired) continue;
             if (d > daysBefore) continue;
+            if (o.optDouble("quantity", 1) <= 0 && d < 0) continue; // vencido já zerado: não precisa avisar
             Item it = new Item();
             it.name = o.optString("name", "Produto");
             it.store = o.optString("store", "");
+            it.expiry = o.optString("expiry", "");
+            double q = o.optDouble("quantity", 0);
+            it.qty = (q == Math.floor(q) ? String.valueOf((long) q) : String.valueOf(q)) + " " + o.optString("unit", "un");
             it.days = d;
             items.add(it);
-            if (d < 0) expired++;
-            else if (d == 0) today++;
-            else soon++;
         }
-
-        if (items.isEmpty() && !test) return 0;
         Collections.sort(items, new Comparator<Item>() {
             @Override
             public int compare(Item a, Item b) {
@@ -126,59 +178,113 @@ final class Notifier {
             }
         });
 
-        String title;
-        StringBuilder summary = new StringBuilder();
+        NotificationManager nm = (NotificationManager) c.getSystemService(Context.NOTIFICATION_SERVICE);
+        if (nm == null) return 0;
+        String channel = alertChannel(c, sound, vibrate);
+
         if (items.isEmpty()) {
-            title = "Tudo em dia ✨";
-            summary.append("As notificações do RS Stock estão funcionando.");
-        } else {
-            title = items.size() == 1 ? "1 produto precisa de atenção" : items.size() + " produtos precisam de atenção";
-            if (expired > 0) summary.append(expired).append(expired == 1 ? " vencido" : " vencidos");
-            if (today > 0) {
-                if (summary.length() > 0) summary.append(" · ");
-                summary.append(today).append(" vence hoje");
-            }
-            if (soon > 0) {
-                if (summary.length() > 0) summary.append(" · ");
-                summary.append(soon).append(soon == 1 ? " vence em breve" : " vencem em breve");
-            }
+            if (!test) return 0;
+            Notification.Builder b = builder(c, channel, sound, vibrate);
+            b.setContentTitle("Tudo em dia ✨").setContentText("As notificações do RS Stock estão funcionando — assim você será avisado.");
+            nm.notify(NOTIF_ID, b.build());
+            return 0;
         }
 
+        // agrupa por mercado, na ordem do mais urgente
+        java.util.LinkedHashMap<String, List<Item>> byStore = new java.util.LinkedHashMap<String, List<Item>>();
+        for (Item it : items) {
+            String k = perStore ? it.store : "";
+            List<Item> l = byStore.get(k);
+            if (l == null) {
+                l = new ArrayList<Item>();
+                byStore.put(k, l);
+            }
+            l.add(it);
+        }
+        boolean grouped = byStore.size() > 1 && Build.VERSION.SDK_INT >= 24;
+        boolean first = true;
+        for (java.util.Map.Entry<String, List<Item>> e : byStore.entrySet()) {
+            String store = e.getKey();
+            List<Item> l = e.getValue();
+            Item top = l.get(0);
+            int expired = 0;
+            for (Item it : l) if (it.days < 0) expired++;
+            String where = store.length() > 0 ? store : "Seu estoque";
+            String title;
+            if (l.size() == 1) {
+                title = "🏪 " + where + ": " + top.name + " " + label(top.days);
+            } else {
+                title = "🏪 " + where + " · " + l.size() + " produtos" + (expired > 0 ? " (" + expired + (expired == 1 ? " vencido)" : " vencidos)") : " vencendo");
+            }
+            Notification.Builder b = builder(c, channel, sound, vibrate);
+            b.setContentTitle(title).setContentText(l.size() == 1 ? top.qty + " · validade " + ddmm(top.expiry) : line(top, !perStore));
+            Notification.InboxStyle style = new Notification.InboxStyle();
+            int max = Math.min(l.size(), 7);
+            for (int i = 0; i < max; i++) style.addLine(line(l.get(i), !perStore));
+            if (l.size() > max) style.setSummaryText("+" + (l.size() - max) + " outros");
+            style.setBigContentTitle(title);
+            b.setStyle(style).setNumber(l.size());
+            if (grouped) {
+                b.setGroup("rs_alerts");
+                if (Build.VERSION.SDK_INT >= 26) b.setGroupAlertBehavior(Notification.GROUP_ALERT_SUMMARY);
+            }
+            Notification n = b.build();
+            if (insistent && first && !grouped) n.flags |= Notification.FLAG_INSISTENT;
+            nm.notify(5000 + (where.hashCode() & 0xFFF), n);
+            first = false;
+        }
+        if (grouped) {
+            Notification.Builder sb = builder(c, channel, sound, vibrate);
+            sb.setContentTitle(items.size() + " produtos precisam de atenção")
+                    .setContentText(byStore.size() + " mercados")
+                    .setGroup("rs_alerts").setGroupSummary(true);
+            Notification n = sb.build();
+            if (insistent) n.flags |= Notification.FLAG_INSISTENT;
+            nm.notify(NOTIF_ID, n);
+        }
+        if (vibrate) buzz(c);
+        return items.size();
+    }
+
+    private static Notification.Builder builder(Context c, String channel, String sound, boolean vibrate) {
         Intent open = new Intent(c, MainActivity.class);
         open.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         int flags = PendingIntent.FLAG_UPDATE_CURRENT;
         if (Build.VERSION.SDK_INT >= 23) flags |= PendingIntent.FLAG_IMMUTABLE;
         PendingIntent pi = PendingIntent.getActivity(c, 0, open, flags);
-
-        Notification.Builder b = Build.VERSION.SDK_INT >= 26
-                ? new Notification.Builder(c, CHANNEL_ID)
-                : new Notification.Builder(c);
+        Notification.Builder b = Build.VERSION.SDK_INT >= 26 ? new Notification.Builder(c, channel) : new Notification.Builder(c);
         b.setSmallIcon(R.drawable.ic_notify)
-                .setContentTitle(title)
-                .setContentText(summary.toString())
-                .setColor(Color.parseColor("#7C5CFF"))
+                .setColor(Color.parseColor("#FF3B4E"))
                 .setAutoCancel(true)
                 .setContentIntent(pi)
-                .setCategory(Notification.CATEGORY_REMINDER)
-                .setPriority(Notification.PRIORITY_HIGH)
-                .setDefaults(Notification.DEFAULT_ALL);
-
-        if (!items.isEmpty()) {
-            Notification.InboxStyle style = new Notification.InboxStyle();
-            int max = Math.min(items.size(), 6);
-            for (int i = 0; i < max; i++) {
-                Item it = items.get(i);
-                style.addLine(it.name + " — " + label(it.days) + (it.store.length() > 0 ? " · " + it.store : ""));
+                .setShowWhen(true)
+                .setCategory("alarm".equals(sound) ? Notification.CATEGORY_ALARM : Notification.CATEGORY_REMINDER)
+                .setPriority(Notification.PRIORITY_MAX)
+                .setVisibility(Notification.VISIBILITY_PUBLIC);
+        if (Build.VERSION.SDK_INT < 26) {
+            if ("silent".equals(sound)) {
+                b.setDefaults(Notification.DEFAULT_LIGHTS);
+            } else {
+                boolean alarm = "alarm".equals(sound);
+                android.net.Uri uri = android.media.RingtoneManager.getDefaultUri(alarm ? android.media.RingtoneManager.TYPE_ALARM : android.media.RingtoneManager.TYPE_NOTIFICATION);
+                if (uri == null) uri = android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_NOTIFICATION);
+                b.setSound(uri, alarm ? android.media.AudioManager.STREAM_ALARM : android.media.AudioManager.STREAM_NOTIFICATION);
+                b.setDefaults(Notification.DEFAULT_LIGHTS);
             }
-            if (items.size() > max) style.setSummaryText("+" + (items.size() - max) + " outros");
-            style.setBigContentTitle(title);
-            b.setStyle(style);
-            b.setNumber(items.size());
+            if (vibrate) b.setVibrate(PATTERN);
         }
+        return b;
+    }
 
-        NotificationManager nm = (NotificationManager) c.getSystemService(Context.NOTIFICATION_SERVICE);
-        if (nm != null) nm.notify(NOTIF_ID, b.build());
-        return items.size();
+    /** Vibração extra direta (alguns aparelhos não vibram pelo canal no modo normal). */
+    private static void buzz(Context c) {
+        try {
+            android.os.Vibrator v = (android.os.Vibrator) c.getSystemService(Context.VIBRATOR_SERVICE);
+            if (v == null || !v.hasVibrator()) return;
+            if (Build.VERSION.SDK_INT >= 26) v.vibrate(android.os.VibrationEffect.createWaveform(PATTERN, -1));
+            else v.vibrate(PATTERN, -1);
+        } catch (Throwable ignored) {
+        }
     }
 
     /** Resumo semanal automático: vencidos, o que vence em 7 dias, perdas da semana e rondas pendentes. */

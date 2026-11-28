@@ -289,6 +289,15 @@
             <input type="time" value="${time}" data-time style="background:none;border:0;outline:0;font-size:1rem;font-weight:600;color:var(--accent);color-scheme:${s.isDark() ? 'dark' : 'light'}"></label>
         </div>
 
+        <div class="group-label">Som e vibração</div>
+        <div class="sound-pick">${[['alarm', 'zap', 'Alarme', 'Toca alto, no volume do despertador'], ['sound', 'bell', 'Notificação', 'Som normal de notificação'], ['silent', 'eyeOff', 'Silencioso', 'Só aparece na tela']].map(([k, ic, t, d]) => `<button class="glass-lite ${(n.sound || 'alarm') === k ? 'on' : ''}" data-sound="${k}">${I(ic, 20)}<b>${t}</b><small>${d}</small></button>`).join('')}</div>
+        <div class="group glass-lite" style="margin-top:10px">
+          ${toggle('notif.vibrate', 'phone', '#8b5cf6', 'Vibrar', 'Vibração forte quando chegar o alerta')}
+          ${toggle('notif.insistent', 'refresh', '#ef4444', 'Tocar até eu abrir', 'O som se repete até você ver a notificação')}
+          ${toggle('notif.perStore', 'home', '#0ea5e9', 'Uma notificação por mercado', 'Ex.: “Mercado Rio Sul: Leite Tirol 1L vence amanhã”')}
+        </div>
+        <p class="hint">No modo Alarme o celular toca mesmo com o volume de notificações baixo (usa o volume do despertador). O “Não perturbe” do Android ainda pode silenciar.</p>
+
         <div class="group-label">Incluir</div>
         <div class="group glass-lite">
           ${toggle('notif.notifyExpired', 'alert', '#ff5470', 'Produtos já vencidos', 'Continua lembrando até você remover ou atualizar')}
@@ -338,6 +347,13 @@
           const n = RS.native.testNotification('RS Stock', c.alerts ? c.alerts + ' produtos precisam de atenção' : 'Tudo em dia ✨');
           ui.toast(n === -1 && !RS.native.isApp ? 'Teste enviado (navegador)' : 'Notificação enviada', { type: 'ok', icon: 'bell' });
         }
+      });
+      root.addEventListener('click', e => {
+        const b = e.target.closest('[data-sound]');
+        if (!b) return;
+        ui.tap(); s.set('notif.sound', b.dataset.sound);
+        root.querySelectorAll('[data-sound]').forEach(x => x.classList.toggle('on', x === b));
+        ui.toast(b.dataset.sound === 'alarm' ? 'Alertas vão tocar como alarme' : b.dataset.sound === 'sound' ? 'Som de notificação' : 'Alertas silenciosos', { type: 'ok', icon: 'bell' });
       });
       root.querySelector('[data-wtime]').addEventListener('change', e => {
         const h = Number(e.target.value.split(':')[0]);

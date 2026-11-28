@@ -18,7 +18,7 @@
     introSeen: false,
     currentStoreId: '',
     profile: { name: '', color: 'violet' },
-    notif: { enabled: true, daysBefore: 7, hour: 9, minute: 0, notifyExpired: true, inAppBadge: true, allStores: true, weekly: true, weeklyDay: 1, weeklyHour: 9, roundReminder: true },
+    notif: { enabled: true, daysBefore: 7, hour: 9, minute: 0, notifyExpired: true, inAppBadge: true, allStores: true, sound: 'alarm', vibrate: true, insistent: false, perStore: true, weekly: true, weeklyDay: 1, weeklyHour: 9, roundReminder: true },
     a11y: { fontScale: 1, contrast: false, reduceMotion: false, solid: false, bold: false, large: false },
     /* Compatibilidade com tamanhos de tela e aparelhos */
     compat: { universal: false, layout: 'auto', scale: 'auto', orientation: 'auto', lite: false, noTransitions: false, gpu: true, init: false },
@@ -384,12 +384,15 @@
     },
 
     storeCounts(id) {
-      const c = { total: 0, expired: 0, soon: 0, mid: 0, ok: 0, units: 0 };
+      const c = { total: 0, expired: 0, soon: 0, mid: 0, ok: 0, units: 0, items: 0 };
+      const keys = new Set();
       this.products.forEach(p => {
         if (id && p.storeId !== id) return;
         const st = u.status(u.daysUntil(p.expiry));
         c.total++; c[st]++; c.units += Number(p.quantity) || 0;
+        keys.add(this.groupKey(p));
       });
+      c.items = keys.size;          // produtos distintos (cada um pode ter várias datas)
       c.alerts = c.expired + c.soon;
       return c;
     },
@@ -417,6 +420,70 @@
       return this.products.filter(p => !id || p.storeId === id).map(p => this.enrich(p));
     },
     byId(id) { const p = this.products.find(x => x.id === id); return p ? this.enrich(p) : null; },
+
+    /* ----- Lotes: o mesmo produto (nome + código + loja) com várias datas, cada uma com sua quantidade ----- */
+    groupKey(p) { return (p.storeId || '') + '|' + u.norm((p.name || '').trim()) + '|' + (p.barcode || '').trim(); },
+    lotsOf(id) {
+      const p = this.products.find(x => x.id === id);
+      if (!p) return [];
+      const k = this.groupKey(p);
+      return this.products.filter(x => this.groupKey(x) === k).map(x => this.enrich(x)).sort((a, b) => a.days - b.days || (a.createdAt || '').localeCompare(b.createdAt || ''));
+    },
+    /** Agrupa uma lista (já filtrada/ordenada) de lotes em produtos, mantendo a ordem do primeiro lote de cada um. */
+    groups(list) {
+      const map = new Map();
+      list.forEach(p => {
+        const k = this.groupKey(p);
+        let g = map.get(k);
+        if (!g) { g = { key: k, lead: p, lots: [], qty: 0 }; map.set(k, g); }
+        g.lots.push(p); g.qty += Number(p.quantity) || 0;
+        if (p.days < g.lead.days) g.lead = p;
+      });
+      return Array.from(map.values()).map(g => { g.lots.sort((a, b) => a.days - b.days); g.status = g.lead.status; g.days = g.lead.days; return g; });
+    },
+    /** Salva o produto com todas as suas datas. lots: [{ id?, expiry, quantity }]. removed: ids de lotes apagados. */
+    async saveLots(base, lots, removed = []) {
+      const now = new Date().toISOString();
+      const ses = RS.auth.session();
+      const shared = ['name', 'barcode', 'unit', 'category', 'batch', 'location', 'cost', 'notes', 'storeId'];
+      const out = [];
+      const changes = [];
+      lots.forEach(l => {
+        const idx = l.id ? this.products.findIndex(x => x.id === l.id) : -1;
+        const fields = {}; shared.forEach(k => { if (base[k] !== undefined) fields[k] = base[k]; });
+        if (idx >= 0) {
+          const before = this.products[idx];
+          const item = Object.assign({}, before, fields, { expiry: l.expiry, quantity: l.quantity, updatedAt: now });
+          if (before.expiry !== item.expiry) changes.push('validade ' + u.fmtDate(before.expiry) + ' → ' + u.fmtDate(item.expiry));
+          if (Number(before.quantity) !== Number(item.quantity)) changes.push(u.fmtDate(item.expiry) + ': ' + u.fmtQty(before.quantity, item.unit) + ' → ' + u.fmtQty(item.quantity, item.unit));
+          if (before.name !== item.name && !changes.includes('nome')) changes.push('nome');
+          if (before.storeId !== item.storeId && !changes.some(c => c.startsWith('movido'))) changes.push('movido para ' + this.storeName(item.storeId));
+          this.products[idx] = item; out.push(item);
+        } else {
+          const item = RS.Product(Object.assign({ storeId: this.settings.currentStoreId }, fields, { id: l.id || u.uid(), expiry: l.expiry, quantity: l.quantity, createdAt: now, updatedAt: now }));
+          if (ses && ses.kind !== 'guest') item.userId = ses.id;
+          this.products.unshift(item); out.push(item);
+          this.log('add', item.name, u.fmtQty(item.quantity, item.unit) + ' · vence ' + u.fmtDate(item.expiry), item.storeId);
+        }
+      });
+      removed.forEach(id => {
+        const r = this.products.find(x => x.id === id);
+        if (!r) return;
+        this.products = this.products.filter(x => x.id !== id);
+        this.log('remove', r.name, 'Data ' + u.fmtDate(r.expiry) + ' removida · tinha ' + u.fmtQty(r.quantity, r.unit), r.storeId);
+      });
+      if (changes.length && out[0]) this.log('edit', out[0].name, changes.join(' · '), out[0].storeId);
+      await this.persist();
+      this.syncNative();
+      this.emit('products');
+      return out;
+    },
+    async addLot(id, expiry, quantity) {
+      const p = this.products.find(x => x.id === id);
+      if (!p) return null;
+      const r = await this.saveLots(p, [{ expiry, quantity }]);
+      return r[0];
+    },
     byBarcode(code) {
       if (!code) return null;
       return this.products.find(x => x.barcode === code && x.storeId === this.settings.currentStoreId) || this.products.find(x => x.barcode === code);
@@ -463,7 +530,7 @@
       const real = after - before;
       const why = REASONS[reason] || reason;
       this.log(real < 0 ? 'out' : 'in', p.name,
-        u.fmtQty(Math.abs(real), p.unit) + (why ? ' · ' + why : '') + ' · ' + u.fmtQty(before, p.unit) + ' → ' + u.fmtQty(after, p.unit) + (note ? ' · “' + note + '”' : ''),
+        u.fmtQty(Math.abs(real), p.unit) + (why ? ' · ' + why : '') + ' · ' + u.fmtQty(before, p.unit) + ' → ' + u.fmtQty(after, p.unit) + (note ? ' · “' + note + '”' : '') + (this.lotsOf(p.id).length > 1 ? ' · val. ' + u.fmtDate(p.expiry) : ''),
         p.storeId);
       Object.assign(this.history[0], { qty: Math.abs(real), reason: reason || '', cost: Number(p.cost) || 0 });
       await this.persist();

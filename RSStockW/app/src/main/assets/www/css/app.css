@@ -1141,3 +1141,73 @@ svg { flex-shrink: 0; }
 .wp-item em { font-style: normal; opacity: .75; }
 .steps p { margin: 0 0 10px; font-size: .9rem; line-height: 1.5; }
 .steps p:last-child { margin: 0; }
+
+/* ===================== 2.2 — várias datas por produto (lotes) ===================== */
+.lot-row { display: grid; grid-template-columns: minmax(0, 1fr) 132px 34px; gap: 8px; align-items: center; margin-bottom: 8px; padding: 6px; border-radius: 18px; border: 1px solid transparent; transition: border-color .2s, background .2s, opacity .2s, transform .2s; }
+.lot-row.on { border-color: rgba(var(--accent-rgb), .45); background: rgba(var(--accent-rgb), .07); }
+.lot-row.out { opacity: 0; transform: translateX(30px); }
+.lot-row .input { min-height: 48px; }
+.lot-row .lot-date input { min-width: 0; }
+.stepper.lot-qty { height: 48px; }
+.stepper.lot-qty button { width: 36px; }
+.stepper.lot-qty input { min-width: 0; width: 100%; }
+.lot-del { width: 34px; height: 34px; border-radius: 12px; display: grid; place-items: center; color: var(--text-3); background: var(--glass-2); }
+.lot-del.hidden { visibility: hidden; display: grid; }
+.add-lot { margin-top: 10px; border-style: dashed; }
+@media (max-width: 360px) { .lot-row { grid-template-columns: minmax(0, 1fr) 112px 30px; } .stepper.lot-qty button { width: 30px; } }
+
+.lots-card { padding: 6px 12px; }
+.lot-line { display: flex; align-items: center; gap: 10px; padding: 10px 2px 10px 12px; position: relative; border-bottom: 1px solid var(--glass-3); }
+.lot-line:last-of-type { border-bottom: 0; }
+.lot-line::before { content: ""; position: absolute; left: 0; top: 12px; bottom: 12px; width: 4px; border-radius: 3px; background: var(--sc); }
+.lot-line.cur { background: rgba(var(--accent-rgb), .06); border-radius: 12px; }
+.lot-line .ld { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.lot-line .ld b { font-size: .95rem; }
+.lot-line .ld small { font-size: .74rem; color: var(--text-2); }
+.lot-line .lq { font-size: .92rem; white-space: nowrap; }
+.lot-line .rb { width: 36px; height: 36px; }
+.lot-total { display: flex; justify-content: space-between; padding: 10px 2px 6px; font-size: .84rem; color: var(--text-2); border-top: 1px dashed var(--glass-3); }
+.lot-total b { color: var(--text); }
+.item .ic { position: relative; }
+.lot-badge { position: absolute; right: -5px; top: -5px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; font-style: normal; font-size: .62rem; font-weight: 800; display: grid; place-items: center; background: var(--accent); color: #fff; box-shadow: 0 0 0 2px var(--bg); }
+.lot-dots { display: flex; gap: 4px; margin-top: 5px; }
+.lot-dots i { width: 14px; height: 5px; border-radius: 3px; background: var(--sc); }
+.lot-dots i.s-expired { box-shadow: inset 0 0 0 1px rgba(255,255,255,.45); }
+
+/* ===================== 2.2 — camadas: nada de tela "vazando" por baixo da outra ===================== */
+/* fundo escurecido + fosco atrás de folhas e diálogos (mais forte no tema claro) */
+:root, :root[data-theme="dark"] { --scrim: rgba(3, 4, 8, .62); }
+:root[data-theme="light"] { --scrim: rgba(18, 22, 38, .46); }
+:root[data-theme="coca"] { --scrim: rgba(40, 0, 4, .48); }
+.scrim { -webkit-backdrop-filter: blur(7px) saturate(120%); backdrop-filter: blur(7px) saturate(120%); }
+/* folhas e diálogos quase opacos: o vidro continua na borda/brilho, mas o conteúdo de trás não atrapalha a leitura */
+:root[data-theme="dark"] .sheet.glass { background: rgba(19, 21, 32, .965); }
+:root[data-theme="light"] .sheet.glass { background: rgba(248, 249, 253, .975); }
+:root[data-theme="coca"] .sheet.glass { background: rgba(255, 255, 255, .985); }
+:root[data-theme="dark"] .dialog.glass, :root[data-theme="dark"] .loading-card.glass { background: rgba(23, 25, 37, .97); }
+:root[data-theme="light"] .dialog.glass, :root[data-theme="light"] .loading-card.glass { background: rgba(255, 255, 255, .98); }
+:root[data-theme="dark"] .toast.glass { background: rgba(26, 28, 41, .96); }
+:root[data-theme="light"] .toast.glass { background: rgba(255, 255, 255, .97); }
+/* cartões dentro da folha: sólidos o suficiente para não misturar texto */
+:root[data-theme="light"] .sheet .glass-lite, :root[data-theme="light"] .sheet .kv > div, :root[data-theme="light"] .sheet .lots-card { background: #ffffff; }
+:root[data-theme="dark"] .sheet .glass-lite, :root[data-theme="dark"] .sheet .kv > div { background: rgba(255, 255, 255, .055); }
+.sheet { box-shadow: 0 -18px 50px rgba(0, 0, 0, .28); }
+/* folha aberta por cima de outra: a de trás fica mais fosca */
+.sheet.show + .scrim + .sheet { box-shadow: 0 -18px 60px rgba(0, 0, 0, .4); }
+
+/* troca de tela: a nova entra com um véu fosco e a antiga escurece — sem sobreposição transparente */
+.view.v-in-right::before, .view.v-in-left::before, .view.v-in-up::before, .view.v-in-fade::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: var(--bg); animation: inVeil .5s var(--ease) both; }
+.view.v-in-right, .view.v-in-left, .view.v-in-up, .view.v-in-fade { z-index: 2; isolation: isolate; }
+.view.v-out-left::after, .view.v-out-right::after, .view.v-out-fade::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; background: var(--scrim); animation: outShade .42s var(--ease) both; }
+@keyframes inVeil { 0% { opacity: .94; } 72% { opacity: .9; } 100% { opacity: 0; } }
+@keyframes outShade { from { opacity: 0; } to { opacity: 1; } }
+[data-lite] .scrim { background: color-mix(in srgb, var(--scrim) 100%, rgba(0,0,0,.15)); }
+.sound-pick { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.sound-pick button { border-radius: 18px; padding: 12px 10px; text-align: left; display: flex; flex-direction: column; gap: 4px; color: var(--text-2); border: 1.5px solid transparent; transition: transform .2s var(--spring), border-color .2s; }
+.sound-pick button:active { transform: scale(.96); }
+.sound-pick button.on { border-color: var(--accent); color: var(--accent); background: rgba(var(--accent-rgb), .12); }
+.sound-pick b { color: var(--text); font-size: .86rem; }
+.sound-pick small { font-size: .68rem; line-height: 1.3; }

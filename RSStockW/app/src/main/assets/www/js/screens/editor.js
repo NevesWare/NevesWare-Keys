@@ -16,7 +16,17 @@
     return `<span class="pill s-${st}"><span class="sdot"></span>${u.esc(u.rel(d))}</span><span class="faint">${u.fmtLong(iso)}</span>`;
   }
 
-  function form(p, isNew) {
+  function lotRow(l, active) {
+    return `<div class="lot-row ${active ? 'on' : ''}" ${l.id ? `data-id="${l.id}"` : ''}>
+      <div class="input lot-date"><span class="lead">${ui.icon('calendar', 16)}</span><input name="lexp" type="date" value="${u.esc(l.expiry || '')}" aria-label="Validade"></div>
+      <div class="stepper lot-qty"><button type="button" data-lstep="-1" aria-label="Diminuir">${ui.icon('minus', 16)}</button>
+        <input name="lqty" type="number" inputmode="decimal" min="0" step="any" value="${u.esc(l.quantity == null ? 1 : l.quantity)}" aria-label="Quantidade">
+        <button type="button" data-lstep="1" aria-label="Aumentar">${ui.icon('plus', 16)}</button></div>
+      <button type="button" class="lot-del" data-ldel aria-label="Remover data">${ui.icon('x', 16)}</button>
+    </div>`;
+  }
+
+  function form(p, isNew, lots) {
     const cats = categories();
     const hasMore = p.batch || p.location || p.notes || p.cost;
     return `
@@ -36,22 +46,18 @@
       </div>
 
       <div class="field" data-f="expiry">
-        <label>Data de validade</label>
-        <div class="input"><span class="lead">${ui.icon('calendar', 18)}</span>
-          <input name="expiry" type="date" value="${u.esc(p.expiry)}"></div>
+        <label>Validades e quantidades</label>
+        <div data-lots>${lots.map((l, i) => lotRow(l, i === 0)).join('')}</div>
         <div class="quick-dates row">${QUICK.map((q, i) => `<button type="button" class="chip glass-lite" data-quick="${i}">${q[0]}</button>`).join('')}</div>
-        <div class="date-preview" data-preview>${preview(p.expiry)}</div>
-        <p class="err-msg hidden">Escolha a data de validade.</p>
+        <div class="date-preview" data-preview>${preview(lots[0] && lots[0].expiry)}</div>
+        <button type="button" class="btn ghost sm block add-lot" data-act="addlot">${ui.icon('plus', 18)}Adicionar outra data</button>
+        <p class="hint" style="margin-top:6px">Mesmo produto com datas diferentes? Ex.: 12 un vencem dia 10 e 30 un no mês que vem — cada data com a sua quantidade.</p>
+        <p class="err-msg hidden">Escolha a data de validade de cada linha.</p>
       </div>
 
       <div class="field">
-        <label>Quantidade</label>
-        <div class="row2">
-          <div class="stepper"><button type="button" data-step="-1" aria-label="Diminuir">${ui.icon('minus', 18)}</button>
-            <input name="quantity" type="number" inputmode="decimal" min="0" step="any" value="${u.esc(p.quantity)}">
-            <button type="button" data-step="1" aria-label="Aumentar">${ui.icon('plus', 18)}</button></div>
-          <div class="input" style="padding-right:12px"><select name="unit" aria-label="Unidade">${cfg.units.map(x => `<option ${x === p.unit ? 'selected' : ''}>${x}</option>`).join('')}</select></div>
-        </div>
+        <label>Unidade de medida</label>
+        <div class="input" style="padding-right:12px"><span class="lead">${ui.icon('box', 18)}</span><select name="unit" aria-label="Unidade">${cfg.units.map(x => `<option ${x === p.unit ? 'selected' : ''}>${x}</option>`).join('')}</select></div>
       </div>
 
       <div class="field">
@@ -90,10 +96,14 @@
     const curStore = s.stores.find(x => x.id === (p.storeId || s.settings.currentStoreId)) || s.current();
     if (!curStore) { RS.stores.form(); return ui.toast('Crie uma loja antes de cadastrar produtos', { type: 'warn' }); }
     p.storeId = curStore.id;
+    const lots = isNew ? [{ expiry: p.expiry, quantity: p.quantity }]
+      : s.lotsOf(p.id).map(l => ({ id: l.id, expiry: l.expiry, quantity: l.quantity }));
+    if (!lots.length) lots.push({ id: p.id, expiry: p.expiry, quantity: p.quantity });
+    const removedLots = [];
     ui.sheet({
       title: isNew ? 'Novo produto' : 'Editar produto',
       headExtra: `<button type="button" class="chip glass-lite" data-act="store" style="height:32px;max-width:46%">${RS.storeBadge(curStore, 20)}<span data-store-name style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${u.esc(curStore.name)}</span></button>`,
-      body: `<form data-form autocomplete="off" onsubmit="return false">${form(p, isNew)}</form>`,
+      body: `<form data-form autocomplete="off" onsubmit="return false">${form(p, isNew, lots)}</form>`,
       foot: isNew
         ? `<div class="btn-row"><button class="btn ghost" data-save="again" style="padding:0 14px">${ui.icon('plus', 18)}Salvar e novo</button><button class="btn primary" data-save="close">${ui.icon('check', 20)}Salvar</button></div>`
         : `<button class="btn primary block" data-save="close">${ui.icon('check', 20)}Salvar alterações</button>`,
@@ -102,8 +112,19 @@
         const $in = n => f.querySelector(`[name="${n}"]`);
         if (isNew && !p.name) setTimeout(() => $in('name').focus(), 450);
 
-        const updPreview = () => { ctl.$('[data-preview]').innerHTML = preview($in('expiry').value); };
-        $in('expiry').addEventListener('change', () => { updPreview(); ctl.$('[data-f="expiry"]').classList.remove('err'); ctl.$('[data-f="expiry"] .err-msg').classList.add('hidden'); });
+        const box = ctl.$('[data-lots]');
+        const rows = () => Array.from(box.querySelectorAll('.lot-row'));
+        const active = () => box.querySelector('.lot-row.on') || rows()[0];
+        const setActive = r => { rows().forEach(x => x.classList.toggle('on', x === r)); updPreview(); };
+        const updPreview = () => { const r = active(); ctl.$('[data-preview]').innerHTML = preview(r ? r.querySelector('[name="lexp"]').value : ''); };
+        const syncDel = () => { const many = rows().length > 1; rows().forEach(r => r.querySelector('[data-ldel]').classList.toggle('hidden', !many)); };
+        syncDel();
+        box.addEventListener('focusin', e => { const r = e.target.closest('.lot-row'); if (r && !r.classList.contains('on')) setActive(r); });
+        box.addEventListener('change', e => {
+          if (e.target.name !== 'lexp') return;
+          setActive(e.target.closest('.lot-row'));
+          ctl.$('[data-f="expiry"]').classList.remove('err'); ctl.$('[data-f="expiry"] .err-msg').classList.add('hidden');
+        });
         $in('name').addEventListener('input', () => { ctl.$('[data-f="name"]').classList.remove('err'); ctl.$('[data-f="name"] .err-msg').classList.add('hidden'); });
         $in('name').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $in('barcode').focus(); } });
 
@@ -131,15 +152,31 @@
         };
 
         el.addEventListener('click', async e => {
-          const t = e.target.closest('[data-quick],[data-step],[data-cat],[data-act],[data-save]');
+          const t = e.target.closest('[data-quick],[data-lstep],[data-ldel],[data-cat],[data-act],[data-save]');
           if (!t) return;
           ui.tap();
           if (t.dataset.quick != null) {
-            $in('expiry').value = QUICK[+t.dataset.quick][1]();
-            $in('expiry').dispatchEvent(new Event('change'));
-          } else if (t.dataset.step) {
-            const q = $in('quantity');
-            q.value = Math.max(0, (parseFloat(q.value) || 0) + Number(t.dataset.step));
+            const r = active();
+            const inp = r.querySelector('[name="lexp"]');
+            inp.value = QUICK[+t.dataset.quick][1]();
+            inp.dispatchEvent(new Event('change', { bubbles: true }));
+          } else if (t.dataset.lstep) {
+            const q = t.closest('.lot-row').querySelector('[name="lqty"]');
+            q.value = Math.max(0, (parseFloat(q.value) || 0) + Number(t.dataset.lstep));
+          } else if (t.dataset.ldel != null) {
+            const r = t.closest('.lot-row');
+            if (rows().length < 2) return;
+            if (r.dataset.id) removedLots.push(r.dataset.id);
+            r.classList.add('out');
+            setTimeout(() => { const was = r.classList.contains('on'); r.remove(); if (was) setActive(rows()[0]); syncDel(); }, 200);
+          } else if (t.dataset.act === 'addlot') {
+            const last = rows()[rows().length - 1];
+            const wrap = document.createElement('div');
+            wrap.innerHTML = lotRow({ expiry: '', quantity: last ? last.querySelector('[name="lqty"]').value : 1 }, false);
+            const r = wrap.firstElementChild;
+            box.appendChild(r); setActive(r); syncDel();
+            const inp = r.querySelector('[name="lexp"]');
+            setTimeout(() => { inp.focus(); try { inp.showPicker && inp.showPicker(); } catch (er) { /* */ } }, 80);
           } else if (t.dataset.cat != null) {
             setCat($in('category').value === t.dataset.cat ? '' : t.dataset.cat);
           } else if (t.dataset.act === 'scan') {
@@ -165,8 +202,6 @@
               id: p.id,
               name: $in('name').value.trim(),
               barcode: $in('barcode').value.trim(),
-              expiry: $in('expiry').value,
-              quantity: Math.max(0, parseFloat($in('quantity').value) || 0),
               unit: $in('unit').value,
               category: $in('category').value,
               batch: $in('batch').value.trim(),
@@ -177,18 +212,19 @@
             };
             let ok = true;
             if (!data.name) { ok = false; ctl.$('[data-f="name"]').classList.add('err'); ctl.$('[data-f="name"] .err-msg').classList.remove('hidden'); }
-            if (!data.expiry) { ok = false; ctl.$('[data-f="expiry"]').classList.add('err'); ctl.$('[data-f="expiry"] .err-msg').classList.remove('hidden'); }
+            const lotData = rows().map((r, i) => ({ id: r.dataset.id || (isNew && i === 0 ? p.id : undefined), expiry: r.querySelector('[name="lexp"]').value, quantity: Math.max(0, parseFloat(r.querySelector('[name="lqty"]').value) || 0) }));
+            if (lotData.some(l => !l.expiry)) { ok = false; ctl.$('[data-f="expiry"]').classList.add('err'); ctl.$('[data-f="expiry"] .err-msg').classList.remove('hidden'); }
             if (!ok) { ui.tap(30); ctl.$('.err input') && ctl.$('.err input').focus(); return; }
 
             t.disabled = true;
             const prev = t.innerHTML;
             t.innerHTML = '<span class="spinner sm"></span>Salvando…';
-            await s.save(data);
+            await s.saveLots(data, lotData, removedLots);
             await u.sleep(250);
-            ui.toast(isNew ? `“${data.name}” adicionado` : 'Alterações salvas', { type: 'ok' });
+            ui.toast(isNew ? `“${data.name}” adicionado` + (lotData.length > 1 ? ` com ${lotData.length} datas` : '') : 'Alterações salvas', { type: 'ok' });
             if (t.dataset.save === 'again') {
               ctl.close();
-              setTimeout(() => open(null, { category: data.category, unit: data.unit, expiry: data.expiry, storeId: data.storeId }), 380);
+              setTimeout(() => open(null, { category: data.category, unit: data.unit, expiry: lotData[0].expiry, storeId: data.storeId }), 380);
             } else {
               t.innerHTML = prev;
               ctl.close();
@@ -232,7 +268,7 @@
       ui.sheet({
         title: out ? 'Dar baixa' : 'Entrada no estoque',
         body: `
-          <p class="hint" style="text-align:center;margin:0 0 6px"><b style="color:var(--text)">${u.esc(p.name)}</b> · em estoque: ${u.esc(u.fmtQty(p.quantity, p.unit))}</p>
+          <p class="hint" style="text-align:center;margin:0 0 6px"><b style="color:var(--text)">${u.esc(p.name)}</b>${s.lotsOf(id).length > 1 ? ' · validade <b style="color:var(--text)">' + u.fmtDate(p.expiry) + '</b>' : ''} · em estoque: ${u.esc(u.fmtQty(p.quantity, p.unit))}</p>
           <div class="big-qty">
             <button data-st="-1" aria-label="Menos">${ui.icon('minus', 22)}</button>
             <input data-q type="number" inputmode="decimal" min="0" step="any" value="1">
@@ -284,22 +320,80 @@
   RS.moveSheet = moveSheet;
 
   /* ----- Detalhes ----- */
+  /* Escolhe a data (lote) para dar baixa/entrada quando o produto tem várias */
+  async function pickLot(lots, mode) {
+    if (lots.length < 2) return lots[0] ? lots[0].id : null;
+    return ui.menu({
+      title: mode === 'out' ? 'Dar baixa de qual data?' : 'Entrada em qual data?',
+      options: lots.map((l, i) => ({ value: l.id, label: u.fmtDate(l.expiry) + ' · ' + u.fmtQty(l.quantity, l.unit), desc: (l.status === 'expired' ? 'VENCIDO · ' : '') + u.rel(l.days) + (i === 0 && mode === 'out' ? ' · mais antiga (sai primeiro)' : ''), icon: 'calendar', color: l.status === 'expired' ? '#050507' : l.status === 'soon' ? '#ff3b4e' : l.status === 'mid' ? '#f59e0b' : '#12a36b' }))
+    });
+  }
+
+  function newLotSheet(id) {
+    const base = s.byId(id);
+    if (!base) return;
+    ui.sheet({
+      title: 'Nova data · ' + base.name,
+      body: `<div class="field"><label>Validade</label><div class="input"><span class="lead">${ui.icon('calendar', 18)}</span><input name="lexp" type="date"></div>
+          <div class="quick-dates row">${QUICK.map((q, i) => `<button type="button" class="chip glass-lite" data-quick="${i}">${q[0]}</button>`).join('')}</div>
+          <div class="date-preview" data-preview>${preview('')}</div></div>
+        <div class="field"><label>Quantidade nesta data</label>
+          <div class="stepper"><button type="button" data-step="-1" aria-label="Diminuir">${ui.icon('minus', 18)}</button>
+          <input name="lqty" type="number" inputmode="decimal" min="0" step="any" value="1">
+          <button type="button" data-step="1" aria-label="Aumentar">${ui.icon('plus', 18)}</button></div></div>`,
+      foot: `<button class="btn primary block" data-ok>${ui.icon('check', 20)}Adicionar data</button>`,
+      onMount(el, ctl) {
+        const d = ctl.$('[name="lexp"]'), q = ctl.$('[name="lqty"]');
+        d.addEventListener('change', () => { ctl.$('[data-preview]').innerHTML = preview(d.value); });
+        setTimeout(() => { try { d.focus(); d.showPicker && d.showPicker(); } catch (e) { /* */ } }, 420);
+        el.addEventListener('click', async e => {
+          const t = e.target.closest('[data-quick],[data-step],[data-ok]');
+          if (!t) return;
+          ui.tap();
+          if (t.dataset.quick != null) { d.value = QUICK[+t.dataset.quick][1](); d.dispatchEvent(new Event('change')); }
+          else if (t.dataset.step) q.value = Math.max(0, (parseFloat(q.value) || 0) + Number(t.dataset.step));
+          else if (t.dataset.ok != null) {
+            if (!d.value) { ui.toast('Escolha a validade', { type: 'warn' }); return; }
+            const lot = await s.addLot(id, d.value, Math.max(0, parseFloat(q.value) || 0));
+            ctl.close();
+            ui.toast('Data ' + u.fmtDate(d.value) + ' adicionada', { type: 'ok', icon: 'calendar' });
+            setTimeout(() => detail(lot.id), 320);
+          }
+        });
+      }
+    });
+  }
+
   function detail(id) {
     const p = s.byId(id);
     if (!p) return;
+    const lots = s.lotsOf(id);
+    const multi = lots.length > 1;
+    const lead = lots[0] || p;
+    const total = lots.reduce((a, l) => a + (Number(l.quantity) || 0), 0);
+    const edit = s.canEdit(p.storeId);
     const kv = (label, value, wide) => value ? `<div class="${wide ? 'wide' : ''}"><small>${label}</small><b>${u.esc(value)}</b></div>` : '';
     const logs = s.history.filter(e => e.name === p.name && e.storeId === p.storeId).slice(0, 3);
+    const lotLine = l => `<div class="lot-line s-${l.status} ${l.id === id && multi ? 'cur' : ''}">
+        <span class="ld"><b class="num">${u.fmtDate(l.expiry)}</b><small>${l.status === 'expired' ? '<span class="tag-exp">Vencido</span> ' : ''}${u.esc(u.rel(l.days))}</small></span>
+        <b class="lq num">${u.esc(u.fmtQty(l.quantity, l.unit))}</b>
+        ${edit ? `<button class="rb" data-lout="${l.id}" aria-label="Dar baixa desta data">${ui.icon('upload', 16)}</button>
+        ${l.status === 'expired' && Number(l.quantity) > 0 ? `<button class="rb warn" data-ldisc="${l.id}" aria-label="Descartar vencido">${ui.icon('trash', 16)}</button>` : ''}` : ''}
+      </div>`;
     ui.sheet({
       title: 'Detalhes',
       body: `
-        <div class="detail-top s-${p.status}">
+        <div class="detail-top s-${lead.status}">
           <span class="ic">${u.esc(u.initials(p.name))}</span>
           <div style="min-width:0"><h2>${u.esc(p.name)}</h2>
-            <div style="margin-top:6px">${p.status === 'expired' ? `<span class="tag-exp">Vencido</span> <span class="faint" style="font-size:.8rem">${u.esc(u.rel(p.days))}</span>` : `<span class="pill s-${p.status}"><span class="sdot"></span>${u.esc(u.rel(p.days))}</span>`}</div></div>
+            <div style="margin-top:6px">${lead.status === 'expired' ? `<span class="tag-exp">Vencido</span> <span class="faint" style="font-size:.8rem">${u.esc(u.rel(lead.days))}</span>` : `<span class="pill s-${lead.status}"><span class="sdot"></span>${u.esc(u.rel(lead.days))}</span>`}${multi ? ` <span class="faint" style="font-size:.78rem">· ${lots.length} datas</span>` : ''}</div></div>
         </div>
-        <div class="kv">
-          ${kv('Validade', u.fmtDate(p.expiry))}
-          ${kv('Em estoque', u.fmtQty(p.quantity, p.unit))}
+        <div class="group-label" style="display:flex;align-items:center;justify-content:space-between;margin-top:4px">
+          <span>${multi ? 'Validades (' + lots.length + ')' : 'Validade'}</span>
+          ${edit ? `<button class="link" data-a="addlot" style="text-transform:none;letter-spacing:0;font-size:.82rem">${ui.icon('plus', 14)} Nova data</button>` : ''}</div>
+        <div class="card glass-lite lots-card">${lots.map(lotLine).join('')}
+          ${multi ? `<div class="lot-total"><span>Total em estoque</span><b class="num">${u.esc(u.fmtQty(total, p.unit))}</b></div>` : ''}</div>
+        <div class="kv" style="margin-top:12px">
           ${kv('Loja', s.storeName(p.storeId))}
           ${kv('Categoria', p.category)}
           ${kv('Código de barras', p.barcode)}
@@ -311,7 +405,6 @@
         <div class="btn-row" style="margin-top:12px">
           <button class="btn sm" data-a="out" style="background:color-mix(in srgb,var(--c-soon) 16%,transparent);color:var(--c-soon)">${ui.icon('upload', 18)}Dar baixa</button>
           <button class="btn ghost sm" data-a="in">${ui.icon('download', 18)}Entrada</button></div>
-        ${p.status === 'expired' && Number(p.quantity) > 0 && s.canEdit(p.storeId) ? `<button class="btn danger sm block" data-a="discard" style="margin-top:10px">${ui.icon('trash', 18)}Descartar vencido (${u.esc(u.fmtQty(p.quantity, p.unit))})</button>` : ''}
         ${logs.length ? `<div class="group-label">Últimas movimentações</div><div class="card glass-lite" style="padding:4px 14px">${logs.map(e => `<div class="log"><span class="lt"><small><b style="display:inline;font-size:inherit">${u.esc(s.LOG_LABEL[e.type] || '')}</b> · ${u.esc(e.detail)}</small></span><time>${new Date(e.t).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</time></div>`).join('')}</div>` : ''}`,
       foot: `<div class="btn-row">
           <button class="btn danger sm" data-a="del" aria-label="Excluir" style="flex:.6">${ui.icon('trash', 18)}</button>
@@ -319,28 +412,47 @@
           <button class="btn primary sm" data-a="edit" style="flex:1.4">${ui.icon('edit', 18)}Editar</button></div>`,
       onMount(el, ctl) {
         el.addEventListener('click', async e => {
-          const b = e.target.closest('[data-a]');
+          const b = e.target.closest('[data-a],[data-lout],[data-ldisc]');
           if (!b) return;
           ui.tap();
-          const a = b.dataset.a;
-          if (a === 'out' || a === 'in') { ctl.close(); setTimeout(() => moveSheet(id, a), 280); }
-          else if (a === 'discard') {
-            const yes = await ui.confirm({ title: 'Descartar vencido?', message: `Dá baixa de ${u.esc(u.fmtQty(p.quantity, p.unit))} de “${u.esc(p.name)}” como <b>vencido</b>. Entra no relatório de perdas${p.cost ? ' (' + u.money(p.cost * p.quantity) + ')' : ''}.`, confirm: 'Descartar', danger: true, icon: 'trash' });
+          if (b.dataset.lout) { ctl.close(); setTimeout(() => moveSheet(b.dataset.lout, 'out'), 280); return; }
+          if (b.dataset.ldisc) {
+            const l = s.byId(b.dataset.ldisc);
+            const yes = await ui.confirm({ title: 'Descartar vencido?', message: `Dá baixa de ${u.esc(u.fmtQty(l.quantity, l.unit))} de “${u.esc(l.name)}” (validade ${u.fmtDate(l.expiry)}) como <b>vencido</b>. Entra no relatório de perdas${l.cost ? ' (' + u.money(l.cost * l.quantity) + ')' : ''}.`, confirm: 'Descartar', danger: true, icon: 'trash' });
             if (!yes) return;
-            await s.move(id, -Number(p.quantity), 'vencido', 'Descarte');
+            await s.move(l.id, -Number(l.quantity), 'vencido', 'Descarte');
             ctl.close(); ui.toast('Baixa por vencimento registrada', { type: 'ok', icon: 'check' });
+            return;
           }
-          else if (a === 'edit') { ctl.close(); setTimeout(() => open(s.products.find(x => x.id === id)), 300); }
+          const a = b.dataset.a;
+          if (a === 'addlot') { if (viewerBlock()) return; ctl.close(); setTimeout(() => newLotSheet(id), 280); }
+          else if (a === 'out' || a === 'in') {
+            const lid = await pickLot(lots, a);
+            if (!lid) return;
+            ctl.close(); setTimeout(() => moveSheet(lid, a), 280);
+          }
+          else if (a === 'edit') { if (viewerBlock()) return; ctl.close(); setTimeout(() => open(s.products.find(x => x.id === id)), 300); }
           else if (a === 'dup') {
+            if (viewerBlock()) return;
             ctl.close();
             const src = s.products.find(x => x.id === id);
-            setTimeout(() => open(null, { name: src.name, barcode: src.barcode, category: src.category, unit: src.unit, quantity: src.quantity, location: src.location, expiry: '' }), 300);
+            setTimeout(() => open(null, { name: src.name + ' (cópia)', barcode: src.barcode, category: src.category, unit: src.unit, quantity: src.quantity, location: src.location, cost: src.cost, expiry: '' }), 300);
           } else if (a === 'del') {
-            const yes = await ui.confirm({ title: 'Excluir produto?', message: `“${u.esc(p.name)}” será removido do estoque de ${u.esc(s.storeName(p.storeId))}.`, confirm: 'Excluir', danger: true });
-            if (!yes) return;
-            const removed = await s.remove(id);
+            if (viewerBlock()) return;
+            let ids = [id];
+            if (multi) {
+              const v = await ui.menu({ title: 'Excluir', options: [
+                { value: 'one', label: 'Só a data ' + u.fmtDate(p.expiry), desc: u.fmtQty(p.quantity, p.unit), icon: 'calendar' },
+                { value: 'all', label: 'O produto inteiro', desc: 'Todas as ' + lots.length + ' datas · ' + u.fmtQty(total, p.unit), icon: 'trash', color: '#ef4444' }] });
+              if (!v) return;
+              if (v === 'all') ids = lots.map(l => l.id);
+            } else {
+              const yes = await ui.confirm({ title: 'Excluir produto?', message: `“${u.esc(p.name)}” será removido do estoque de ${u.esc(s.storeName(p.storeId))}.`, confirm: 'Excluir', danger: true });
+              if (!yes) return;
+            }
+            const removed = ids.length > 1 ? await s.removeMany(ids) : await s.remove(id);
             ctl.close();
-            ui.toast('Produto excluído', { icon: 'trash', action: { label: 'Desfazer', fn: () => s.restore(removed) } });
+            ui.toast(ids.length > 1 ? 'Produto excluído (' + ids.length + ' datas)' : multi ? 'Data excluída' : 'Produto excluído', { icon: 'trash', action: { label: 'Desfazer', fn: () => s.restore(removed) } });
           }
         });
       }

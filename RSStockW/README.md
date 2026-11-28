@@ -127,3 +127,8 @@ Pacote: `com.flowlabs.rsstockw` · Ícones em `res/mipmap-*` (inclui ícone adap
 - **Exportar / importar loja** (Minhas lojas › ⚙ › Exportar; ⬇ Importar): arquivo `Loja-<nome>.rsstock.json` com todos os produtos.
 - **Loja online compartilhada / equipe** (Minhas lojas › Equipe): código de convite, entrar com código (🔑), papéis dono/editor/visualizador, sincronização ao vivo (Supabase Realtime).
 - Servidor: aplicar `docs/migrations/002_equipe_rondas_perdas.sql` (SQL Editor do Supabase). Sem ela o app continua sincronizando, mas equipe/rondas na nuvem ficam desativadas.
+
+## v2.2.0 — várias datas por produto e alertas que tocam
+- **Mesmo produto com várias validades**: no cadastro, "+ Adicionar outra data" (ex.: Leite Tirol 1L — 12 un vencem dia 10, 30 un no mês que vem). A lista mostra um card por produto com as datas; o detalhe lista cada data com sua quantidade, baixa e descarte por data, e "+ Nova data". Baixa pergunta de qual data (a mais antiga primeiro).
+- **Notificações por mercado**: "🏪 Mercado Rio Sul: Leite Tirol 1L vence amanhã", com quantidade e data; som de **alarme** (volume do despertador), notificação ou silencioso; vibração forte; opção "Tocar até eu abrir". Alarmes exatos (tocam na hora marcada).
+- Folhas e diálogos quase opacos, fundo escurecido e fosco atrás, e troca de telas sem uma "vazar" por cima da outra.
