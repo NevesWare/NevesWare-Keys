@@ -155,3 +155,8 @@ Pacote: `com.flowlabs.rsstockw` · Ícones em `res/mipmap-*` (inclui ícone adap
 1. Crie uma conta em cosmos.bluesoft.com.br e copie o seu token da API.
 2. No Supabase: Edge Functions › Secrets (ou Project Settings › Edge Functions) › Add secret: nome `COSMOS_TOKEN`, valor = seu token.
 3. Pronto — a função passa a consultar o Cosmos antes do Open Food Facts. O token fica só no servidor, nunca no APK.
+
+### Catálogo pré-carregado (importação do Open Food Facts)
+- Edge Function `catalog-seed` (docs/edge-functions/catalog-seed) importa produtos **reais** do Open Food Facts para a tabela `catalog`, em segundo plano: todas as bebidas do Brasil (sucos, néctares, refrigerantes, águas, cervejas, chás, lácteas, energéticos), ~150 marcas brasileiras (só códigos 789/790) e depois produtos do Brasil em geral.
+- Progresso: tabela `catalog_seed` (`select id, done, next_page, added from catalog_seed order by priority`). Total: `select count(*) from catalog`.
+- Só roda com a chave secreta guardada em `app_secrets` (o app não tem acesso). Para retomar se parar: `select net.http_post(url := '<projeto>/functions/v1/catalog-seed', headers := jsonb_build_object('Content-Type','application/json','x-seed-key',(select value from app_secrets where name='seed_key')), body := '{}'::jsonb);`
