@@ -443,6 +443,7 @@ public class MainActivity extends Activity {
 
     void deliverDeepLink(Intent intent) {
         if (intent == null) return;
+        finishIconSwitch(intent);
         String open = intent.getStringExtra("open");
         if (open != null) {
             intent.removeExtra("open");
@@ -533,6 +534,40 @@ public class MainActivity extends Activity {
         } catch (Throwable e) {
             moveTaskToBack(true);
         }
+    }
+
+    // ----- Salvar aparência com ícone novo: reabre o app pelo ícone escolhido -----
+    void restartWithIcon(String name) {
+        try {
+            android.content.ComponentName target = IconSwitcher.component(this, name);
+            if (target == null) return;
+            IconSwitcher.enable(this, name);                 // 1) liga o novo (nunca fica sem ícone)
+            Intent i = new Intent(Intent.ACTION_MAIN);
+            i.addCategory(Intent.CATEGORY_LAUNCHER);
+            i.setComponent(target);
+            i.putExtra("iconSwitch", name);
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            openedExternal = true;
+            super.startActivity(i);                          // 2) reabre pelo novo ícone (tarefa nova)
+            overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
+            finish();
+        } catch (Throwable t) {
+            IconSwitcher.choose(this, name);                 // plano B: aplica quando sair do app
+        }
+    }
+
+    private void finishIconSwitch(Intent intent) {
+        if (intent == null) return;
+        final String name = intent.getStringExtra("iconSwitch");
+        if (name == null) return;
+        intent.removeExtra("iconSwitch");
+        // 3) já rodando pelo ícone novo: desliga os antigos (com folga para a tarefa antiga fechar)
+        iconHandler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                IconSwitcher.disableOthers(getApplicationContext(), name);
+            }
+        }, 1200);
     }
 
     // ----- Troca de ícone segura: só com o app fora da tela -----

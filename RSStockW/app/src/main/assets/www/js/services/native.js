@@ -70,6 +70,9 @@
       if (!B || !B.setAppIcon) return false;
       try { B.setAppIcon(name); return true; } catch (e) { return false; }
     },
+    /* Salvar aparência com ícone novo: o app reabre pelo novo ícone */
+    applyIconAndRestart(name, settingsJson) { if (!B || !B.applyIconAndRestart) return false; try { B.applyIconAndRestart(name, settingsJson); return true; } catch (e) { return false; } },
+    takeRestoreSettings() { try { return B && B.takeRestoreSettings ? B.takeRestoreSettings() : ''; } catch (e) { return ''; } },
     iconPending() { try { return !!(B && B.iconPending && B.iconPending()); } catch (e) { return false; } },
     appIcon() { if (!B || !B.getAppIcon) return 'default'; try { return B.getAppIcon(); } catch (e) { return 'default'; } },
 

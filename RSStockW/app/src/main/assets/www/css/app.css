@@ -778,12 +778,6 @@ svg { flex-shrink: 0; }
 :root[data-theme="coca"] #splash .loader-line i { background: #fff; }
 :root[data-theme="coca"] #splash::before { background: radial-gradient(circle, rgba(255,255,255,.35), transparent 65%); }
 /* transição "efervescente" entre telas */
-:root[data-theme="coca"] .view.v-in-right { animation: cocaInR .5s var(--spring) both; }
-:root[data-theme="coca"] .view.v-in-left { animation: cocaInL .5s var(--spring) both; }
-:root[data-theme="coca"] .view.v-in-fade, :root[data-theme="coca"] .view.v-in-up { animation: cocaPop .55s var(--spring) both; }
-@keyframes cocaInR { from { opacity: 0; transform: translateX(26%) scale(.96); filter: blur(6px); } }
-@keyframes cocaInL { from { opacity: 0; transform: translateX(-26%) scale(.96); filter: blur(6px); } }
-@keyframes cocaPop { from { opacity: 0; transform: translateY(30px) scale(.94); filter: blur(8px); } }
 :root[data-theme="coca"] .rp-wave { background: #e4000f; opacity: .14; }
 .theme-card .pv.coca { background: linear-gradient(160deg, #f40009 0 45%, #ffffff 45% 100%); }
 .theme-card .pv.coca::after { content: ""; position: absolute; left: -10%; right: -10%; top: 34%; height: 18px; border-radius: 50%; border-top: 4px solid #fff; transform: rotate(-8deg); }
@@ -1195,15 +1189,7 @@ svg { flex-shrink: 0; }
 /* folha aberta por cima de outra: a de trás fica mais fosca */
 .sheet.show + .scrim + .sheet { box-shadow: 0 -18px 60px rgba(0, 0, 0, .4); }
 
-/* troca de tela: a nova entra com um véu fosco e a antiga escurece — sem sobreposição transparente */
-.view.v-in-right::before, .view.v-in-left::before, .view.v-in-up::before, .view.v-in-fade::before {
-  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
-  background: var(--bg); animation: inVeil .5s var(--ease) both; }
-.view.v-in-right, .view.v-in-left, .view.v-in-up, .view.v-in-fade { z-index: 2; isolation: isolate; }
-.view.v-out-left::after, .view.v-out-right::after, .view.v-out-fade::after {
-  content: ""; position: absolute; inset: 0; pointer-events: none; background: var(--scrim); animation: outShade .42s var(--ease) both; }
-@keyframes inVeil { 0% { opacity: .94; } 72% { opacity: .9; } 100% { opacity: 0; } }
-@keyframes outShade { from { opacity: 0; } to { opacity: 1; } }
+
 [data-lite] .scrim { background: color-mix(in srgb, var(--scrim) 100%, rgba(0,0,0,.15)); }
 .sound-pick { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .sound-pick button { border-radius: 18px; padding: 12px 10px; text-align: left; display: flex; flex-direction: column; gap: 4px; color: var(--text-2); border: 1.5px solid transparent; transition: transform .2s var(--spring), border-color .2s; }
@@ -1265,9 +1251,6 @@ svg { flex-shrink: 0; }
 :root[data-theme="riosul"] #splash .loader-line { background: rgba(255,255,255,.25); }
 :root[data-theme="riosul"] #splash .loader-line i { background: #fff; }
 :root[data-theme="riosul"] #splash::before { background: radial-gradient(circle, rgba(255,255,255,.35), transparent 65%); }
-:root[data-theme="riosul"] .view.v-in-right { animation: cocaInR .5s var(--spring) both; }
-:root[data-theme="riosul"] .view.v-in-left { animation: cocaInL .5s var(--spring) both; }
-:root[data-theme="riosul"] .view.v-in-fade, :root[data-theme="riosul"] .view.v-in-up { animation: cocaPop .55s var(--spring) both; }
 :root[data-theme="riosul"] .rp-wave { background: #0a4fa3; opacity: .14; }
 :root[data-theme="riosul"] .hero-msg, :root[data-theme="riosul"] .hero-msg.alert { color: #fff; }
 :root[data-theme="riosul"] .view > .topbar .eyebrow, :root[data-theme="riosul"] .view > .topbar .h1, :root[data-theme="riosul"] .view > .topbar .page-title, :root[data-theme="riosul"] .view > .topbar .store-title b, :root[data-theme="riosul"] .view > [data-head] .eyebrow, :root[data-theme="riosul"] .view > [data-head] .store-title b { color: #fff; }
@@ -1310,3 +1293,78 @@ svg { flex-shrink: 0; }
 .icon-opt img { width: 50px; height: 50px; border-radius: 14px; box-shadow: 0 6px 16px rgba(0,0,0,.25); }
 .icon-opt:active { transform: scale(.94); }
 .icon-opt.on { border-color: var(--accent); background: rgba(var(--accent-rgb), .12); color: var(--accent); }
+
+
+/* ===================== 2.5 — transições fluidas e estilos de animação ===================== */
+/* Só transform + opacity (aceleradas pela GPU). Nada de blur animado nem véus por cima: era o que piscava. */
+.view { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.view.v-in-right, .view.v-in-left, .view.v-in-fade, .view.v-in-up { z-index: 2; }
+.view.v-out-left, .view.v-out-right, .view.v-out-fade { z-index: 1; pointer-events: none; }
+.view.no-enter .stagger > *, .view.no-enter.stagger > *, .view.no-enter [class*="stagger"] > * { animation: none !important; }
+.scrim { -webkit-backdrop-filter: none; backdrop-filter: none; }
+
+/* Suave (padrão): a nova desliza um pouco e aparece; a antiga recua e some rápido (quase sem sobreposição) */
+:root[data-anim="suave"] .view.v-in-right { animation: sIn .34s cubic-bezier(.22,.8,.24,1) both; --dx: 22%; }
+:root[data-anim="suave"] .view.v-in-left { animation: sIn .34s cubic-bezier(.22,.8,.24,1) both; --dx: -22%; }
+:root[data-anim="suave"] .view.v-out-left { animation: sOut .34s cubic-bezier(.4,0,.6,1) both; --dx: -10%; }
+:root[data-anim="suave"] .view.v-out-right { animation: sOut .34s cubic-bezier(.4,0,.6,1) both; --dx: 10%; }
+@keyframes sIn { 0%, 12% { opacity: 0; transform: translate3d(var(--dx), 0, 0); } 50% { opacity: 1; } 100% { opacity: 1; transform: none; } }
+@keyframes sOut { 0% { opacity: 1; transform: none; } 22% { opacity: 0; } 100% { opacity: 0; transform: translate3d(var(--dx), 0, 0); } }
+
+/* Deslizar: empurra a tela inteira (as duas andam juntas, nunca uma por cima da outra) */
+:root[data-anim="deslizar"] .view.v-in-right { animation: pIn .36s cubic-bezier(.3,.7,.2,1) both; --dx: 100%; }
+:root[data-anim="deslizar"] .view.v-in-left { animation: pIn .36s cubic-bezier(.3,.7,.2,1) both; --dx: -100%; }
+:root[data-anim="deslizar"] .view.v-out-left { animation: pOut .36s cubic-bezier(.3,.7,.2,1) both; --dx: -100%; }
+:root[data-anim="deslizar"] .view.v-out-right { animation: pOut .36s cubic-bezier(.3,.7,.2,1) both; --dx: 100%; }
+@keyframes pIn { from { transform: translate3d(var(--dx), 0, 0); } to { transform: none; } }
+@keyframes pOut { from { transform: none; } to { transform: translate3d(var(--dx), 0, 0); } }
+
+/* Desvanecer: troca suave por transparência, em sequência (a antiga some antes da nova aparecer) */
+:root[data-anim="desvanecer"] .view.v-in-right, :root[data-anim="desvanecer"] .view.v-in-left { animation: fIn .3s ease both; }
+:root[data-anim="desvanecer"] .view.v-out-left, :root[data-anim="desvanecer"] .view.v-out-right { animation: fOut .3s ease both; }
+@keyframes fIn { 0%, 40% { opacity: 0; } 100% { opacity: 1; } }
+@keyframes fOut { 0% { opacity: 1; } 35%, 100% { opacity: 0; } }
+
+/* Zoom: a nova cresce de leve, a antiga se afasta */
+:root[data-anim="zoom"] .view.v-in-right, :root[data-anim="zoom"] .view.v-in-left { animation: zIn .34s cubic-bezier(.2,.8,.2,1) both; }
+:root[data-anim="zoom"] .view.v-out-left, :root[data-anim="zoom"] .view.v-out-right { animation: zOut .34s ease both; }
+@keyframes zIn { 0%, 12% { opacity: 0; transform: scale(.94); } 50% { opacity: 1; } 100% { opacity: 1; transform: none; } }
+@keyframes zOut { 0% { opacity: 1; transform: none; } 22% { opacity: 0; } 100% { opacity: 0; transform: scale(1.04); } }
+
+/* Subir: a nova sobe de baixo como um cartão */
+:root[data-anim="subir"] .view.v-in-right, :root[data-anim="subir"] .view.v-in-left { animation: uIn .36s cubic-bezier(.2,.8,.2,1) both; }
+:root[data-anim="subir"] .view.v-out-left, :root[data-anim="subir"] .view.v-out-right { animation: fOut .3s ease both; }
+@keyframes uIn { 0%, 15% { opacity: 0; transform: translate3d(0, 9%, 0); } 55% { opacity: 1; } 100% { opacity: 1; transform: none; } }
+
+/* abrir telas por cima (splash → app, login) em todos os estilos */
+:root[data-anim] .view.v-in-fade, :root[data-anim] .view.v-in-up { animation: zIn .36s cubic-bezier(.2,.8,.2,1) both; }
+:root[data-anim] .view.v-out-fade { animation: fOut .3s ease both; }
+:root[data-anim="nenhuma"] .view { animation: none !important; }
+:root[data-anim="nenhuma"] .stagger > * { animation: none !important; }
+
+/* entradas em cascata mais leves (sem pular) */
+.stagger > * { animation: rise2 .38s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes rise2 { from { opacity: 0; transform: translate3d(0, 10px, 0); } }
+
+/* seletor de animação */
+.anim-pick { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.anim-pick button { border-radius: 18px; padding: 12px 8px 10px; display: flex; flex-direction: column; align-items: center; gap: 8px; font-size: .78rem; font-weight: 650; color: var(--text-2); border: 2px solid transparent; }
+.anim-pick button.on { border-color: var(--accent); color: var(--accent); background: rgba(var(--accent-rgb), .12); }
+.anim-pick .ap { width: 52px; height: 36px; border-radius: 9px; background: var(--glass-3); position: relative; overflow: hidden; }
+.anim-pick .ap i { position: absolute; inset: 4px; border-radius: 6px; background: var(--accent); opacity: .85; }
+.anim-pick button.on .ap i, .anim-pick button:hover .ap i { animation: apDemo 1.6s cubic-bezier(.2,.8,.2,1) infinite; }
+.anim-pick [data-anim-pick="suave"] .ap i { --f: translateX(40%); --o: 0; }
+.anim-pick [data-anim-pick="deslizar"] .ap i { --f: translateX(100%); --o: 1; }
+.anim-pick [data-anim-pick="desvanecer"] .ap i { --f: none; --o: 0; }
+.anim-pick [data-anim-pick="zoom"] .ap i { --f: scale(.7); --o: 0; }
+.anim-pick [data-anim-pick="subir"] .ap i { --f: translateY(60%); --o: 0; }
+.anim-pick [data-anim-pick="nenhuma"] .ap i { animation: none !important; }
+@keyframes apDemo { 0% { transform: var(--f); opacity: var(--o); } 45%, 100% { transform: none; opacity: .85; } }
+
+/* barra "Salvar aparência" */
+.save-bar { position: absolute; left: 14px; right: 14px; bottom: calc(var(--safe-bottom) + 12px); z-index: 5; display: flex; gap: 10px; padding: 10px; border-radius: 22px; transform: translateY(140%); transition: transform .34s cubic-bezier(.2,.8,.2,1); }
+.save-bar.show { transform: none; }
+.save-bar .btn { flex: 1; }
+.save-bar .btn.ghost { flex: .6; }
+:root[data-theme="dark"] .save-bar.glass { background: rgba(23, 25, 37, .97); }
+:root[data-theme="light"] .save-bar.glass, :root[data-theme="coca"] .save-bar.glass, :root[data-theme="riosul"] .save-bar.glass { background: rgba(255, 255, 255, .98); }

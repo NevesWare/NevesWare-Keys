@@ -139,3 +139,8 @@ Pacote: `com.flowlabs.rsstockw` · Ícones em `res/mipmap-*` (inclui ícone adap
 ## v2.4.0 — seletor de ícone e tema Rio Sul
 - **Ícone do app** (Aparência › Ícone do app): Padrão, Escuro, Claro, Coca e Rio Sul — independente do tema (ex.: tema Coca com ícone escuro). Por segurança a troca só é aplicada **quando o app sai da tela** (alguns segundos depois), nunca com ele aberto; nunca fica sem ícone. Implementado com `activity-alias` (IconSwitcher.java).
 - **Tema Rio Sul** (Itaguaí): azul, amarelo e branco em todo o app (cores de validade continuam vermelho/amarelo/verde).
+
+## v2.5.0 — animações fluidas e "Salvar aparência"
+- Corrigido o "piscar": ao sincronizar, a tela atual era recriada (voltava ao topo e refazia a animação de entrada). Agora atualiza no lugar, mantendo a rolagem.
+- Transições refeitas só com transform/opacity (sem blur animado nem véus). Estilos em Aparência › Animação das telas: **Suave** (padrão), Deslizar, Desvanecer, Zoom, Subir, Nenhuma.
+- Aparência com rascunho: muda na hora para visualizar; barra **Salvar / Descartar**; ao sair sem salvar pergunta. Se o ícone mudou, "Salvar e reabrir": o app fecha e abre já pelo ícone novo (ativa o novo, reabre por ele, depois desativa os antigos; configurações guardadas no nativo).

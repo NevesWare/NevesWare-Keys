@@ -183,12 +183,60 @@
 
   /* ============================== Aparência ============================== */
   const ICONS = [['default', 'Padrão'], ['dark', 'Escuro'], ['light', 'Claro'], ['coca', 'Coca'], ['riosul', 'Rio Sul']];
+  const ANIMS = [['suave', 'Suave'], ['deslizar', 'Deslizar'], ['desvanecer', 'Desvanecer'], ['zoom', 'Zoom'], ['subir', 'Subir'], ['nenhuma', 'Nenhuma']];
+  /* Rascunho da aparência: muda na hora para você ver, e só fica valendo ao tocar em Salvar */
+  const AP_KEYS = ['theme', 'accent', 'blur', 'bg', 'compact', 'haptics', 'fullscreen', 'anim'];
+  const AP = { active: false, snap: '', icon: 'default', iconSaved: 'default' };
+  const apSnap = () => JSON.stringify(AP_KEYS.map(k => s.settings[k]));
+  const apDirty = () => apSnap() !== AP.snap || AP.icon !== AP.iconSaved;
+  const iconChanged = () => AP.icon !== AP.iconSaved;
+  function saveBar() {
+    return `<div class="save-bar glass ${apDirty() ? 'show' : ''}" data-savebar>
+      <button class="btn ghost" data-ap="discard">${I('x', 18)}Descartar</button>
+      <button class="btn primary" data-ap="save">${I('check', 18)}<span data-save-label>${iconChanged() ? 'Salvar e reabrir' : 'Salvar aparência'}</span></button></div>`;
+  }
+  function updSaveBar(root) {
+    const b = root.querySelector('[data-savebar]');
+    if (!b) return;
+    b.classList.toggle('show', apDirty());
+    b.querySelector('[data-save-label]').textContent = iconChanged() ? 'Salvar e reabrir' : 'Salvar aparência';
+  }
+  function apDiscard() {
+    try { JSON.parse(AP.snap).forEach((v, i) => { s.settings[AP_KEYS[i]] = v; }); } catch (e) { /* */ }
+    s.saveSettings(); s.applyAppearance();
+    AP.icon = AP.iconSaved;
+  }
+  async function apSave() {
+    if (iconChanged() && RS.native.isApp) {
+      const ok = await ui.confirm({ title: 'Salvar e trocar o ícone?', message: 'O app vai <b>fechar e abrir de novo</b> já com o ícone novo na tela inicial. Seus dados e a aparência ficam salvos.', confirm: 'Salvar e reabrir', icon: 'sparkle' });
+      if (!ok) return false;
+      s.saveSettings();
+      ui.loading('Aplicando o novo ícone', 'O app vai reabrir…');
+      await u.sleep(900);
+      AP.active = false;
+      if (!RS.native.applyIconAndRestart(AP.icon, JSON.stringify(s.settings))) { ui.toast('Não foi possível trocar o ícone', { type: 'err' }); }
+      return true;
+    }
+    s.saveSettings();
+    AP.snap = apSnap(); AP.iconSaved = AP.icon;
+    ui.toast('Aparência salva', { type: 'ok', icon: 'check' });
+    return true;
+  }
+  async function apLeave() {
+    if (!apDirty()) { AP.active = false; return true; }
+    const v = await ui.dialog({ title: 'Salvar a aparência?', message: 'Você mudou a aparência' + (iconChanged() ? ' e o ícone' : '') + '. Quer salvar antes de sair?', icon: 'sparkle',
+      buttons: [{ label: 'Descartar', value: 'discard' }, { label: 'Salvar', value: 'save', style: 'primary' }, { label: 'Continuar', value: null, cancel: true }] });
+    if (v === 'discard') { apDiscard(); AP.active = false; return true; }
+    if (v === 'save') { const ok = await apSave(); if (ok && !iconChanged()) AP.active = false; return ok && AP.active === false; }
+    return false;
+  }
   RS.screens['settings.appearance'] = {
     tab: 'settings',
     bar: false,
     render() {
       const st = s.settings;
-      const curIcon = RS.native.appIcon() || 'default';
+      if (!AP.active) { AP.active = true; AP.snap = apSnap(); AP.iconSaved = RS.native.appIcon() || 'default'; AP.icon = AP.iconSaved; }
+      const curIcon = AP.icon;
       return sub('Aparência', `
         <div class="group-label" style="margin-top:4px">Tema</div>
         <div class="theme-cards">
@@ -197,7 +245,11 @@
 
         <div class="group-label">Ícone do app</div>
         <div class="icon-picker">${ICONS.map(([k, l]) => `<button class="icon-opt ${curIcon === k ? 'on' : ''}" data-icon="${k}"><img src="img/icon-${k}.png" alt=""><span>${l}</span></button>`).join('')}</div>
-        <p class="hint" data-icon-hint>${RS.native.isApp ? (RS.native.iconPending() ? '⏳ Novo ícone escolhido — ele aparece na tela inicial quando você sair do app.' : 'O ícone é independente do tema: dá para usar o tema Coca com o ícone escuro, por exemplo.') : 'A troca de ícone funciona no app Android.'}</p>
+        <p class="hint" data-icon-hint>${RS.native.isApp ? (AP.icon !== AP.iconSaved ? '✨ Novo ícone escolhido — toque em <b>Salvar</b>: o app fecha e abre já com ele.' : 'O ícone é independente do tema: dá para usar o tema Coca com o ícone escuro, por exemplo.') : 'A troca de ícone funciona no app Android.'}</p>
+
+        <div class="group-label">Animação das telas</div>
+        <div class="anim-pick">${ANIMS.map(([k, l]) => `<button class="glass-lite ${(st.anim || 'suave') === k ? 'on' : ''}" data-anim-pick="${k}"><span class="ap"><i></i></span>${l}</button>`).join('')}</div>
+        <p class="hint">Toque em uma aba embaixo para ver a animação escolhida. <b>Suave</b> é o padrão.</p>
 
 
         
@@ -228,20 +280,43 @@
           ${RS.native.isApp ? toggle('fullscreen', 'phone', '#14b8a6', 'Tela cheia', 'Esconde as barras do sistema') : ''}
           ${toggle('compact', 'layers', '#6366f1', 'Lista compacta', 'Mostra mais produtos por tela')}
           ${toggle('haptics', 'zap', '#0ea5e9', 'Vibração ao tocar', 'Resposta tátil leve nos botões')}
-        </div>`);
+        </div>
+        <div style="height:90px"></div>`) + saveBar();
     },
+    onBack() { if (!apDirty()) { AP.active = false; return false; } apLeave().then(ok => { if (ok) RS.app.back(); }); return true; },
+    unmount() { if (this._offAp) this._offAp(); },
     mount(root) {
+      root.addEventListener('click', e => {
+        if (!e.target.closest('[data-back]')) return;
+        e.stopImmediatePropagation(); e.preventDefault(); ui.tap();
+        apLeave().then(ok => { if (ok) RS.app.back(); });
+      }, true);
+      this._offAp = s.on(w => { if (w === 'settings') updSaveBar(root); });
       bindCommon(root);
       root.addEventListener('click', e => {
         const ic = e.target.closest('[data-icon]');
         if (ic) {
           ui.tap();
           if (!RS.native.isApp) return ui.toast('A troca de ícone funciona no app Android', { type: 'warn' });
-          RS.native.setAppIcon(ic.dataset.icon);
+          AP.icon = ic.dataset.icon;
           root.querySelectorAll('[data-icon]').forEach(x => x.classList.toggle('on', x === ic));
-          const pending = RS.native.iconPending();
-          root.querySelector('[data-icon-hint]').textContent = pending ? '⏳ Novo ícone escolhido — ele aparece na tela inicial quando você sair do app.' : 'Esse já é o ícone atual.';
-          if (pending) ui.alert({ title: 'Ícone escolhido', message: 'Para o app não fechar no meio do uso, o ícone só troca <b>quando você sair do app</b> (botão início). Espere alguns segundos e abra pelo novo ícone na tela inicial. O tema do app não muda.', icon: 'sparkle' });
+          root.querySelector('[data-icon-hint]').innerHTML = iconChanged() ? '✨ Novo ícone escolhido — toque em <b>Salvar</b>: o app fecha e abre já com ele.' : 'Esse é o ícone atual.';
+          updSaveBar(root);
+          return;
+        }
+        const an = e.target.closest('[data-anim-pick]');
+        if (an) {
+          ui.tap();
+          s.set('anim', an.dataset.animPick);
+          root.querySelectorAll('[data-anim-pick]').forEach(x => x.classList.toggle('on', x === an));
+          updSaveBar(root);
+          return;
+        }
+        const ap = e.target.closest('[data-ap]');
+        if (ap) {
+          ui.tap();
+          if (ap.dataset.ap === 'discard') { apDiscard(); RS.app.refresh(); ui.toast('Alterações descartadas', { icon: 'refresh' }); }
+          else apSave().then(ok => { if (ok) updSaveBar(root); });
           return;
         }
         const t = e.target.closest('[data-theme-pick],[data-accent],[data-bg]');

@@ -60,18 +60,38 @@
 
     const old = currentView;
     if (old) old.removeAttribute('id');
+    // sobras de transições anteriores (toques rápidos) saem na hora
+    Array.from(stage.children).forEach(v => { if (v !== old) v.remove(); });
+
+    // Atualização da MESMA tela (sincronização, dados mudaram): sem animação de entrada
+    // e mantendo a rolagem — antes a tela "piscava" e voltava para o topo.
+    if (dir === 'none' && old) {
+      view.classList.add('no-enter');
+      const ys = Array.from(old.querySelectorAll('.scroll,[data-list],.sheet-body')).map(e => e.scrollTop);
+      stage.replaceChild(view, old);
+      requestAnimationFrame(() => { Array.from(view.querySelectorAll('.scroll,[data-list],.sheet-body')).forEach((e, i) => { if (ys[i]) e.scrollTop = ys[i]; }); });
+      setTimeout(() => view.classList.remove('no-enter'), 700);
+      currentView = view; currentScreen = scr;
+      if (scr.mount) scr.mount(view, current.params || {});
+      requestAnimationFrame(() => { Array.from(view.querySelectorAll('.scroll,[data-list],.sheet-body')).forEach((e, i) => { if (ys[i]) e.scrollTop = ys[i]; }); });
+      updateBar(scr);
+      return;
+    }
+
     const anim = {
       forward: ['v-in-right', 'v-out-left'], back: ['v-in-left', 'v-out-right'],
       'tab-right': ['v-in-right', 'v-out-left'], 'tab-left': ['v-in-left', 'v-out-right'],
       fade: ['v-in-fade', 'v-out-fade'], up: ['v-in-up', 'v-out-fade']
     }[dir];
-    if (anim && !s.settings.a11y.reduceMotion) {
+    const style = s.settings.anim || 'suave';
+    const ms = { suave: 340, deslizar: 360, desvanecer: 300, zoom: 340, subir: 360, nenhuma: 0 }[style] || 340;
+    if (anim && ms && !s.settings.a11y.reduceMotion) {
       view.classList.add(anim[0]);
       if (old) {
         old.classList.add(anim[1]);
-        setTimeout(() => old.remove(), 440);
+        setTimeout(() => old.remove(), ms + 20);
       }
-      setTimeout(() => view.classList.remove(anim[0]), 500);
+      setTimeout(() => view.classList.remove(anim[0]), ms + 40);
     } else if (old) old.remove();
 
     stage.appendChild(view);

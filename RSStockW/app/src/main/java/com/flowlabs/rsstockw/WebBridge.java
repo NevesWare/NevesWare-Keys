@@ -182,6 +182,29 @@ public class WebBridge {
         return IconSwitcher.chosen(a);
     }
 
+    /**
+     * Salvar aparência com ícone novo: guarda as configurações no nativo (para não depender do
+     * WebView gravar a tempo), e reabre o app pelo ícone escolhido.
+     */
+    @JavascriptInterface
+    public void applyIconAndRestart(final String name, String settingsJson) {
+        Store.prefs(a).edit().putString("restore_settings", settingsJson == null ? "" : settingsJson).commit();
+        a.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                a.restartWithIcon(name);
+            }
+        });
+    }
+
+    /** Configurações guardadas antes de reabrir (uma vez só). */
+    @JavascriptInterface
+    public String takeRestoreSettings() {
+        String v = Store.prefs(a).getString("restore_settings", "");
+        if (v.length() > 0) Store.prefs(a).edit().remove("restore_settings").commit();
+        return v;
+    }
+
     @JavascriptInterface
     public boolean iconPending() {
         return IconSwitcher.hasPending(a);

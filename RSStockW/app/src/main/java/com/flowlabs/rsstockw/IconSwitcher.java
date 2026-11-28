@@ -78,4 +78,30 @@ final class IconSwitcher {
         } catch (Throwable ignored) {
         }
     }
+
+    static ComponentName component(Context c, String name) {
+        int i = index(name);
+        return i < 0 ? null : comp(c, i);
+    }
+
+    static void enable(Context c, String name) {
+        int i = index(name);
+        if (i < 0) return;
+        c.getPackageManager().setComponentEnabledSetting(comp(c, i), PackageManager.COMPONENT_ENABLED_STATE_ENABLED, PackageManager.DONT_KILL_APP);
+    }
+
+    /** Desativa os outros ícones (chamado já na tela nova, aberta pelo ícone escolhido). */
+    static void disableOthers(Context c, String name) {
+        int t = index(name);
+        if (t < 0) return;
+        PackageManager pm = c.getPackageManager();
+        for (int i = 0; i < NAMES.length; i++) {
+            if (i == t) continue;
+            try {
+                pm.setComponentEnabledSetting(comp(c, i), PackageManager.COMPONENT_ENABLED_STATE_DISABLED, PackageManager.DONT_KILL_APP);
+            } catch (Throwable ignored) {
+            }
+        }
+        Store.prefs(c).edit().remove("icon_pending").commit();
+    }
 }

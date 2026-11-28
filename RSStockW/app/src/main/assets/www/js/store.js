@@ -13,6 +13,7 @@
     blur: 24,
     bg: 'aurora',             // 'aurora' | 'gradient' | 'solid'
     compact: false,
+    anim: 'suave',            // estilo das transições: suave | deslizar | desvanecer | zoom | subir | nenhuma
     haptics: true,
     fullscreen: true,
     introSeen: false,
@@ -59,6 +60,9 @@
 
     async load() {
       try { this.settings = merge(DEFAULTS, JSON.parse(localStorage.getItem(SKEY) || 'null')); } catch (e) { this.settings = merge(DEFAULTS, null); }
+      // reaberto pela troca de ícone: as configurações vêm guardadas do lado nativo
+      const rs = RS.native.takeRestoreSettings && RS.native.takeRestoreSettings();
+      if (rs) { try { this.settings = merge(DEFAULTS, JSON.parse(rs)); this.saveSettings(); this._iconRestarted = true; setTimeout(() => { try { RS.ui.toast('Ícone e aparência salvos ✨', { type: 'ok', icon: 'sparkle' }); } catch (e) { /* */ } }, 4200); } catch (e) { /* */ } }
       if (this.settings.theme === 'coca2') { this.settings.theme = 'coca'; this.saveSettings(); } // Coca 2.0 foi removido
       this.autoCompat();
       if (this.settings.theme === 'coca') { /* tema especial mantém tudo vermelho */ }
@@ -241,7 +245,7 @@
       for (let i = 0; i < keys.length - 1; i++) o = o[keys[i]];
       o[keys[keys.length - 1]] = value;
       this.saveSettings();
-      if (/^(theme|accent|blur|bg|compact|a11y|fullscreen|compat)/.test(path)) this.applyAppearance();
+      if (/^(theme|accent|blur|bg|compact|a11y|fullscreen|compat|anim)/.test(path)) this.applyAppearance();
       if (/^notif/.test(path)) this.syncNative();
       this.emit('settings');
     },
@@ -278,6 +282,7 @@
       root.dataset.layout = cp.layout;
 
       root.dataset.bg = s.bg;
+      root.dataset.anim = s.anim || 'suave';
       const flag = (name, on) => { if (on) root.setAttribute(name, ''); else root.removeAttribute(name); };
       flag('data-compact', s.compact);
       flag('data-contrast', s.a11y.contrast);
