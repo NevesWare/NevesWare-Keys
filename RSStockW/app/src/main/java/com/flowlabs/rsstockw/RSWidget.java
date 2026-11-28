@@ -42,6 +42,7 @@ public class RSWidget extends AppWidgetProvider {
 
     /** Atualiza todos os widgets colocados na tela (chamado a cada sincronização e no alarme diário). */
     static void updateAll(Context c) {
+        RSWidgetSoon.updateAll(c);
         try {
             AppWidgetManager m = AppWidgetManager.getInstance(c);
             if (m == null) return;

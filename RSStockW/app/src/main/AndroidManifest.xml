@@ -67,6 +67,31 @@
                 android:resource="@xml/widget_info"/>
         </receiver>
 
+        <!-- Widget "Vencendo": produtos que vencem no prazo e loja escolhidos -->
+        <receiver
+            android:name=".RSWidgetSoon"
+            android:label="Vencendo"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_soon_info"/>
+        </receiver>
+
+        <activity
+            android:name=".WidgetConfigActivity"
+            android:label="Configurar widget"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE"/>
+            </intent-filter>
+        </activity>
+
         <provider
             android:name=".ShareProvider"
             android:authorities="com.flowlabs.rsstockw.share"

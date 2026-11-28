@@ -255,11 +255,17 @@
             <div class="wp-row"><span style="--wc:#111"><b>${c.expired}</b>vencidos</span><span style="--wc:#ef4444"><b>${c.soon}</b>&lt;7 dias</span><span style="--wc:#f59e0b"><b>${c.mid}</b>7–30</span><span style="--wc:#10b981"><b>${c.ok}</b>+30</span></div>
             ${s.query({ sort: 'expiry' }).slice(0, 2).map(p => `<div class="wp-item"><span>${u.esc(p.name)}</span><em>${p.status === 'expired' ? 'VENCIDO' : u.esc(u.rel(p.days, true))}</em></div>`).join('')}
           </div>
+          <div class="widget-preview" style="margin-top:14px">
+            <div class="wp-head"><b>Vencendo em 15 dias</b><small>${(() => { const n = s.products.filter(p => { const d = u.daysUntil(p.expiry); return d >= 0 && d <= 15; }).length; return n + ' produtos'; })()}</small></div>
+            ${s.query({ sort: 'expiry' }).filter(p => p.days >= 0 && p.days <= 15).slice(0, 4).map(p => `<div class="wp-item"><span>${u.esc(p.name)}<small style="display:block;opacity:.6;font-size:.7rem">${u.esc(u.fmtQty(p.quantity, p.unit))} · ${u.fmtShort(p.expiry)}</small></span><em style="color:${p.days < 7 ? '#ff5a6a' : '#ffc043'};font-weight:700">${p.days === 0 ? 'hoje' : p.days === 1 ? 'amanhã' : p.days + ' dias'}</em></div>`).join('') || '<div class="wp-item"><span>Nada vencendo em 15 dias ✨</span></div>'}
+          </div>
+          <p class="hint" style="text-align:center">Dois widgets: <b>“Validades”</b> (resumo por cor) e <b>“Vencendo”</b> (lista dos que vencem no prazo, da loja que você escolher).</p>
           <div class="group-label">Como adicionar</div>
           <div class="card glass-lite steps">
             <p><b>1.</b> Na tela inicial do Android, <b>segure</b> um espaço vazio.</p>
             <p><b>2.</b> Toque em <b>Widgets</b> e procure <b>RS Stock</b>.</p>
-            <p><b>3.</b> Arraste o widget <b>“Validades”</b> para a tela. Dá para aumentar o tamanho.</p>
+            <p><b>3.</b> Arraste o widget <b>“Validades”</b> ou <b>“Vencendo”</b> para a tela. Dá para aumentar o tamanho.</p>
+            <p><b>3b.</b> No <b>“Vencendo”</b> abre uma janela: escolha o prazo (3, 7, <b>15</b>, 30, 60, 90 dias ou outro) e a loja. Para mudar depois, toque na engrenagem <b>⚙</b> do widget.</p>
             <p><b>4.</b> Toque no widget para abrir o app. Ele se atualiza sozinho quando você muda o estoque e todo dia de manhã.</p>
           </div>
           <p class="hint">O widget mostra a loja aberta no app: vencidos, o que vence logo e os próximos produtos.</p>

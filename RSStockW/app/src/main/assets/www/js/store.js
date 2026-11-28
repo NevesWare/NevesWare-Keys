@@ -600,7 +600,7 @@
       // dados para o widget e o resumo semanal
       let loss = { value: 0 }; try { loss = this.losses({ days: 7 }); } catch (e) { /* */ }
       const pendingRounds = this.stores.filter(st => { const r = this.roundFor(st.id); return !r || !r.finishedAt; }).map(st => st.name);
-      const notif = Object.assign({}, this.settings.notif, { weeklyLoss: Math.round(loss.value * 100) / 100, pendingRounds, currency: 'R$', currentStore: (this.current() || {}).name || '' });
+      const notif = Object.assign({}, this.settings.notif, { weeklyLoss: Math.round(loss.value * 100) / 100, pendingRounds, currency: 'R$', currentStore: (this.current() || {}).name || '', stores: this.stores.map(x => x.name) });
       RS.native.sync(lite, notif);
     },
 
