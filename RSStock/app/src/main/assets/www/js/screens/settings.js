@@ -60,7 +60,7 @@
     tab: 'settings',
     render() {
       const pr = s.settings.profile;
-      const themeName = { dark: 'Escuro', light: 'Claro', system: 'Sistema', coca: 'Coca' }[s.settings.theme];
+      const themeName = { dark: 'Escuro', light: 'Claro', system: 'Sistema', coca: 'Coca', coca2: 'Coca 2.0' }[s.settings.theme];
       const cur = s.current();
       const row = (go, icon, color, title, sub, value = '') => `<button class="row" data-go="${go}" style="--tc:${color}"><span class="ri">${I(icon, 18)}</span>
         <span class="ct"><b>${title}</b><small>${sub}</small></span><span class="cv">${value}${I('chev', 18)}</span></button>`;
@@ -184,11 +184,12 @@
       return sub('Aparência', `
         <div class="group-label" style="margin-top:4px">Tema</div>
         <div class="theme-cards">
-          ${[['dark', 'Escuro'], ['light', 'Claro'], ['system', 'Sistema'], ['coca', 'Coca']].map(([k, l]) => `<button class="theme-card ${st.theme === k ? 'on' : ''}" data-theme-pick="${k}"><div class="pv ${k}"><i></i></div>${l}</button>`).join('')}
+          ${[['dark', 'Escuro'], ['light', 'Claro'], ['system', 'Sistema'], ['coca', 'Coca'], ['coca2', 'Coca 2.0']].map(([k, l]) => `<button class="theme-card ${st.theme === k ? 'on' : ''}" data-theme-pick="${k}"><div class="pv ${k}"><i></i></div>${l}</button>`).join('')}
         </div>
+        ${st.theme === 'coca2' ? `<p class="hint">Coca 2.0: fundo animado com a garrafa enchendo o copo com gelo, transição “derramando” entre as telas e efeitos novos em cada tela. O ícone do app também fica vermelho.</p>` : ''}
         ${st.theme === 'coca' ? `<p class="hint">Tema especial vermelho e branco: muda as cores, o fundo com bolhas, as transições e também o ícone do app na tela inicial do celular.</p>` : ''}
 
-        <div class="${st.theme === 'coca' ? 'hidden' : ''}">
+        <div class="${st.theme === 'coca' || st.theme === 'coca2' ? 'hidden' : ''}">
         <div class="group-label">Cor de destaque</div>
         <div class="card glass-lite"><div class="swatches">
           ${Object.entries(cfg.accents).map(([k, a]) => `<button class="swatch ${st.accent === k ? 'on' : ''}" data-accent="${k}" style="--a:${a.a};--b:${a.b}" aria-label="${a.name}"></button>`).join('')}
@@ -225,8 +226,8 @@
           s.set('theme', t.dataset.themePick);
           if (RS.fx) RS.fx.burst(innerWidth / 2, innerHeight / 3);
           RS.app.refresh();
-          if (t.dataset.themePick === 'coca' && was !== 'coca') ui.toast('Tema Coca ativado · o ícone do app também muda', { type: 'ok', icon: 'sparkle', duration: 3800 });
-          else if (was === 'coca' && t.dataset.themePick !== 'coca') ui.toast('Ícone do app voltou ao padrão', { icon: 'sparkle' });
+          if ((t.dataset.themePick === 'coca' || t.dataset.themePick === 'coca2') && was !== 'coca' && was !== 'coca2') ui.toast('Tema Coca ativado · o ícone do app também muda', { type: 'ok', icon: 'sparkle', duration: 3800 });
+          else if ((was === 'coca' || was === 'coca2') && t.dataset.themePick !== 'coca' && t.dataset.themePick !== 'coca2') ui.toast('Ícone do app voltou ao padrão', { icon: 'sparkle' });
         } else if (t.dataset.accent) {
           s.set('accent', t.dataset.accent);
           root.querySelectorAll('[data-accent]').forEach(x => x.classList.toggle('on', x === t));

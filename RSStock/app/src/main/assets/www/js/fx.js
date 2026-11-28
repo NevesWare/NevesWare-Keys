@@ -16,6 +16,16 @@
       }
       box.innerHTML = html;
     },
+    /* Coca 2.0: transição "derramando" entre telas */
+    pour() {
+      if (!RS.store.isCoca2() || RS.store.settings.a11y.reduceMotion) return;
+      const old = document.querySelector('.cola-wipe'); if (old) old.remove();
+      const w = document.createElement('div');
+      w.className = 'cola-wipe';
+      w.innerHTML = '<div class="liq"></div>';
+      document.body.appendChild(w);
+      setTimeout(() => w.remove(), 820);
+    },
     /* Pequena explosão de bolhas (usada ao salvar/trocar de loja no tema Coca). */
     burst(x, y) {
       if (!RS.store.isCoca() || RS.store.settings.a11y.reduceMotion) return;

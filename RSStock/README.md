@@ -81,3 +81,14 @@ Para testar a interface no navegador: `cd app/src/main/assets/www && python3 -m 
 © FlowLabs Studio · Todos os direitos reservados.
 
 Pacote: `com.flowlabs.rsstock` · Ícones em `res/mipmap-*` (inclui ícone adaptativo Android 8+).
+
+## Contas (v1.2.0)
+- Cadastro e login **só com nick e senha** (função `signup` no servidor cria a conta já confirmada, com e-mail interno
+  `@nick.rsstock.app`). Contas antigas com e-mail continuam entrando pelo nick.
+- **Continuar com Google**: abre o navegador e volta pelo link `rsstock://login-callback`.
+  Para funcionar, ative no Supabase: Authentication › Providers › **Google** (Client ID e Secret do Google Cloud)
+  e em Authentication › URL Configuration › **Redirect URLs** adicione `rsstock://login-callback`.
+
+## Tema Coca 2.0
+- Garrafa enchendo o copo com gelo no fundo, transição “derramando” entre abas, itens caindo como gelo,
+  cartão principal enchendo de refrigerante, formatos efervescendo, botão + tampinha. O tema Coca original não mudou.

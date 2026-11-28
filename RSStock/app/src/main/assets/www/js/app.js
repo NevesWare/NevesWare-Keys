@@ -65,6 +65,7 @@
       'tab-right': ['v-in-right', 'v-out-left'], 'tab-left': ['v-in-left', 'v-out-right'],
       fade: ['v-in-fade', 'v-out-fade'], up: ['v-in-up', 'v-out-fade']
     }[dir];
+    if (anim && RS.fx && ['tab-left', 'tab-right', 'up', 'fade'].includes(dir)) RS.fx.pour();
     if (anim && !s.settings.a11y.reduceMotion) {
       view.classList.add(anim[0]);
       if (old) {

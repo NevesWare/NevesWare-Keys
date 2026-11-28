@@ -14,6 +14,8 @@
   };
   const dt = iso => iso ? new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
   const mb = b => b ? (b / 1048576).toFixed(1).replace('.', ',') + ' MB' : '';
+  const internal = e => /@nick\.rsstock\.app$/i.test(e || '');
+  const showEmail = e => internal(e) ? 'Conta só com nick (sem e-mail)' : (e ? u.esc(e) : 'Sem e-mail');
   const back = `<button class="icon-btn glass" data-back aria-label="Voltar">${I('back')}</button>`;
   const err = (box, e) => { box.innerHTML = `<div class="empty glass-lite"><div class="art">${I('alert', 32)}</div><h3>Não foi possível carregar</h3><p>${u.esc(api.msg(e))}</p><button class="btn ghost sm" data-retry>${I('refresh', 16)}Tentar de novo</button></div>`; };
   const avatar = (a, size = 44) => `<span class="adm-av" style="width:${size}px;height:${size}px;--h:${[...(a.nick || 'x')].reduce((s, c) => s + c.charCodeAt(0), 0) % 360}">${u.esc(u.initials(a.name || a.nick || '?'))}</span>`;
@@ -30,7 +32,7 @@
       return `<div class="scroll" style="-webkit-mask-image:none;mask-image:none"><div class="auth">
         <div class="auth-brand"><img class="app-logo" src="img/logo.png" alt=""><h1>RS Admin</h1><p>Painel de controle do RS Stock</p></div>
         <form class="auth-card glass" onsubmit="return false">
-          <div class="field"><label>Nick ou e-mail do administrador</label><div class="input"><span class="lead">${I('user', 18)}</span><input name="id" autocomplete="username" autocapitalize="none" placeholder="seu_nick ou voce@email.com"></div></div>
+          <div class="field"><label>Nick do administrador</label><div class="input"><span class="lead">${I('user', 18)}</span><input name="id" autocomplete="username" autocapitalize="none" placeholder="seu_nick"></div></div>
           <div class="field"><label>Senha</label><div class="input"><span class="lead">${I('lock', 18)}</span><input name="pw" type="password" autocomplete="current-password" placeholder="Sua senha"></div></div>
           <button class="btn primary block" data-go>${I('shield', 20)}Entrar no painel</button>
           <p class="hint" style="text-align:center;margin-top:14px">Use a mesma conta criada no app RS Stock. A primeira conta que entrar aqui vira a administradora principal.</p>
@@ -122,7 +124,7 @@
     if (a.up_to_date === true) tags.push('<span class="tag t-ok">Atualizado</span>');
     if (a.up_to_date === false) tags.push('<span class="tag t-block">Desatualizado</span>');
     return `<button class="acc glass-lite" data-acc="${a.id}">${avatar(a)}
-      <span class="ct"><b>@${u.esc(a.nick)} ${tags.join('')}</b><small>${u.esc(a.email || '')}</small>
+      <span class="ct"><b>@${u.esc(a.nick)} ${tags.join('')}</b><small>${showEmail(a.email)}</small>
       <small class="faint">${a.stores} lojas · ${a.products} produtos · v${u.esc(a.app_version_name || '—')} · visto ${ago(a.last_seen_at)}</small></span>${I('chev', 18)}</button>`;
   }
   S.accounts = {
@@ -157,12 +159,12 @@
         if (t.dataset.f) { st.f = t.dataset.f; root.querySelectorAll('[data-f]').forEach(x => x.classList.toggle('on', x === t)); return draw(); }
         if (t.dataset.retry != null) return load();
         if (t.dataset.new != null) {
-          const r = await RS.admin.form('Nova conta', [['nick', 'Nick', 'nick_da_conta'], ['email', 'E-mail', 'email@exemplo.com'], ['password', 'Senha inicial', 'mínimo 6 caracteres'], ['name', 'Nome (opcional)', '']], 'Criar conta');
+          const r = await RS.admin.form('Nova conta', [['nick', 'Nick', 'nick_da_conta'], ['password', 'Senha', 'mínimo 6 caracteres'], ['name', 'Nome (opcional)', ''], ['email', 'E-mail (opcional)', 'deixe vazio para conta só com nick']], 'Criar conta');
           if (!r) return;
-          const L = ui.loading('Criando conta', r.email);
+          const L = ui.loading('Criando conta', '@' + r.nick);
           const x = await api.action('create_user', r);
           await L.done(500);
-          ui.toast(x.ok ? 'Conta criada (e-mail já confirmado)' : x.message, { type: x.ok ? 'ok' : 'err' });
+          ui.toast(x.ok ? `Conta @${r.nick} criada — já pode entrar com nick e senha` : x.message, { type: x.ok ? 'ok' : 'err' });
           load();
         }
       });
@@ -191,7 +193,7 @@
             <div class="card glass acc-hero">
               ${avatar(a, 64)}
               <div style="flex:1;min-width:0"><b style="font-size:1.2rem;display:block">@${u.esc(p.nick)}</b>
-                <small class="muted" style="display:block">${u.esc(p.email || '')}</small>
+                <small class="muted" style="display:block">${showEmail(p.email)}</small>
                 <div class="meta-tags"><span class="tag ${p.role === 'admin' ? 't-admin' : ''}">${p.role === 'admin' ? 'Admin' : 'Usuário'}</span>
                   <span class="tag ${p.status === 'blocked' ? 't-block' : 't-ok'}">${p.status === 'blocked' ? 'Bloqueada' : 'Ativa'}</span>
                   ${a.email_confirmed === false ? '<span class="tag t-warn">E-mail pendente</span>' : ''}</div></div>
@@ -461,7 +463,7 @@
       const dark = RS.admin.theme() === 'dark';
       return `<header class="topbar"><div class="grow"><p class="eyebrow">RS Admin</p><h1 class="h1">Ajustes</h1></div></header>
         <div class="scroll flexcol">
-          <div class="me-card" style="cursor:default">${avatar(me, 60)}<span class="ct"><b>@${u.esc(me.nick || '')}</b><span class="meta"><span>Administrador</span><span>${u.esc(me.email || '')}</span></span></span></div>
+          <div class="me-card" style="cursor:default">${avatar(me, 60)}<span class="ct"><b>@${u.esc(me.nick || '')}</b><span class="meta"><span>Administrador</span><span>${internal(me.email) ? 'login por nick' : u.esc(me.email || '')}</span></span></span></div>
           <div class="group-label">Aparência</div>
           <div class="seg"><button class="${dark ? 'on' : ''}" data-theme="dark">${I('moon', 16)}Escuro</button><button class="${!dark ? 'on' : ''}" data-theme="light">${I('sun', 16)}Claro</button></div>
           <div class="group-label">Sobre</div>

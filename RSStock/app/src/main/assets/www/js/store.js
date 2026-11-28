@@ -8,7 +8,7 @@
   const SKEY = 'rs.settings.v1';
 
   const DEFAULTS = {
-    theme: 'dark',            // 'dark' | 'light' | 'system' | 'coca'
+    theme: 'dark',            // 'dark' | 'light' | 'system' | 'coca' | 'coca2'
     accent: 'violet',
     blur: 24,
     bg: 'aurora',             // 'aurora' | 'gradient' | 'solid'
@@ -138,10 +138,11 @@
     },
     get(path) { return path.split('.').reduce((o, k) => (o == null ? o : o[k]), this.settings); },
 
-    isCoca() { return this.settings.theme === 'coca'; },
+    isCoca() { return this.settings.theme === 'coca' || this.settings.theme === 'coca2'; },
+    isCoca2() { return this.settings.theme === 'coca2'; },
     isDark() {
       const t = this.settings.theme;
-      if (t === 'coca') return false;
+      if (t === 'coca' || t === 'coca2') return false;
       if (t === 'system') return !window.matchMedia || window.matchMedia('(prefers-color-scheme: dark)').matches;
       return t !== 'light';
     },
@@ -169,6 +170,7 @@
       flag('data-solid', s.a11y.solid);
       flag('data-bold', s.a11y.bold);
       flag('data-large', s.a11y.large);
+      flag('data-coca2', this.isCoca2());
       RS.native.setSystemBars(dark);
       RS.native.setImmersive(s.fullscreen !== false);
       RS.native.setAppIcon(this.isCoca() ? 'coca' : 'default');

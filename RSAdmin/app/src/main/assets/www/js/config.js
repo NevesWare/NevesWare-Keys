@@ -3,8 +3,8 @@ window.RS = window.RS || {};
 RS.screens = {};
 RS.config = {
   appName: 'RS Admin',
-  version: '1.0.0',
-  versionCode: 1,
+  version: '1.1.0',
+  versionCode: 2,
   studio: 'FlowLabs Studio',
   year: new Date().getFullYear(),
   /* Mesmo projeto Supabase do RS Stock. A chave publicável é pública; o que protege os dados
