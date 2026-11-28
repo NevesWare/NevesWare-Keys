@@ -70,6 +70,9 @@
       try { if (B.getAppIcon() !== name) B.setAppIcon(name); } catch (e) { /* */ }
     },
 
+    setOrientation(mode) { if (B && B.setOrientation) { try { B.setOrientation(mode); } catch (e) { /* */ } } },
+    setGpu(on) { if (B && B.setGpuRendering) { try { B.setGpuRendering(!!on); } catch (e) { /* */ } } },
+
     setImmersive(on) {
       if (B && B.setImmersive) { try { B.setImmersive(!!on); } catch (e) { /* */ } }
     },

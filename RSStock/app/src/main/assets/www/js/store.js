@@ -20,6 +20,8 @@
     profile: { name: '', color: 'violet' },
     notif: { enabled: true, daysBefore: 7, hour: 9, minute: 0, notifyExpired: true, inAppBadge: true, allStores: true },
     a11y: { fontScale: 1, contrast: false, reduceMotion: false, solid: false, bold: false, large: false },
+    /* Compatibilidade com tamanhos de tela e aparelhos */
+    compat: { layout: 'auto', scale: 'auto', orientation: 'auto', lite: false, noTransitions: false, gpu: true, init: false },
     security: { pin: '', lockOnResume: false },
     export: { format: 'pdf', filter: 'all', sort: 'expiry', scope: 'current', include: { barcode: true, category: true, qty: true } },
     productsSort: 'expiry',
@@ -54,6 +56,7 @@
 
     async load() {
       try { this.settings = merge(DEFAULTS, JSON.parse(localStorage.getItem(SKEY) || 'null')); } catch (e) { this.settings = merge(DEFAULTS, null); }
+      this.autoCompat();
       if (this.settings.theme === 'coca') { /* tema especial mantém tudo vermelho */ }
       await this.loadAccount();
       this.applyAppearance();
@@ -132,7 +135,7 @@
       for (let i = 0; i < keys.length - 1; i++) o = o[keys[i]];
       o[keys[keys.length - 1]] = value;
       this.saveSettings();
-      if (/^(theme|accent|blur|bg|compact|a11y|fullscreen)/.test(path)) this.applyAppearance();
+      if (/^(theme|accent|blur|bg|compact|a11y|fullscreen|compat)/.test(path)) this.applyAppearance();
       if (/^notif/.test(path)) this.syncNative();
       this.emit('settings');
     },
@@ -161,7 +164,10 @@
       root.style.setProperty('--accent-2', ac.b);
       root.style.setProperty('--accent-rgb', ac.rgb);
       root.style.setProperty('--blur', s.blur + 'px');
-      root.style.setProperty('--fs', s.a11y.fontScale);
+      const cp = this.compatInfo();
+      root.style.setProperty('--fs', (s.a11y.fontScale * cp.scale).toFixed(3));
+      root.dataset.layout = cp.layout;
+
       root.dataset.bg = s.bg;
       const flag = (name, on) => { if (on) root.setAttribute(name, ''); else root.removeAttribute(name); };
       flag('data-compact', s.compact);
@@ -171,11 +177,41 @@
       flag('data-bold', s.a11y.bold);
       flag('data-large', s.a11y.large);
       flag('data-coca2', this.isCoca2());
+      flag('data-lite', cp.lite);
+      flag('data-no-transitions', s.compat.noTransitions);
       RS.native.setSystemBars(dark);
       RS.native.setImmersive(s.fullscreen !== false);
+      RS.native.setOrientation(cp.orientation);
+      RS.native.setGpu(s.compat.gpu !== false);
       RS.native.setAppIcon(this.isCoca() ? 'coca' : 'default');
       if (RS.fx) RS.fx.update();
       document.querySelectorAll('img.app-logo').forEach(i => { i.src = RS.logoSrc(); });
+    },
+
+    /* ----- Compatibilidade: decide layout, escala e orientação para este aparelho ----- */
+    device() {
+      const info = RS.native.info();
+      const w = info.screenWdp || window.innerWidth, h = info.screenHdp || window.innerHeight;
+      const sw = info.smallestWdp || Math.min(w, h);
+      const tablet = info.tablet != null ? info.tablet : sw >= 600;
+      const kind = tablet ? 'tablet' : sw < 360 ? 'small' : 'phone';
+      return { w, h, sw, tablet, kind, density: info.density || window.devicePixelRatio || 1, sdk: info.sdk || 0, lowEnd: !!info.lowRam || (info.memoryClass && info.memoryClass <= 128) || (info.sdk && info.sdk < 26) };
+    },
+    compatInfo() {
+      const c = this.settings.compat, d = this.device();
+      const layout = c.layout === 'auto' ? (d.tablet ? 'tablet' : d.kind === 'small' ? 'compact' : 'phone') : c.layout;
+      let scale = c.scale === 'auto' ? (layout === 'compact' ? 0.92 : layout === 'tablet' ? 1.08 : 1) : Number(c.scale);
+      const orientation = c.orientation === 'auto' ? (d.tablet ? 'auto' : 'portrait') : c.orientation;
+      return { layout, scale: scale || 1, orientation, lite: !!c.lite, device: d };
+    },
+    /* Primeira abertura: ajusta sozinho para aparelhos mais fracos */
+    autoCompat() {
+      const c = this.settings.compat;
+      if (c.init) return;
+      const d = this.device();
+      c.init = true;
+      if (d.lowEnd) { c.lite = true; c.noTransitions = d.sdk && d.sdk < 24; }
+      this.saveSettings();
     },
 
     /* ----- Lojas ----- */

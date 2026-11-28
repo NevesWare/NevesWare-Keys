@@ -92,3 +92,10 @@ Pacote: `com.flowlabs.rsstock` · Ícones em `res/mipmap-*` (inclui ícone adapt
 ## Tema Coca 2.0
 - Garrafa enchendo o copo com gelo no fundo, transição “derramando” entre abas, itens caindo como gelo,
   cartão principal enchendo de refrigerante, formatos efervescendo, botão + tampinha. O tema Coca original não mudou.
+
+## Compatibilidade (v1.3.0) — Ajustes › Compatibilidade
+- Detecta o aparelho (celular pequeno, celular, tablet) e adapta: **Compacto**, **Celular** ou **Tablet**
+  (conteúdo centralizado e listas em 2 colunas). Pode escolher manualmente.
+- **Tamanho da interface** (85% a 115%), **orientação** (automática, retrato, paisagem — tablet gira sozinho).
+- **Modo leve** (sem desfoque/efeitos de fundo), **Sem transições** e **Aceleração GPU** liga/desliga para
+  aparelhos que piscam ou travam. Aparelhos mais simples ligam o modo leve automaticamente na primeira abertura.

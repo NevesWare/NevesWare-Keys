@@ -203,7 +203,8 @@ public class MainActivity extends Activity {
         web.setVerticalScrollBarEnabled(false);
         web.setHorizontalScrollBarEnabled(false);
         web.setOverScrollMode(View.OVER_SCROLL_NEVER);
-        web.setLayerType(View.LAYER_TYPE_HARDWARE, null);
+        boolean gpu = getSharedPreferences(Store.PREFS, MODE_PRIVATE).getBoolean("gpu_render", true);
+        web.setLayerType(gpu ? View.LAYER_TYPE_HARDWARE : View.LAYER_TYPE_SOFTWARE, null);
 
         bridge = new WebBridge(this);
         web.addJavascriptInterface(bridge, "AndroidBridge");

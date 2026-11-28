@@ -47,6 +47,16 @@ public class WebBridge {
             o.put("insetTop", a.insetTop);
             o.put("insetBottom", a.insetBottom);
             o.put("immersive", a.immersive);
+            android.util.DisplayMetrics dm = a.getResources().getDisplayMetrics();
+            android.content.res.Configuration cf = a.getResources().getConfiguration();
+            o.put("density", dm.density);
+            o.put("screenWdp", cf.screenWidthDp);
+            o.put("screenHdp", cf.screenHeightDp);
+            o.put("smallestWdp", cf.smallestScreenWidthDp);
+            o.put("tablet", cf.smallestScreenWidthDp >= 600);
+            android.app.ActivityManager am = (android.app.ActivityManager) a.getSystemService(android.content.Context.ACTIVITY_SERVICE);
+            o.put("memoryClass", am != null ? am.getMemoryClass() : 0);
+            o.put("lowRam", am != null && Build.VERSION.SDK_INT >= 19 && am.isLowRamDevice());
             o.put("notificationsAllowed", Notifier.enabled(a));
             return o.toString();
         } catch (Exception e) {
@@ -160,6 +170,34 @@ public class WebBridge {
     @JavascriptInterface
     public String getAppIcon() {
         return IconSwitcher.current(a);
+    }
+
+    /** Orientação da tela: "portrait", "landscape" ou "auto". */
+    @JavascriptInterface
+    public void setOrientation(final String mode) {
+        a.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                int o = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT;
+                if ("auto".equals(mode)) o = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_FULL_USER;
+                else if ("landscape".equals(mode)) o = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE;
+                if (a.getRequestedOrientation() != o) a.setRequestedOrientation(o);
+            }
+        });
+    }
+
+    /** Renderização: true = GPU (padrão, mais fluida); false = compatível (sem piscadas em alguns aparelhos). */
+    @JavascriptInterface
+    public void setGpuRendering(final boolean gpu) {
+        a.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                if (a.web == null) return;
+                int t = gpu ? android.view.View.LAYER_TYPE_HARDWARE : android.view.View.LAYER_TYPE_SOFTWARE;
+                if (a.web.getLayerType() != t) a.web.setLayerType(t, null);
+                Store.prefs(a).edit().putBoolean("gpu_render", gpu).apply();
+            }
+        });
     }
 
     @JavascriptInterface

@@ -87,6 +87,7 @@
           ${row('settings.appearance', 'moon', '#8b5cf6', 'Aparência', 'Tema, cores e vidro', themeName)}
           ${row('settings.notifications', 'bell', '#f43f5e', 'Notificações', 'Alertas de validade', s.settings.notif.enabled ? s.settings.notif.daysBefore + ' dias' : 'Off')}
           ${row('settings.a11y', 'a11y', '#10b981', 'Acessibilidade', 'Texto, contraste e movimento')}
+          ${row('settings.compat', 'phone', '#14b8a6', 'Compatibilidade', 'Tela, tablet e desempenho', ({ phone: 'Celular', tablet: 'Tablet', compact: 'Compacto' })[s.compatInfo().layout])}
           ${row('settings.security', 'lock', '#0ea5e9', 'Segurança', 'PIN e senha da conta', s.settings.security.pin ? 'PIN ativo' : '')}
           ${row('account', 'cloud', '#3b82f6', RS.auth.isUser() ? 'Minha conta' : 'Criar conta / Entrar', RS.auth.isUser() ? 'Backup na nuvem ativo' : 'Salve seus dados na nuvem', RS.auth.isUser() ? syncBadge() : '<span class="soon-tag">Grátis</span>')}
         </div>
@@ -358,6 +359,63 @@
         ui.tap();
         s.set('a11y.fontScale', Number(b.dataset.scale));
         root.querySelectorAll('[data-scale]').forEach(x => x.classList.toggle('on', x === b));
+      });
+    }
+  };
+
+  /* ============================== Compatibilidade ============================== */
+  RS.screens['settings.compat'] = {
+    tab: 'settings',
+    bar: false,
+    render() {
+      const c = s.settings.compat, ci = s.compatInfo(), d = ci.device;
+      const kindName = { tablet: 'Tablet', phone: 'Celular', small: 'Celular pequeno' }[d.kind];
+      const seg = (key, opts) => `<div class="seg wrap">${opts.map(([v, l]) => `<button class="${String(c[key]) === String(v) ? 'on' : ''}" data-set="${key}" data-v="${v}">${l}</button>`).join('')}</div>`;
+      const layoutName = { phone: 'Celular', tablet: 'Tablet', compact: 'Compacto' }[ci.layout];
+      return sub('Compatibilidade', `
+        <div class="card glass device-card">
+          <span class="device-ic">${I(d.tablet ? 'layers' : 'phone', 26)}</span>
+          <span style="flex:1;min-width:0"><b>${kindName} detectado</b>
+            <small>Tela ${Math.round(d.w)}×${Math.round(d.h)} dp · densidade ${Number(d.density).toFixed(1)}x${d.sdk ? ' · Android API ' + d.sdk : ''}</small>
+            <small>Usando: layout <b style="display:inline;font-size:inherit">${layoutName}</b> · escala ${Math.round(ci.scale * 100)}%${ci.lite ? ' · modo leve' : ''}</small></span>
+        </div>
+
+        <div class="group-label">Formato da interface</div>
+        ${seg('layout', [['auto', 'Automático'], ['compact', 'Compacto'], ['phone', 'Celular'], ['tablet', 'Tablet']])}
+        <p class="hint">Automático escolhe pelo tamanho da tela. Tablet centraliza o conteúdo e mostra as listas em 2 colunas.</p>
+
+        <div class="group-label">Tamanho da interface</div>
+        ${seg('scale', [['auto', 'Auto'], ['0.85', '85%'], ['0.92', '92%'], ['1', '100%'], ['1.08', '108%'], ['1.15', '115%']])}
+        <p class="hint">Diminua se algo ficar cortado; aumente em telas grandes. Soma com o tamanho do texto da Acessibilidade.</p>
+
+        <div class="group-label">Orientação da tela</div>
+        ${seg('orientation', [['auto', 'Automática'], ['portrait', 'Retrato'], ['landscape', 'Paisagem']])}
+        <p class="hint">Automática: celular fica em retrato e tablet gira livremente.</p>
+
+        <div class="group-label">Desempenho e estabilidade</div>
+        <div class="group glass-lite">
+          ${toggle('compat.lite', 'zap', '#f59e0b', 'Modo leve', 'Tira o desfoque e os efeitos de fundo — evita travadas e piscadas')}
+          ${toggle('compat.noTransitions', 'refresh', '#8b5cf6', 'Sem transições', 'Troca de tela instantânea, sem animação')}
+          ${toggle('compat.gpu', 'layers', '#06b6d4', 'Aceleração de vídeo (GPU)', 'Desligue só se a tela piscar ou ficar com riscos')}
+        </div>
+        ${d.lowEnd ? `<div class="preview-box">${I('info', 14)} Este aparelho foi identificado como mais simples. Se notar lentidão, deixe o <b>Modo leve</b> ligado.</div>` : ''}
+        <button class="btn ghost block" data-reset-compat style="margin-top:18px">${I('refresh', 18)}Restaurar padrão automático</button>`);
+    },
+    mount(root) {
+      bindCommon(root, () => RS.app.refresh());
+      root.addEventListener('click', e => {
+        const b = e.target.closest('[data-set]');
+        if (b) {
+          ui.tap();
+          s.set('compat.' + b.dataset.set, b.dataset.v);
+          return RS.app.refresh();
+        }
+        if (e.target.closest('[data-reset-compat]')) {
+          ui.tap();
+          s.set('compat', Object.assign({}, s.DEFAULTS.compat, { init: true }));
+          ui.toast('Compatibilidade no automático', { type: 'ok', icon: 'phone' });
+          RS.app.refresh();
+        }
       });
     }
   };

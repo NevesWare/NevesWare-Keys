@@ -1070,3 +1070,54 @@ svg { flex-shrink: 0; }
 [data-coca2] .item { background: linear-gradient(115deg, color-mix(in srgb, var(--sc) 30%, rgba(255,255,255,.35)) 0%, color-mix(in srgb, var(--sc) 12%, rgba(255,255,255,.3)) 60%, rgba(255,255,255,.28) 100%); }
 [data-coca2] .item.s-expired { background: linear-gradient(115deg, rgba(11,11,15,.88), rgba(28,28,34,.82)); }
 [data-coca2] .coca2-scene { opacity: 1; }
+
+/* ==========================================================================
+   Compatibilidade — layout por tipo de aparelho e modos anti-piscada
+   ========================================================================== */
+/* Tablet: conteúdo centralizado, listas em 2 colunas, folhas mais estreitas */
+[data-layout="tablet"] .view { padding-left: max(24px, calc((100vw - 780px) / 2)); padding-right: max(24px, calc((100vw - 780px) / 2)); }
+[data-layout="tablet"] .view .list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+[data-layout="tablet"] .sheet { left: 0; right: 0; margin: 0 auto; max-width: 640px; border-radius: 30px 30px 0 0; }
+[data-layout="tablet"] .hotbar { width: min(calc(100% - 48px), 520px); }
+[data-layout="tablet"] .tiles, [data-layout="tablet"] .kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+[data-layout="tablet"] .fmt-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+[data-layout="tablet"] .coca2-scene { width: min(42vw, 420px); right: 2%; }
+[data-layout="tablet"] .dialog, [data-layout="tablet"] .loading-card { max-width: 420px; }
+
+/* Compacto: celulares pequenos */
+[data-layout="compact"] .view { padding-top: calc(var(--safe-top) + 8px); padding-left: 14px; padding-right: 14px; padding-bottom: calc(var(--hotbar-h) + var(--safe-bottom) + 16px); }
+[data-layout="compact"] .scroll { margin: 0 -14px; padding-left: 14px; padding-right: 14px; }
+[data-layout="compact"] .topbar { min-height: 42px; margin-bottom: 10px; }
+[data-layout="compact"] .h1 { font-size: 1.4rem; }
+[data-layout="compact"] .icon-btn, [data-layout="compact"] .avatar { width: 40px; height: 40px; border-radius: 13px; }
+[data-layout="compact"] .item { padding: 10px 12px; gap: 10px; }
+[data-layout="compact"] .item .ic { width: 36px; height: 36px; border-radius: 12px; }
+[data-layout="compact"] .hotbar { --hotbar-h: 62px; width: calc(100% - 20px); }
+[data-layout="compact"] .hb span { font-size: .6rem; }
+[data-layout="compact"] .hb-add { width: 52px; height: 52px; border-radius: 19px; }
+[data-layout="compact"] .tile small, [data-layout="compact"] .fmt small { display: none; }
+
+/* Modo leve: sem desfoque, sem animações de fundo e sem brilhos (evita travadas e piscadas) */
+[data-lite] .glass, [data-lite] .glass-lite, [data-lite] .scrim, [data-lite] .dial-scrim, [data-lite] .loading-overlay, [data-lite] .logo-mark {
+  -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+[data-lite] .glass, [data-lite] .glass-lite { background: color-mix(in srgb, var(--solid) 94%, transparent); }
+[data-lite] .blob { animation: none !important; filter: blur(50px); }
+[data-lite] .grain, [data-lite] .bubbles, [data-lite] .coca2-scene, [data-lite] .sparks { display: none !important; }
+[data-lite] .item::after, [data-lite] .me-card::after, [data-lite] .hero-card::after, [data-lite] .rp-wave { display: none !important; }
+[data-lite] .hb-add::before, [data-lite] .me-avatar::before { animation: none !important; }
+[data-lite] .item, [data-lite] .card, [data-lite] .sc, [data-lite] .kpi { box-shadow: none !important; }
+[data-lite] .view { will-change: auto; }
+
+/* Sem transições entre telas */
+[data-no-transitions] .view, [data-no-transitions] .view * { animation: none !important; }
+[data-no-transitions] .cola-wipe { display: none !important; }
+[data-no-transitions] .sheet { transition-duration: .18s; }
+
+/* Tela de compatibilidade */
+.device-card { display: flex; align-items: center; gap: 16px; }
+.device-ic { width: 56px; height: 56px; border-radius: 18px; display: grid; place-items: center; color: #fff; flex-shrink: 0; background: linear-gradient(135deg, var(--accent), var(--accent-2)); box-shadow: 0 10px 24px rgba(var(--accent-rgb), .35); }
+.device-card b { display: block; font-size: 1.05rem; }
+.device-card small { display: block; font-size: .76rem; color: var(--text-2); margin-top: 2px; }
+.seg.wrap { flex-wrap: wrap; }
+.preview-box { margin-top: 12px; border-radius: 18px; padding: 12px; border: 1px dashed var(--stroke-2); font-size: .78rem; color: var(--text-2); line-height: 1.5; }
+@media (max-height: 640px) { [data-layout="compact"] .last-move { display: none; } [data-layout="compact"] .hero-card { padding: 14px; } [data-layout="compact"] .hero-num { font-size: 1.9rem; } [data-layout="compact"] .seg-bar { margin: 10px 0; } }

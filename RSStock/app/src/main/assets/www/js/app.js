@@ -242,7 +242,10 @@
   document.addEventListener('contextmenu', e => { if (!e.target.closest('input,textarea')) e.preventDefault(); });
   document.addEventListener('gesturestart', e => e.preventDefault());
 
+  let lastLayout = null;
   window.addEventListener('resize', u.debounce(() => {
+    const lay = s.compatInfo().layout;
+    if (lay !== lastLayout) { lastLayout = lay; s.applyAppearance(); }
     moveIndicator();
     if (currentScreen && currentScreen.onResize && currentView) currentScreen.onResize(currentView);
   }, 120));

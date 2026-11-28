@@ -29,7 +29,8 @@
     if (!list.length) return;
     const ROW = s.settings.compact ? 62 : 78;
     const h = box.clientHeight;
-    let n = Math.max(0, Math.floor((h + 8) / ROW));
+    const cols = document.documentElement.dataset.layout === 'tablet' ? 2 : 1;
+    let n = Math.max(0, Math.floor((h + 8) / ROW)) * cols;
     let rest = list.length - n;
     if (rest > 0 && n > 0 && (h - n * ROW) < 54) { n--; rest++; }
     box.innerHTML = `<div class="list">${list.slice(0, n).map(p => itemRow(p)).join('')}</div>` +
