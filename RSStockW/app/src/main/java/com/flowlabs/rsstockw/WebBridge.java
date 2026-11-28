@@ -174,12 +174,17 @@ public class WebBridge {
     /** Troca o ícone da tela inicial: "default" ou "coca" (activity-alias). */
     @JavascriptInterface
     public void setAppIcon(String name) {
-        // troca de ícone removida nesta versão (causava fechamento do app)
+        IconSwitcher.choose(a, name); // aplicado só quando o app sair da tela
     }
 
     @JavascriptInterface
     public String getAppIcon() {
-        return "default";
+        return IconSwitcher.chosen(a);
+    }
+
+    @JavascriptInterface
+    public boolean iconPending() {
+        return IconSwitcher.hasPending(a);
     }
 
     /** Relatório do último fechamento inesperado (vazio se não houve). */

@@ -64,12 +64,13 @@
       if (m) m.content = dark ? '#07080d' : '#eef1f7';
     },
 
-    /* Troca o ícone do app na tela inicial do Android ('default' | 'coca'). */
+    /* Troca o ícone do app na tela inicial ('default' | 'dark' | 'light' | 'coca' | 'riosul'). Aplicado quando o app sai da tela. */
     /* Pede a troca do ícone; o Android aplica quando o app sair da tela. */
     setAppIcon(name) {
       if (!B || !B.setAppIcon) return false;
       try { B.setAppIcon(name); return true; } catch (e) { return false; }
     },
+    iconPending() { try { return !!(B && B.iconPending && B.iconPending()); } catch (e) { return false; } },
     appIcon() { if (!B || !B.getAppIcon) return 'default'; try { return B.getAppIcon(); } catch (e) { return 'default'; } },
 
     setOrientation(mode) { if (B && B.setOrientation) { try { B.setOrientation(mode); } catch (e) { /* */ } } },

@@ -7,8 +7,8 @@ RS.screens = {};
 
 RS.config = {
   appName: 'RS Stock',
-  version: '2.3.0',
-  versionCode: 4,
+  version: '2.4.0',
+  versionCode: 5,
   studio: 'FlowLabs Studio',
   year: new Date().getFullYear(),
 
@@ -35,6 +35,7 @@ RS.config = {
 
   /* Tema especial vermelho e branco (Coca) */
   cocaAccent: { name: 'Coca', a: '#e4000f', b: '#ff4b55', rgb: '228, 0, 15' },
+  riosulAccent: { name: 'Rio Sul', a: '#0a4fa3', b: '#ffc20e', rgb: '10, 79, 163' },
 
   accents: {
     violet: { name: 'Violeta', a: '#7c5cff', b: '#4cc9ff', rgb: '124, 92, 255' },
@@ -46,4 +47,4 @@ RS.config = {
   }
 };
 
-RS.logoSrc = () => (RS.store && RS.store.isCoca && RS.store.isCoca() ? 'img/logo-coca.png' : 'img/logo.png');
+RS.logoSrc = () => { const t = RS.store && RS.store.settings && RS.store.settings.theme; return t === 'coca' ? 'img/logo-coca.png' : t === 'riosul' ? 'img/icon-riosul.png' : 'img/logo.png'; };

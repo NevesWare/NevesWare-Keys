@@ -60,7 +60,7 @@
     tab: 'settings',
     render() {
       const pr = s.settings.profile;
-      const themeName = { dark: 'Escuro', light: 'Claro', system: 'Sistema', coca: 'Coca' }[s.settings.theme];
+      const themeName = { dark: 'Escuro', light: 'Claro', system: 'Sistema', coca: 'Coca', riosul: 'Rio Sul' }[s.settings.theme];
       const cur = s.current();
       const row = (go, icon, color, title, sub, value = '') => `<button class="row" data-go="${go}" style="--tc:${color}"><span class="ri">${I(icon, 18)}</span>
         <span class="ct"><b>${title}</b><small>${sub}</small></span><span class="cv">${value}${I('chev', 18)}</span></button>`;
@@ -182,22 +182,29 @@
   };
 
   /* ============================== Aparência ============================== */
+  const ICONS = [['default', 'Padrão'], ['dark', 'Escuro'], ['light', 'Claro'], ['coca', 'Coca'], ['riosul', 'Rio Sul']];
   RS.screens['settings.appearance'] = {
     tab: 'settings',
     bar: false,
     render() {
       const st = s.settings;
+      const curIcon = RS.native.appIcon() || 'default';
       return sub('Aparência', `
         <div class="group-label" style="margin-top:4px">Tema</div>
         <div class="theme-cards">
-          ${[['dark', 'Escuro'], ['light', 'Claro'], ['system', 'Sistema'], ['coca', 'Coca']].map(([k, l]) => `<button class="theme-card ${st.theme === k ? 'on' : ''}" data-theme-pick="${k}"><div class="pv ${k}"><i></i></div>${l}</button>`).join('')}
+          ${[['dark', 'Escuro'], ['light', 'Claro'], ['system', 'Sistema'], ['coca', 'Coca'], ['riosul', 'Rio Sul']].map(([k, l]) => `<button class="theme-card ${st.theme === k ? 'on' : ''}" data-theme-pick="${k}"><div class="pv ${k}"><i></i></div>${l}</button>`).join('')}
         </div>
+
+        <div class="group-label">Ícone do app</div>
+        <div class="icon-picker">${ICONS.map(([k, l]) => `<button class="icon-opt ${curIcon === k ? 'on' : ''}" data-icon="${k}"><img src="img/icon-${k}.png" alt=""><span>${l}</span></button>`).join('')}</div>
+        <p class="hint" data-icon-hint>${RS.native.isApp ? (RS.native.iconPending() ? '⏳ Novo ícone escolhido — ele aparece na tela inicial quando você sair do app.' : 'O ícone é independente do tema: dá para usar o tema Coca com o ícone escuro, por exemplo.') : 'A troca de ícone funciona no app Android.'}</p>
 
 
         
         ${st.theme === 'coca' ? `<p class="hint">Tema especial vermelho e branco: muda as cores, o fundo com bolhas, e as transições.</p>` : ''}
+        ${st.theme === 'riosul' ? `<p class="hint">Tema Rio Sul (Itaguaí): azul, amarelo e branco em todo o app.</p>` : ''}
 
-        <div class="${st.theme === 'coca' ? 'hidden' : ''}">
+        <div class="${st.theme === 'coca' || st.theme === 'riosul' ? 'hidden' : ''}">
         <div class="group-label">Cor de destaque</div>
         <div class="card glass-lite"><div class="swatches">
           ${Object.entries(cfg.accents).map(([k, a]) => `<button class="swatch ${st.accent === k ? 'on' : ''}" data-accent="${k}" style="--a:${a.a};--b:${a.b}" aria-label="${a.name}"></button>`).join('')}
@@ -229,8 +236,13 @@
         const ic = e.target.closest('[data-icon]');
         if (ic) {
           ui.tap();
+          if (!RS.native.isApp) return ui.toast('A troca de ícone funciona no app Android', { type: 'warn' });
           RS.native.setAppIcon(ic.dataset.icon);
-          return ui.alert({ title: 'Ícone agendado', message: 'O ícone do app muda quando você sair do app. Depois, abra pelo novo ícone na tela inicial (pode levar alguns segundos para aparecer).', icon: 'sparkle' });
+          root.querySelectorAll('[data-icon]').forEach(x => x.classList.toggle('on', x === ic));
+          const pending = RS.native.iconPending();
+          root.querySelector('[data-icon-hint]').textContent = pending ? '⏳ Novo ícone escolhido — ele aparece na tela inicial quando você sair do app.' : 'Esse já é o ícone atual.';
+          if (pending) ui.alert({ title: 'Ícone escolhido', message: 'Para o app não fechar no meio do uso, o ícone só troca <b>quando você sair do app</b> (botão início). Espere alguns segundos e abra pelo novo ícone na tela inicial. O tema do app não muda.', icon: 'sparkle' });
+          return;
         }
         const t = e.target.closest('[data-theme-pick],[data-accent],[data-bg]');
         if (!t) return;
@@ -241,6 +253,7 @@
           if (RS.fx) RS.fx.burst(innerWidth / 2, innerHeight / 3);
           RS.app.refresh();
           if (t.dataset.themePick === 'coca' && was !== 'coca') ui.toast('Tema Coca ativado', { type: 'ok', icon: 'sparkle' });
+          if (t.dataset.themePick === 'riosul' && was !== 'riosul') ui.toast('Tema Rio Sul ativado', { type: 'ok', icon: 'sparkle' });
         } else if (t.dataset.accent) {
           s.set('accent', t.dataset.accent);
           root.querySelectorAll('[data-accent]').forEach(x => x.classList.toggle('on', x === t));

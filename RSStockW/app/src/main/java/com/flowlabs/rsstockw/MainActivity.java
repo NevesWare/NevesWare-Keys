@@ -535,9 +535,40 @@ public class MainActivity extends Activity {
         }
     }
 
+    // ----- Troca de ícone segura: só com o app fora da tela -----
+    private boolean openedExternal = false;
+    private final android.os.Handler iconHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+    private final Runnable iconApply = new Runnable() {
+        @Override
+        public void run() {
+            IconSwitcher.applyPending(getApplicationContext());
+        }
+    };
+
+    @Override
+    public void startActivityForResult(Intent intent, int requestCode, Bundle options) {
+        openedExternal = true; // câmera, arquivos, compartilhar, instalar: não é "sair do app"
+        super.startActivityForResult(intent, requestCode, options);
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        try {
+            if (!openedExternal && !isChangingConfigurations() && IconSwitcher.hasPending(this)) {
+                // espera o WebView gravar os dados no disco antes (o launcher pode fechar o processo)
+                iconHandler.removeCallbacks(iconApply);
+                iconHandler.postDelayed(iconApply, 6000);
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
     @Override
     protected void onResume() {
         super.onResume();
+        openedExternal = false;
+        iconHandler.removeCallbacks(iconApply);
         if (web != null) {
             try {
                 web.onResume();

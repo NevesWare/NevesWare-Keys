@@ -135,3 +135,7 @@ Pacote: `com.flowlabs.rsstockw` · Ícones em `res/mipmap-*` (inclui ícone adap
 
 ## v2.3.0 — widget "Vencendo"
 - Novo widget **"Vencendo"**: lista os produtos que vencem no prazo escolhido (padrão **15 dias**; 3, 7, 15, 30, 60, 90 ou outro) da **loja escolhida** (ou todas), com quantidade, data e dias restantes. Cada widget tem sua configuração (janela ao adicionar; engrenagem ⚙ para mudar). Opção de mostrar também os vencidos.
+
+## v2.4.0 — seletor de ícone e tema Rio Sul
+- **Ícone do app** (Aparência › Ícone do app): Padrão, Escuro, Claro, Coca e Rio Sul — independente do tema (ex.: tema Coca com ícone escuro). Por segurança a troca só é aplicada **quando o app sai da tela** (alguns segundos depois), nunca com ele aberto; nunca fica sem ícone. Implementado com `activity-alias` (IconSwitcher.java).
+- **Tema Rio Sul** (Itaguaí): azul, amarelo e branco em todo o app (cores de validade continuam vermelho/amarelo/verde).

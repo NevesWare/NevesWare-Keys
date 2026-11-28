@@ -8,7 +8,7 @@
   const SKEY = 'rs.settings.v1';
 
   const DEFAULTS = {
-    theme: 'dark',            // 'dark' | 'light' | 'system' | 'coca'
+    theme: 'dark',            // 'dark' | 'light' | 'system' | 'coca' | 'riosul'
     accent: 'violet',
     blur: 24,
     bg: 'aurora',             // 'aurora' | 'gradient' | 'solid'
@@ -248,23 +248,26 @@
     get(path) { return path.split('.').reduce((o, k) => (o == null ? o : o[k]), this.settings); },
 
     isCoca() { return this.settings.theme === 'coca'; },
+    /* temas de marca (claros, com cores próprias): Coca e Rio Sul */
+    isBrand() { return this.settings.theme === 'coca' || this.settings.theme === 'riosul'; },
     isCoca2() { return false; },
     isDark() {
       const t = this.settings.theme;
-      if (t === 'coca') return false;
+      if (t === 'coca' || t === 'riosul') return false;
       if (t === 'system') return !window.matchMedia || window.matchMedia('(prefers-color-scheme: dark)').matches;
       return t !== 'light';
     },
 
     accent() {
       if (this.isCoca()) return RS.config.cocaAccent;
+      if (this.settings.theme === 'riosul') return RS.config.riosulAccent;
       return RS.config.accents[this.settings.accent] || RS.config.accents.violet;
     },
 
     applyAppearance() {
       const s = this.settings, root = document.documentElement;
       const dark = this.isDark();
-      root.dataset.theme = this.isCoca() ? 'coca' : dark ? 'dark' : 'light';
+      root.dataset.theme = this.isBrand() ? this.settings.theme : dark ? 'dark' : 'light';
       const ac = this.accent();
       root.style.setProperty('--accent', ac.a);
       root.style.setProperty('--accent-2', ac.b);
