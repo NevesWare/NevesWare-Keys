@@ -64,7 +64,9 @@ function v2Url(job: any, page: number) {
   if (job.kind === "term") q.set("brands_tags", slug(job.params.q));
   if (job.params.categories) q.set("categories_tags_en", job.params.categories);
   if (job.params.countries) q.set("countries_tags_en", job.params.countries);
-  return "https://world.openfoodfacts.org/api/v2/search?" + q.toString();
+  // bases irmãs: Open Beauty Facts (higiene), Open Products Facts (limpeza), Open Pet Food Facts (pet)
+  const host = ({ obf: "world.openbeautyfacts.org", opf: "world.openproductsfacts.org", opff: "world.openpetfoodfacts.org" } as Record<string, string>)[job.params.site] || "world.openfoodfacts.org";
+  return `https://${host}/api/v2/search?` + q.toString();
 }
 /** Busca por texto (search-a-licious), para marcas cujo nome não bate com a etiqueta. */
 function textUrl(job: any, page: number) {
@@ -112,8 +114,9 @@ Deno.serve(async (req) => {
     const page = job.next_page;
     let body: any = null;
     try {
-      // principal: search-a-licious (estável); reserva: API v2
+      // principal: search-a-licious (estável); reserva: API v2. Bases irmãs: só API v2.
       try {
+        if (job.params.site) throw new Error("v2");
         body = await getJson(textUrl(job, page));
       } catch (e1) {
         log.push(job.id + " search-a-licious falhou, tentando v2");
@@ -132,8 +135,10 @@ Deno.serve(async (req) => {
     pages++;
     const prods: any[] = productsOf(body);
     let rows = prods.map(toRow).filter(Boolean) as any[];
-    const jobCat = /dairy/.test(job.params.categories || "") ? "Laticínios" : job.params.categories ? "Bebidas" : "";
-    if (jobCat) rows.forEach((r) => { if (!r.category) r.category = jobCat; });
+    const jobCat = job.params.cat || (/dairy/.test(job.params.categories || "") ? "Laticínios" : job.params.categories ? "Bebidas" : "");
+    const SITE_CAT: Record<string, string> = { obf: "Higiene", opf: "Limpeza", opff: "Pet" };
+    if (job.params.site) rows.forEach((r) => { r.category = job.params.cat || SITE_CAT[job.params.site]; });
+    else if (jobCat) rows.forEach((r) => { if (!r.category || job.params.force) r.category = jobCat; });
     if (job.br_only) rows = rows.filter((r) => /^(789|790)/.test(r.barcode));
     // dedup na página
     const seen = new Set<string>(); rows = rows.filter((r) => (seen.has(r.barcode) ? false : (seen.add(r.barcode), true)));
