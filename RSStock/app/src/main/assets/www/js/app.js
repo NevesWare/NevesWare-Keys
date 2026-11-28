@@ -326,7 +326,30 @@
 
     if (session && s.settings.security.pin) await RS.pin.lock();
     if (session) RS.app.welcome();
+    showCrashReport();
     setTimeout(() => RS.updater && RS.updater.check(false), 1500);
+  }
+
+  /* Se o app fechou sozinho da última vez, mostra o relatório para enviar ao suporte. */
+  function showCrashReport() {
+    const B = window.AndroidBridge;
+    if (!B || !B.crashReport) return;
+    let rep = '';
+    try { rep = B.crashReport(); } catch (e) { rep = ''; }
+    if (!rep) return;
+    setTimeout(() => {
+      ui.sheet({
+        title: 'O app fechou da última vez',
+        body: `<p class="hint" style="margin:0 4px 12px">Ativamos o <b>modo seguro</b> (sem efeitos pesados) para ele não fechar de novo. Toque em <b>Copiar</b> e envie este relatório para o suporte.</p>
+          <div class="card glass-lite"><div class="preview-text" style="max-height:260px">${u.esc(rep)}</div></div>`,
+        foot: `<div class="btn-row"><button class="btn ghost" data-close-rep>Fechar</button><button class="btn primary" data-copy>${ui.icon('copy', 18)}Copiar relatório</button></div>`,
+        onMount(el, ctl) {
+          ctl.$('[data-copy]').onclick = () => { try { B.copyText(rep); } catch (e) { /* */ } ui.toast('Relatório copiado', { type: 'ok', icon: 'copy' }); };
+          ctl.$('[data-close-rep]').onclick = () => ctl.close();
+        },
+        onClose() { try { B.clearCrashReport(); } catch (e) { /* */ } }
+      });
+    }, 1800);
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);

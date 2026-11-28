@@ -99,3 +99,9 @@ Pacote: `com.flowlabs.rsstock` · Ícones em `res/mipmap-*` (inclui ícone adapt
 - **Tamanho da interface** (85% a 115%), **orientação** (automática, retrato, paisagem — tablet gira sozinho).
 - **Modo leve** (sem desfoque/efeitos de fundo), **Sem transições** e **Aceleração GPU** liga/desliga para
   aparelhos que piscam ou travam. Aparelhos mais simples ligam o modo leve automaticamente na primeira abertura.
+
+## Estabilidade (v1.3.1)
+- Corrigido fechamento ao abrir: a troca de ícone do tema Coca agora só acontece com o app fora da tela e o ícone
+  atual é lido do próprio Android (antes podia entrar em ciclo de abre-e-fecha).
+- Se o motor do WebView parar, a tela é recriada em vez de fechar o app.
+- Fechou logo após abrir? O app volta em **modo seguro** e mostra o relatório do erro com o botão **Copiar**.

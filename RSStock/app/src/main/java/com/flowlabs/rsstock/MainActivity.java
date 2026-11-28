@@ -66,6 +66,8 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        CrashGuard.install(getApplicationContext());
+        CrashGuard.markStarted(this);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
@@ -73,21 +75,42 @@ public class MainActivity extends Activity {
         darkUi = prefs.getBoolean(Store.KEY_LAST_DARK, true);
         immersive = prefs.getBoolean(Store.KEY_IMMERSIVE, true);
 
-        setupSystemUi();
+        try {
+            setupSystemUi();
+        } catch (Throwable e) {
+            // tela cheia é opcional — nunca deve impedir o app de abrir
+        }
 
         web = (WebView) findViewById(R.id.web);
         // Transparente: deixa a splash nativa (logo) visível até a interface desenhar
         web.setBackgroundColor(Color.TRANSPARENT);
         setupWebView();
 
-        Notifier.createChannel(this);
-        AlertScheduler.schedule(this);
-
-        if (savedInstanceState != null) {
-            web.restoreState(savedInstanceState);
-        } else {
-            web.loadUrl(START_URL);
+        try {
+            Notifier.createChannel(this);
+            AlertScheduler.schedule(this);
+        } catch (Throwable ignored) {
         }
+
+        boolean restored = false;
+        if (savedInstanceState != null) {
+            try {
+                restored = web.restoreState(savedInstanceState) != null;
+            } catch (Throwable ignored) {
+            }
+        }
+        if (!restored) web.loadUrl(START_URL);
+
+        root().postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                CrashGuard.markHealthy(MainActivity.this);
+            }
+        }, 20000);
+    }
+
+    View root() {
+        return findViewById(R.id.root);
     }
 
     // ------------------------------------------------------------------ Tela cheia
@@ -174,7 +197,12 @@ public class MainActivity extends Activity {
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
-        if (hasFocus) applyUi();
+        if (hasFocus) {
+            try {
+                applyUi();
+            } catch (Throwable ignored) {
+            }
+        }
     }
 
     void pushInsets() {
@@ -203,7 +231,7 @@ public class MainActivity extends Activity {
         web.setVerticalScrollBarEnabled(false);
         web.setHorizontalScrollBarEnabled(false);
         web.setOverScrollMode(View.OVER_SCROLL_NEVER);
-        boolean gpu = getSharedPreferences(Store.PREFS, MODE_PRIVATE).getBoolean("gpu_render", true);
+        boolean gpu = getSharedPreferences(Store.PREFS, MODE_PRIVATE).getBoolean("gpu_render", true) && !CrashGuard.safeMode(this);
         web.setLayerType(gpu ? View.LAYER_TYPE_HARDWARE : View.LAYER_TYPE_SOFTWARE, null);
 
         bridge = new WebBridge(this);
@@ -222,6 +250,22 @@ public class MainActivity extends Activity {
                 Uri u = request.getUrl();
                 if (ORIGIN_HOST.equals(u.getHost())) return false;
                 openExternal(u.toString());
+                return true;
+            }
+
+            /** Se o motor do WebView travar/morrer, recria a tela em vez de fechar o app (Android 8+). */
+            @Override
+            public boolean onRenderProcessGone(WebView view, android.webkit.RenderProcessGoneDetail detail) {
+                Store.prefs(MainActivity.this).edit().putBoolean(CrashGuard.KEY_SAFE, true).putBoolean("gpu_render", false)
+                        .putString(CrashGuard.KEY_REPORT, "O motor de exibição (WebView) parou" + (Build.VERSION.SDK_INT >= 26 && detail != null && detail.didCrash() ? " por erro" : " por falta de memória")
+                                + ". O app reabriu no modo seguro.").apply();
+                try {
+                    android.view.ViewGroup parent = (android.view.ViewGroup) view.getParent();
+                    parent.removeView(view);
+                    view.destroy();
+                    recreate();
+                } catch (Throwable ignored) {
+                }
                 return true;
             }
 
@@ -467,6 +511,13 @@ public class MainActivity extends Activity {
             web.onResume();
             js("window.App&&App.onResume&&App.onResume()");
         }
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        // troca de ícone (tema Coca) só com o app fora da tela — trocar com ele aberto encerra o app
+        IconSwitcher.applyPending(this);
     }
 
     @Override

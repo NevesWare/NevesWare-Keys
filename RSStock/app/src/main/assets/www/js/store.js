@@ -178,11 +178,11 @@
       flag('data-large', s.a11y.large);
       flag('data-coca2', this.isCoca2());
       flag('data-lite', cp.lite);
-      flag('data-no-transitions', s.compat.noTransitions);
+      flag('data-no-transitions', cp.noTransitions);
       RS.native.setSystemBars(dark);
       RS.native.setImmersive(s.fullscreen !== false);
       RS.native.setOrientation(cp.orientation);
-      RS.native.setGpu(s.compat.gpu !== false);
+      RS.native.setGpu(s.compat.gpu !== false && !cp.safe);
       RS.native.setAppIcon(this.isCoca() ? 'coca' : 'default');
       if (RS.fx) RS.fx.update();
       document.querySelectorAll('img.app-logo').forEach(i => { i.src = RS.logoSrc(); });
@@ -195,14 +195,14 @@
       const sw = info.smallestWdp || Math.min(w, h);
       const tablet = info.tablet != null ? info.tablet : sw >= 600;
       const kind = tablet ? 'tablet' : sw < 360 ? 'small' : 'phone';
-      return { w, h, sw, tablet, kind, density: info.density || window.devicePixelRatio || 1, sdk: info.sdk || 0, lowEnd: !!info.lowRam || (info.memoryClass && info.memoryClass <= 128) || (info.sdk && info.sdk < 26) };
+      return { w, h, sw, tablet, kind, safe: !!info.safeMode, density: info.density || window.devicePixelRatio || 1, sdk: info.sdk || 0, lowEnd: !!info.lowRam || (info.memoryClass && info.memoryClass <= 128) || (info.sdk && info.sdk < 26) };
     },
     compatInfo() {
       const c = this.settings.compat, d = this.device();
       const layout = c.layout === 'auto' ? (d.tablet ? 'tablet' : d.kind === 'small' ? 'compact' : 'phone') : c.layout;
       let scale = c.scale === 'auto' ? (layout === 'compact' ? 0.92 : layout === 'tablet' ? 1.08 : 1) : Number(c.scale);
       const orientation = c.orientation === 'auto' ? (d.tablet ? 'auto' : 'portrait') : c.orientation;
-      return { layout, scale: scale || 1, orientation, lite: !!c.lite, device: d };
+      return { layout, scale: scale || 1, orientation, lite: !!c.lite || d.safe, noTransitions: !!c.noTransitions || d.safe, safe: d.safe, device: d };
     },
     /* Primeira abertura: ajusta sozinho para aparelhos mais fracos */
     autoCompat() {

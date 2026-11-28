@@ -47,6 +47,7 @@ public class WebBridge {
             o.put("insetTop", a.insetTop);
             o.put("insetBottom", a.insetBottom);
             o.put("immersive", a.immersive);
+            o.put("safeMode", CrashGuard.safeMode(a));
             android.util.DisplayMetrics dm = a.getResources().getDisplayMetrics();
             android.content.res.Configuration cf = a.getResources().getConfiguration();
             o.put("density", dm.density);
@@ -73,7 +74,10 @@ public class WebBridge {
                 .putString(Store.KEY_PRODUCTS, productsJson == null ? "[]" : productsJson)
                 .putString(Store.KEY_SETTINGS, notifSettingsJson == null ? "{}" : notifSettingsJson)
                 .apply();
-        AlertScheduler.schedule(a);
+        try {
+            AlertScheduler.schedule(a);
+        } catch (Throwable ignored) {
+        }
     }
 
     @JavascriptInterface
@@ -170,6 +174,33 @@ public class WebBridge {
     @JavascriptInterface
     public String getAppIcon() {
         return IconSwitcher.current(a);
+    }
+
+    /** Relatório do último fechamento inesperado (vazio se não houve). */
+    @JavascriptInterface
+    public String crashReport() {
+        return Store.prefs(a).getString(CrashGuard.KEY_REPORT, "");
+    }
+
+    @JavascriptInterface
+    public void clearCrashReport() {
+        Store.prefs(a).edit().remove(CrashGuard.KEY_REPORT).apply();
+    }
+
+    @JavascriptInterface
+    public void exitSafeMode() {
+        Store.prefs(a).edit().putBoolean(CrashGuard.KEY_SAFE, false).putBoolean("gpu_render", true).putInt(CrashGuard.KEY_FAST_CRASHES, 0).apply();
+    }
+
+    @JavascriptInterface
+    public void copyText(final String text) {
+        a.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                android.content.ClipboardManager cm = (android.content.ClipboardManager) a.getSystemService(android.content.Context.CLIPBOARD_SERVICE);
+                if (cm != null) cm.setPrimaryClip(android.content.ClipData.newPlainText("RS Stock", text));
+            }
+        });
     }
 
     /** Orientação da tela: "portrait", "landscape" ou "auto". */

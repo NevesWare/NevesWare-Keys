@@ -380,6 +380,9 @@
             <small>Usando: layout <b style="display:inline;font-size:inherit">${layoutName}</b> · escala ${Math.round(ci.scale * 100)}%${ci.lite ? ' · modo leve' : ''}</small></span>
         </div>
 
+        ${ci.safe ? `<div class="card glass-lite" style="margin-top:12px;display:flex;gap:12px;align-items:center;border-color:color-mix(in srgb,var(--c-mid) 50%,transparent)">
+          <span style="color:var(--c-mid)">${I('shield', 24)}</span><span style="flex:1"><b style="display:block;font-size:.9rem">Modo seguro ativo</b><small class="muted">O app fechou sozinho antes, então os efeitos pesados foram desligados.</small></span>
+          <button class="btn ghost sm" data-exit-safe>Sair</button></div>` : ''}
         <div class="group-label">Formato da interface</div>
         ${seg('layout', [['auto', 'Automático'], ['compact', 'Compacto'], ['phone', 'Celular'], ['tablet', 'Tablet']])}
         <p class="hint">Automático escolhe pelo tamanho da tela. Tablet centraliza o conteúdo e mostra as listas em 2 colunas.</p>
@@ -409,6 +412,12 @@
           ui.tap();
           s.set('compat.' + b.dataset.set, b.dataset.v);
           return RS.app.refresh();
+        }
+        if (e.target.closest('[data-exit-safe]')) {
+          ui.tap();
+          try { window.AndroidBridge.exitSafeMode(); } catch (err) { /* */ }
+          ui.toast('Modo seguro desligado — reabrindo', { type: 'ok' });
+          return setTimeout(() => location.reload(), 600);
         }
         if (e.target.closest('[data-reset-compat]')) {
           ui.tap();
