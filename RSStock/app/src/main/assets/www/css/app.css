@@ -994,84 +994,6 @@ svg { flex-shrink: 0; }
 .google-btn { background: #fff !important; color: #1f1f1f !important; border-color: rgba(0,0,0,.08) !important; }
 
 /* ==========================================================================
-   Tema COCA 2.0 — herda o tema Coca e adiciona: garrafa enchendo o copo com
-   gelo no fundo, transição "derramando" entre telas e efeitos em cada tela.
-   (O tema Coca original continua igual.)
-   ========================================================================== */
-.coca2-scene { display: none; }
-[data-coca2] .coca2-scene { display: block; position: absolute; right: -8%; bottom: calc(var(--hotbar-h) + var(--safe-bottom) + 6px); width: min(80vw, 360px); height: auto; opacity: .95; filter: drop-shadow(0 18px 30px rgba(160, 0, 12, .18)); }
-[data-coca2] .bg { background: radial-gradient(120% 70% at 80% 100%, #ffd6d9 0%, #fff4f4 45%, #ffffff 100%); }
-[data-coca2] .b1 { background: #ff1a24; opacity: .3; }
-[data-coca2] .b2 { background: #ff9aa0; opacity: .35; }
-[data-coca2] .b3 { display: none; }
-[data-coca2] .bubbles i { border-color: rgba(228, 0, 15, .45); }
-[data-reduce-motion][data-coca2] .coca2-scene { display: none; }
-.theme-card .pv.coca2 { background: linear-gradient(180deg, #fff 0 55%, #ffe1e3 100%); }
-.theme-card .pv.coca2::before { content: ""; position: absolute; left: 50%; bottom: 8px; width: 24px; height: 30px; margin-left: -12px; border: 2px solid #e4000f; border-top: 0; border-radius: 0 0 6px 6px; background: linear-gradient(0deg, #5a1206 0 60%, transparent 60%); }
-.theme-card .pv.coca2::after { content: ""; position: absolute; right: 14px; top: 6px; width: 10px; height: 26px; border-radius: 5px 5px 3px 3px; background: #e4000f; transform: rotate(-40deg); }
-
-/* Transição: o refrigerante sobe e escoa revelando a nova tela */
-.cola-wipe { position: fixed; inset: 0; z-index: 30; pointer-events: none; overflow: hidden; }
-.cola-wipe .liq { position: absolute; left: -10%; right: -10%; height: 140%; top: 100%; background: linear-gradient(180deg, #ff1a24 0%, #e4000f 30%, #9e0009 100%); animation: colaPour .78s cubic-bezier(.65, 0, .35, 1) forwards; }
-.cola-wipe .liq::before { content: ""; position: absolute; left: 0; right: 0; top: -18px; height: 36px; background: radial-gradient(18px 14px at 18px 18px, #fff 98%, transparent) 0 0 / 36px 36px repeat-x; filter: drop-shadow(0 -2px 0 rgba(255,255,255,.6)); }
-.cola-wipe .liq::after { content: ""; position: absolute; inset: 30px 0 auto; height: 60%; background-image: radial-gradient(circle, rgba(255,255,255,.55) 0 2px, transparent 3px); background-size: 34px 46px; animation: liqBubbles .78s linear forwards; }
-@keyframes colaPour { 0% { transform: translateY(0); } 45% { transform: translateY(-100%); } 55% { transform: translateY(-100%); } 100% { transform: translateY(-210%); } }
-@keyframes liqBubbles { to { background-position: 0 -120px; } }
-
-/* Efeitos de entrada por tela */
-[data-coca2] .view.v-in-right .item, [data-coca2] .view.v-in-left .item, [data-coca2] .view.v-in-up .item, [data-coca2] .view.v-in-fade .item { animation: iceDrop .7s var(--spring) both; }
-[data-coca2] .view .list > .item:nth-child(2) { animation-delay: .05s; } [data-coca2] .view .list > .item:nth-child(3) { animation-delay: .1s; }
-[data-coca2] .view .list > .item:nth-child(4) { animation-delay: .15s; } [data-coca2] .view .list > .item:nth-child(5) { animation-delay: .2s; }
-[data-coca2] .view .list > .item:nth-child(n+6) { animation-delay: .25s; }
-@keyframes iceDrop { 0% { opacity: 0; transform: translateY(-46px) rotate(-4deg) scale(.96); } 60% { opacity: 1; transform: translateY(6px) rotate(1deg); } 100% { transform: none; } }
-
-/* Início: o cartão principal "enche" de refrigerante */
-[data-coca2] .hero-card { overflow: hidden; }
-[data-coca2] .hero-card::before { content: ""; position: absolute; left: -10%; right: -10%; bottom: 0; height: 0; background: linear-gradient(180deg, rgba(90, 10, 4, .35), rgba(40, 4, 2, .5)); border-radius: 40% 45% 0 0 / 14px 16px 0 0; animation: heroFill 1.6s .2s cubic-bezier(.2, .8, .2, 1) forwards, heroWave 3s 1.8s ease-in-out infinite alternate; pointer-events: none; }
-[data-coca2] .hero-card > * { position: relative; z-index: 1; }
-@keyframes heroFill { to { height: 38%; } }
-@keyframes heroWave { to { border-radius: 45% 40% 0 0 / 16px 12px 0 0; height: 34%; } }
-[data-coca2] .hero-card::after { content: ""; position: absolute; inset: 0; background-image: radial-gradient(circle, rgba(255,255,255,.7) 0 1.5px, transparent 2.5px); background-size: 26px 30px; mask-image: linear-gradient(0deg, #000 30%, transparent 40%); -webkit-mask-image: linear-gradient(0deg, #000 30%, transparent 40%); animation: heroFizz 3s linear infinite; pointer-events: none; opacity: .8; }
-@keyframes heroFizz { to { background-position: 0 -60px; } }
-[data-coca2] .legend b { animation: popNum .6s var(--spring) both; }
-[data-coca2] .legend button:nth-child(2) b { animation-delay: .08s; } [data-coca2] .legend button:nth-child(3) b { animation-delay: .16s; } [data-coca2] .legend button:nth-child(4) b { animation-delay: .24s; }
-@keyframes popNum { from { transform: scale(.3); opacity: 0; } }
-
-/* Exportar: formatos "efervescem" */
-[data-coca2] .fmt { animation: fizzPop .6s var(--spring) both; }
-[data-coca2] .fmt:nth-child(2) { animation-delay: .06s; } [data-coca2] .fmt:nth-child(3) { animation-delay: .12s; } [data-coca2] .fmt:nth-child(4) { animation-delay: .18s; }
-[data-coca2] .fmt.on .xi { animation: capSpin 2.4s ease-in-out infinite; }
-@keyframes fizzPop { 0% { opacity: 0; transform: scale(.8) translateY(20px); } 100% { opacity: 1; transform: none; } }
-@keyframes capSpin { 0%, 70%, 100% { transform: rotate(0); } 80% { transform: rotate(-14deg) scale(1.08); } 90% { transform: rotate(10deg); } }
-
-/* Ajustes: linhas deslizam e atalhos "estouram" */
-[data-coca2] .rows .row { animation: slideIn .5s var(--ease) both; }
-[data-coca2] .rows .row:nth-child(2) { animation-delay: .05s; } [data-coca2] .rows .row:nth-child(3) { animation-delay: .1s; }
-[data-coca2] .rows .row:nth-child(4) { animation-delay: .15s; } [data-coca2] .rows .row:nth-child(5) { animation-delay: .2s; }
-@keyframes slideIn { from { opacity: 0; transform: translateX(30px); } }
-[data-coca2] .sc { animation: fizzPop .55s var(--spring) both; }
-[data-coca2] .sc:nth-child(2) { animation-delay: .07s; } [data-coca2] .sc:nth-child(3) { animation-delay: .14s; }
-[data-coca2] .me-avatar::before { background: conic-gradient(from var(--ang, 0deg), #fff, #e4000f, #ff9aa0, #e4000f, #fff); }
-
-/* Botão + vira tampinha girando */
-[data-coca2] .hb-add { background: radial-gradient(circle at 50% 40%, #fff 0 45%, #ffe5e6 70%); }
-[data-coca2] .hb-add::before { background: repeating-conic-gradient(from var(--ang, 0deg), #e4000f 0 10deg, #ff4b55 10deg 20deg); filter: blur(1px); opacity: .9; inset: -5px; }
-[data-coca2] .hb-add:active svg { transform: rotate(90deg) scale(.9); }
-
-/* Folhas (sheets) sobem com bolhas */
-[data-coca2] .sheet.show::before { content: ""; position: absolute; left: 0; right: 0; top: -10px; height: 40px; pointer-events: none; background-image: radial-gradient(circle, rgba(228,0,15,.35) 0 2px, transparent 3px); background-size: 28px 20px; animation: sheetFizz 1.2s ease-out forwards; }
-@keyframes sheetFizz { from { opacity: 1; transform: translateY(20px); } to { opacity: 0; transform: translateY(-30px); } }
-
-/* Splash do Coca 2.0 */
-[data-coca2] #splash .splash-logo { animation: logoIn .9s var(--spring) both, bob 2.4s 1s ease-in-out infinite; }
-/* Coca 2.0: vidro mais transparente para a cena da garrafa aparecer atrás */
-:root[data-coca2] { --glass: rgba(255, 255, 255, .38); --glass-2: rgba(255, 255, 255, .5); --input: rgba(255, 255, 255, .55); }
-[data-coca2] .glass, [data-coca2] .glass-lite { -webkit-backdrop-filter: blur(6px) saturate(140%); backdrop-filter: blur(6px) saturate(140%); }
-[data-coca2] .item { background: linear-gradient(115deg, color-mix(in srgb, var(--sc) 30%, rgba(255,255,255,.35)) 0%, color-mix(in srgb, var(--sc) 12%, rgba(255,255,255,.3)) 60%, rgba(255,255,255,.28) 100%); }
-[data-coca2] .item.s-expired { background: linear-gradient(115deg, rgba(11,11,15,.88), rgba(28,28,34,.82)); }
-[data-coca2] .coca2-scene { opacity: 1; }
-
-/* ==========================================================================
    Compatibilidade — layout por tipo de aparelho e modos anti-piscada
    ========================================================================== */
 /* Tablet: conteúdo centralizado, listas em 2 colunas, folhas mais estreitas */
@@ -1081,7 +1003,6 @@ svg { flex-shrink: 0; }
 [data-layout="tablet"] .hotbar { width: min(calc(100% - 48px), 520px); }
 [data-layout="tablet"] .tiles, [data-layout="tablet"] .kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 [data-layout="tablet"] .fmt-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-[data-layout="tablet"] .coca2-scene { width: min(42vw, 420px); right: 2%; }
 [data-layout="tablet"] .dialog, [data-layout="tablet"] .loading-card { max-width: 420px; }
 
 /* Compacto: celulares pequenos */
@@ -1102,7 +1023,7 @@ svg { flex-shrink: 0; }
   -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
 [data-lite] .glass, [data-lite] .glass-lite { background: color-mix(in srgb, var(--solid) 94%, transparent); }
 [data-lite] .blob { animation: none !important; filter: blur(50px); }
-[data-lite] .grain, [data-lite] .bubbles, [data-lite] .coca2-scene, [data-lite] .sparks { display: none !important; }
+[data-lite] .grain, [data-lite] .bubbles, [data-lite] .sparks { display: none !important; }
 [data-lite] .item::after, [data-lite] .me-card::after, [data-lite] .hero-card::after, [data-lite] .rp-wave { display: none !important; }
 [data-lite] .hb-add::before, [data-lite] .me-avatar::before { animation: none !important; }
 [data-lite] .item, [data-lite] .card, [data-lite] .sc, [data-lite] .kpi { box-shadow: none !important; }
@@ -1121,3 +1042,39 @@ svg { flex-shrink: 0; }
 .seg.wrap { flex-wrap: wrap; }
 .preview-box { margin-top: 12px; border-radius: 18px; padding: 12px; border: 1px dashed var(--stroke-2); font-size: .78rem; color: var(--text-2); line-height: 1.5; }
 @media (max-height: 640px) { [data-layout="compact"] .last-move { display: none; } [data-layout="compact"] .hero-card { padding: 14px; } [data-layout="compact"] .hero-num { font-size: 1.9rem; } [data-layout="compact"] .seg-bar { margin: 10px 0; } }
+
+/* ---------- Modo compatibilidade de dispositivo ---------- */
+.uni-card { display: flex; align-items: center; gap: 14px; width: 100%; padding: 18px 16px; border-radius: 24px; text-align: left; background: var(--glass); border: 1.5px solid var(--stroke); transition: border-color .25s, box-shadow .25s; }
+.uni-card.on { border-color: rgba(var(--accent-rgb), .8); box-shadow: 0 0 0 3px rgba(var(--accent-rgb), .2); }
+.uni-card .ct { flex: 1; min-width: 0; }
+.uni-card b { display: block; font-size: 1rem; font-weight: 700; }
+.uni-card small { display: block; font-size: .76rem; color: var(--text-2); margin-top: 4px; line-height: 1.4; }
+.uni-ic { width: 52px; height: 52px; border-radius: 17px; flex-shrink: 0; display: grid; place-items: center; color: #fff; background: linear-gradient(135deg, #14b8a6, #3b82f6); }
+.switch.big { width: 58px; height: 34px; border-radius: 17px; }
+.switch.big::after { width: 26px; height: 26px; }
+.switch.big.on::after { transform: translateX(24px); }
+.is-off { opacity: .45; pointer-events: none; }
+
+/* Modo compatível + WebViews antigos (sem color-mix): cores simples que funcionam em qualquer Android */
+[data-universal] .item.s-soon, [data-universal] .item.s-today { background: rgba(255, 59, 78, .2); border-color: rgba(255, 59, 78, .45); }
+[data-universal] .item.s-mid { background: rgba(255, 193, 69, .24); border-color: rgba(255, 193, 69, .5); }
+[data-universal] .item.s-ok { background: rgba(46, 211, 160, .18); border-color: rgba(46, 211, 160, .45); }
+[data-universal] .item.s-expired { background: #101014; border-color: rgba(255,255,255,.16); }
+[data-universal] .item::after, [data-universal] .hb-add::before, [data-universal] .me-avatar::before { display: none !important; }
+[data-universal] .glass, [data-universal] .glass-lite { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+[data-universal][data-theme="dark"] .glass, [data-universal][data-theme="dark"] .glass-lite { background: #171925; }
+[data-universal][data-theme="light"] .glass, [data-universal][data-theme="light"] .glass-lite, [data-universal][data-theme="coca"] .glass, [data-universal][data-theme="coca"] .glass-lite { background: #ffffff; }
+@supports not (color: color-mix(in srgb, red 50%, blue)) {
+  .item.s-soon, .item.s-today { background: rgba(255, 59, 78, .2); }
+  .item.s-mid { background: rgba(255, 193, 69, .24); }
+  .item.s-ok { background: rgba(46, 211, 160, .18); }
+  .item.s-expired { background: #101014; }
+  .item .ic, .pill { background: var(--sc); color: #fff; }
+  .btn.danger { background: rgba(255, 84, 112, .16); }
+}
+.splash-ver { font-size: .72rem; color: var(--text-3); margin-top: 6px; letter-spacing: .04em; }
+:root[data-theme="coca"] #splash .splash-ver { color: rgba(255,255,255,.8); }
+/* Coca + modo compatível: mantém o cartão principal e a barra vermelhos (texto branco legível) */
+[data-universal][data-theme="coca"] .hero-card { background: linear-gradient(135deg, #f40009, #b8000b) !important; }
+[data-universal][data-theme="coca"] .hotbar { background: linear-gradient(135deg, #f40009, #b8000b) !important; }
+[data-universal][data-theme="coca"] .sheet.glass, [data-universal][data-theme="coca"] .dialog.glass { background: #ffffff; }

@@ -60,7 +60,7 @@
     tab: 'settings',
     render() {
       const pr = s.settings.profile;
-      const themeName = { dark: 'Escuro', light: 'Claro', system: 'Sistema', coca: 'Coca', coca2: 'Coca 2.0' }[s.settings.theme];
+      const themeName = { dark: 'Escuro', light: 'Claro', system: 'Sistema', coca: 'Coca' }[s.settings.theme];
       const cur = s.current();
       const row = (go, icon, color, title, sub, value = '') => `<button class="row" data-go="${go}" style="--tc:${color}"><span class="ri">${I(icon, 18)}</span>
         <span class="ct"><b>${title}</b><small>${sub}</small></span><span class="cv">${value}${I('chev', 18)}</span></button>`;
@@ -87,7 +87,7 @@
           ${row('settings.appearance', 'moon', '#8b5cf6', 'Aparência', 'Tema, cores e vidro', themeName)}
           ${row('settings.notifications', 'bell', '#f43f5e', 'Notificações', 'Alertas de validade', s.settings.notif.enabled ? s.settings.notif.daysBefore + ' dias' : 'Off')}
           ${row('settings.a11y', 'a11y', '#10b981', 'Acessibilidade', 'Texto, contraste e movimento')}
-          ${row('settings.compat', 'phone', '#14b8a6', 'Compatibilidade', 'Tela, tablet e desempenho', ({ phone: 'Celular', tablet: 'Tablet', compact: 'Compacto' })[s.compatInfo().layout])}
+          ${row('settings.compat', 'shield', '#14b8a6', 'Compatibilidade', 'Modo compatível com qualquer aparelho', s.compatInfo().universal ? 'Ligado' : 'Desligado')}
           ${row('settings.security', 'lock', '#0ea5e9', 'Segurança', 'PIN e senha da conta', s.settings.security.pin ? 'PIN ativo' : '')}
           ${row('account', 'cloud', '#3b82f6', RS.auth.isUser() ? 'Minha conta' : 'Criar conta / Entrar', RS.auth.isUser() ? 'Backup na nuvem ativo' : 'Salve seus dados na nuvem', RS.auth.isUser() ? syncBadge() : '<span class="soon-tag">Grátis</span>')}
         </div>
@@ -185,17 +185,17 @@
       return sub('Aparência', `
         <div class="group-label" style="margin-top:4px">Tema</div>
         <div class="theme-cards">
-          ${[['dark', 'Escuro'], ['light', 'Claro'], ['system', 'Sistema'], ['coca', 'Coca'], ['coca2', 'Coca 2.0']].map(([k, l]) => `<button class="theme-card ${st.theme === k ? 'on' : ''}" data-theme-pick="${k}"><div class="pv ${k}"><i></i></div>${l}</button>`).join('')}
+          ${[['dark', 'Escuro'], ['light', 'Claro'], ['system', 'Sistema'], ['coca', 'Coca']].map(([k, l]) => `<button class="theme-card ${st.theme === k ? 'on' : ''}" data-theme-pick="${k}"><div class="pv ${k}"><i></i></div>${l}</button>`).join('')}
         </div>
-        ${(st.theme === 'coca' || st.theme === 'coca2') && RS.native.isApp ? `<div class="card glass-lite" style="display:flex;align-items:center;gap:12px;margin-top:10px">
+        ${st.theme === 'coca' && RS.native.isApp ? `<div class="card glass-lite" style="display:flex;align-items:center;gap:12px;margin-top:10px">
           <img src="img/logo-coca.png" alt="" style="width:40px;height:40px;border-radius:12px">
           <span style="flex:1"><b style="display:block;font-size:.9rem">Ícone vermelho do app</b><small class="muted">${RS.native.appIcon() === 'coca' ? 'Ativo' : 'Opcional — muda quando você sair do app'}</small></span>
           <button class="btn ghost sm" data-icon="${RS.native.appIcon() === 'coca' ? 'default' : 'coca'}">${RS.native.appIcon() === 'coca' ? 'Padrão' : 'Usar'}</button></div>` : ''}
-        ${!(st.theme === 'coca' || st.theme === 'coca2') && RS.native.appIcon() === 'coca' ? `<button class="btn ghost block sm" data-icon="default" style="margin-top:10px">Voltar ao ícone padrão do app</button>` : ''}
-        ${st.theme === 'coca2' ? `<p class="hint">Coca 2.0: fundo animado com a garrafa enchendo o copo com gelo, transição “derramando” entre as telas e efeitos novos em cada tela. Se quiser, ative também o ícone vermelho do app logo acima.</p>` : ''}
+        ${!st.theme === 'coca' && RS.native.appIcon() === 'coca' ? `<button class="btn ghost block sm" data-icon="default" style="margin-top:10px">Voltar ao ícone padrão do app</button>` : ''}
+        
         ${st.theme === 'coca' ? `<p class="hint">Tema especial vermelho e branco: muda as cores, o fundo com bolhas, e as transições. O ícone vermelho do app é opcional (botão acima).</p>` : ''}
 
-        <div class="${st.theme === 'coca' || st.theme === 'coca2' ? 'hidden' : ''}">
+        <div class="${st.theme === 'coca' ? 'hidden' : ''}">
         <div class="group-label">Cor de destaque</div>
         <div class="card glass-lite"><div class="swatches">
           ${Object.entries(cfg.accents).map(([k, a]) => `<button class="swatch ${st.accent === k ? 'on' : ''}" data-accent="${k}" style="--a:${a.a};--b:${a.b}" aria-label="${a.name}"></button>`).join('')}
@@ -238,7 +238,7 @@
           s.set('theme', t.dataset.themePick);
           if (RS.fx) RS.fx.burst(innerWidth / 2, innerHeight / 3);
           RS.app.refresh();
-          if ((t.dataset.themePick === 'coca' || t.dataset.themePick === 'coca2') && was !== 'coca' && was !== 'coca2') ui.toast('Tema Coca ativado', { type: 'ok', icon: 'sparkle' });
+          if (t.dataset.themePick === 'coca' && was !== 'coca') ui.toast('Tema Coca ativado', { type: 'ok', icon: 'sparkle' });
         } else if (t.dataset.accent) {
           s.set('accent', t.dataset.accent);
           root.querySelectorAll('[data-accent]').forEach(x => x.classList.toggle('on', x === t));
@@ -380,49 +380,61 @@
     render() {
       const c = s.settings.compat, ci = s.compatInfo(), d = ci.device;
       const kindName = { tablet: 'Tablet', phone: 'Celular', small: 'Celular pequeno' }[d.kind];
-      const seg = (key, opts) => `<div class="seg wrap">${opts.map(([v, l]) => `<button class="${String(c[key]) === String(v) ? 'on' : ''}" data-set="${key}" data-v="${v}">${l}</button>`).join('')}</div>`;
       const layoutName = { phone: 'Celular', tablet: 'Tablet', compact: 'Compacto' }[ci.layout];
+      const dis = ci.universal ? 'disabled' : '';
+      const seg = (key, opts) => `<div class="seg wrap ${dis ? 'is-off' : ''}">${opts.map(([v, l]) => `<button ${dis} class="${String(c[key]) === String(v) && !dis ? 'on' : ''}" data-set="${key}" data-v="${v}">${l}</button>`).join('')}</div>`;
       return sub('Compatibilidade', `
-        <div class="card glass device-card">
-          <span class="device-ic">${I(d.tablet ? 'layers' : 'phone', 26)}</span>
-          <span style="flex:1;min-width:0"><b>${kindName} detectado</b>
-            <small>Tela ${Math.round(d.w)}×${Math.round(d.h)} dp · densidade ${Number(d.density).toFixed(1)}x${d.sdk ? ' · Android API ' + d.sdk : ''}</small>
-            <small>Usando: layout <b style="display:inline;font-size:inherit">${layoutName}</b> · escala ${Math.round(ci.scale * 100)}%${ci.lite ? ' · modo leve' : ''}</small></span>
+        <button class="uni-card ${ci.universal ? 'on' : ''}" data-uni>
+          <span class="uni-ic">${I('shield', 28)}</span>
+          <span class="ct"><b>Modo compatibilidade de dispositivo</b>
+            <small>Funciona em qualquer Android (5.0 até o mais recente), em qualquer tamanho de tela e DPI. Desliga os efeitos pesados, usa a tela com as barras do sistema e ajusta o tamanho sozinho.</small></span>
+          <span class="switch big ${ci.universal ? 'on' : ''}"></span>
+        </button>
+        ${ci.safe ? `<p class="hint" style="color:var(--c-mid)">${I('alert', 14)} Ligado automaticamente porque o app fechou sozinho antes. <button class="link" data-exit-safe>Desligar modo seguro</button></p>` : ''}
+
+        <div class="card glass device-card" style="margin-top:12px">
+          <span class="device-ic">${I(d.tablet ? 'layers' : 'phone', 24)}</span>
+          <span style="flex:1;min-width:0"><b>${kindName}${d.sdk ? ' · Android API ' + d.sdk : ''}</b>
+            <small>Tela ${Math.round(d.w)}×${Math.round(d.h)} dp · densidade ${Number(d.density).toFixed(2)}x (${Math.round(d.density * 160)} dpi)</small>
+            <small>Em uso: ${layoutName} · escala ${Math.round(ci.scale * 100)}%${ci.lite ? ' · efeitos leves' : ''}${ci.universal ? ' · modo compatível' : ''}</small></span>
         </div>
 
-        ${ci.safe ? `<div class="card glass-lite" style="margin-top:12px;display:flex;gap:12px;align-items:center;border-color:color-mix(in srgb,var(--c-mid) 50%,transparent)">
-          <span style="color:var(--c-mid)">${I('shield', 24)}</span><span style="flex:1"><b style="display:block;font-size:.9rem">Modo seguro ativo</b><small class="muted">O app fechou sozinho antes, então os efeitos pesados foram desligados.</small></span>
-          <button class="btn ghost sm" data-exit-safe>Sair</button></div>` : ''}
-        <div class="group-label">Formato da interface</div>
-        ${seg('layout', [['auto', 'Automático'], ['compact', 'Compacto'], ['phone', 'Celular'], ['tablet', 'Tablet']])}
-        <p class="hint">Automático escolhe pelo tamanho da tela. Tablet centraliza o conteúdo e mostra as listas em 2 colunas.</p>
-
-        <div class="group-label">Tamanho da interface</div>
-        ${seg('scale', [['auto', 'Auto'], ['0.85', '85%'], ['0.92', '92%'], ['1', '100%'], ['1.08', '108%'], ['1.15', '115%']])}
-        <p class="hint">Diminua se algo ficar cortado; aumente em telas grandes. Soma com o tamanho do texto da Acessibilidade.</p>
-
-        <div class="group-label">Orientação da tela</div>
-        ${seg('orientation', [['auto', 'Automática'], ['portrait', 'Retrato'], ['landscape', 'Paisagem']])}
-        <p class="hint">Automática: celular fica em retrato e tablet gira livremente.</p>
-
-        <div class="group-label">Desempenho e estabilidade</div>
-        <div class="group glass-lite">
-          ${toggle('compat.lite', 'zap', '#f59e0b', 'Modo leve', 'Tira o desfoque e os efeitos de fundo — evita travadas e piscadas')}
-          ${toggle('compat.noTransitions', 'refresh', '#8b5cf6', 'Sem transições', 'Troca de tela instantânea, sem animação')}
-          ${toggle('compat.gpu', 'layers', '#06b6d4', 'Aceleração de vídeo (GPU)', 'Desligue só se a tela piscar ou ficar com riscos')}
+        <button class="cell glass-lite" data-adv style="border-radius:18px;margin-top:14px"><span class="ci" style="--cc:#64748b">${I('sliders', 18)}</span>
+          <span class="ct"><b>Avançado</b><small>${ci.universal ? 'Controlado pelo modo compatibilidade' : 'Formato, tamanho, orientação e desempenho'}</small></span><span class="cv" data-adv-ic>${I('down', 20)}</span></button>
+        <div data-adv-box class="hidden">
+          <div class="group-label">Formato da interface</div>
+          ${seg('layout', [['auto', 'Automático'], ['compact', 'Compacto'], ['phone', 'Celular'], ['tablet', 'Tablet']])}
+          <div class="group-label">Tamanho da interface</div>
+          ${seg('scale', [['auto', 'Auto'], ['0.85', '85%'], ['0.92', '92%'], ['1', '100%'], ['1.08', '108%'], ['1.15', '115%']])}
+          <div class="group-label">Orientação da tela</div>
+          ${seg('orientation', [['auto', 'Automática'], ['portrait', 'Retrato'], ['landscape', 'Paisagem']])}
+          <div class="group-label">Desempenho</div>
+          <div class="group glass-lite ${dis ? 'is-off' : ''}">
+            ${toggle('compat.lite', 'zap', '#f59e0b', 'Efeitos leves', 'Sem desfoque nem animações de fundo')}
+            ${toggle('compat.noTransitions', 'refresh', '#8b5cf6', 'Sem transições', 'Troca de tela instantânea')}
+            ${toggle('compat.gpu', 'layers', '#06b6d4', 'Aceleração de vídeo (GPU)', 'Desligue só se a tela piscar ou ficar com riscos')}
+          </div>
         </div>
-        ${d.lowEnd ? `<div class="preview-box">${I('info', 14)} Este aparelho foi identificado como mais simples. Se notar lentidão, deixe o <b>Modo leve</b> ligado.</div>` : ''}
-        <button class="btn ghost block" data-reset-compat style="margin-top:18px">${I('refresh', 18)}Restaurar padrão automático</button>`);
+        <button class="btn ghost block" data-reset-compat style="margin-top:18px">${I('refresh', 18)}Restaurar padrão</button>`);
     },
     mount(root) {
       bindCommon(root, () => RS.app.refresh());
       root.addEventListener('click', e => {
-        const b = e.target.closest('[data-set]');
-        if (b) {
+        if (e.target.closest('[data-uni]')) {
           ui.tap();
-          s.set('compat.' + b.dataset.set, b.dataset.v);
+          const on = !s.settings.compat.universal;
+          s.set('compat.universal', on);
+          ui.toast(on ? 'Modo compatibilidade ligado' : 'Modo compatibilidade desligado', { type: 'ok', icon: 'shield' });
           return RS.app.refresh();
         }
+        if (e.target.closest('[data-adv]')) {
+          const box = root.querySelector('[data-adv-box]');
+          box.classList.toggle('hidden');
+          root.querySelector('[data-adv-ic]').innerHTML = I(box.classList.contains('hidden') ? 'down' : 'chev', 20);
+          return;
+        }
+        const b = e.target.closest('[data-set]');
+        if (b && !b.disabled) { ui.tap(); s.set('compat.' + b.dataset.set, b.dataset.v); return RS.app.refresh(); }
         if (e.target.closest('[data-exit-safe]')) {
           ui.tap();
           try { window.AndroidBridge.exitSafeMode(); } catch (err) { /* */ }
@@ -432,7 +444,7 @@
         if (e.target.closest('[data-reset-compat]')) {
           ui.tap();
           s.set('compat', Object.assign({}, s.DEFAULTS.compat, { init: true }));
-          ui.toast('Compatibilidade no automático', { type: 'ok', icon: 'phone' });
+          ui.toast('Compatibilidade restaurada', { type: 'ok', icon: 'phone' });
           RS.app.refresh();
         }
       });

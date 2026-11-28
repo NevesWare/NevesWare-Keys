@@ -65,7 +65,6 @@
       'tab-right': ['v-in-right', 'v-out-left'], 'tab-left': ['v-in-left', 'v-out-right'],
       fade: ['v-in-fade', 'v-out-fade'], up: ['v-in-up', 'v-out-fade']
     }[dir];
-    if (anim && RS.fx && ['tab-left', 'tab-right', 'up', 'fade'].includes(dir)) RS.fx.pour();
     if (anim && !s.settings.a11y.reduceMotion) {
       view.classList.add(anim[0]);
       if (old) {
@@ -298,6 +297,7 @@
     const bar = document.getElementById('splash-bar');
     const status = document.getElementById('splash-status');
     document.getElementById('splash-year').textContent = RS.config.year;
+    try { const iv = RS.native.info(); document.getElementById('splash-ver').textContent = 'Versão ' + (iv.version || RS.config.version) + (iv.versionCode ? ' (' + iv.versionCode + ')' : ''); } catch (e) { /* */ }
     const step = (pct, text) => { bar.style.width = pct + '%'; if (text) status.textContent = text; };
     const t0 = Date.now();
 

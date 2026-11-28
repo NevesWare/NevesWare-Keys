@@ -59,7 +59,7 @@
         <button class="btn ghost block" data-act="guest" style="margin-top:8px">${I('user', 20)}Entrar como convidado</button>`}
         <button class="btn block" data-act="site" style="margin-top:8px;color:var(--text-2)">${I('globe', 18)}Visitar site ${cfg.features.site && cfg.siteUrl ? '' : '<span class="soon-tag">Em breve</span>'}</button>
 
-        <footer class="auth-foot"><strong>${cfg.studio}</strong><br>© ${cfg.year} · Todos os direitos reservados</footer>
+        <footer class="auth-foot"><strong>${cfg.studio}</strong><br>© ${cfg.year} · Todos os direitos reservados<br><span class="faint">RS Stock ${u.esc(RS.native.info().version || cfg.version)}</span></footer>
       </div></div>`;
     },
 

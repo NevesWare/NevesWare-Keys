@@ -19,77 +19,6 @@
       <path d="M0 102C50 92 110 106 170 98C250 88 330 106 400 94" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
     </svg>
     <div class="bubbles" id="bubbles"></div>
-    <!-- Coca 2.0: garrafa enchendo o copo com gelo (ciclo de 9s) -->
-    <svg class="coca2-scene" viewBox="0 0 360 640" aria-hidden="true">
-      <defs>
-        <linearGradient id="c2cola" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7a1a0c"/><stop offset="1" stop-color="#2a0603"/></linearGradient>
-        <linearGradient id="c2bottle" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#b8000b"/><stop offset=".45" stop-color="#ff2a33"/><stop offset="1" stop-color="#9e0009"/></linearGradient>
-        <linearGradient id="c2glass" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset=".3" stop-color="#fff" stop-opacity=".15"/><stop offset="1" stop-color="#fff" stop-opacity=".4"/></linearGradient>
-        <clipPath id="c2clip"><polygon points="146,386 254,386 244,596 156,596"/></clipPath>
-      </defs>
-      <!-- sombra do copo -->
-      <ellipse cx="200" cy="606" rx="70" ry="9" fill="#a0000a" opacity=".15"/>
-      <!-- jato -->
-      <g class="c2-stream">
-        <line x1="200" y1="300" x2="200" y2="596" stroke="url(#c2cola)" stroke-width="7" stroke-linecap="round" stroke-dasharray="300 300" stroke-dashoffset="300">
-          <animate attributeName="stroke-dashoffset" dur="9s" repeatCount="indefinite" keyTimes="0;.2;.26;.7;.76;1" values="300;300;0;0;-300;-300"/>
-        </line>
-        <line x1="200" y1="300" x2="200" y2="596" stroke="#ffd9c9" stroke-opacity=".5" stroke-width="2" stroke-dasharray="8 14">
-          <animate attributeName="stroke-dashoffset" dur=".5s" repeatCount="indefinite" values="0;-22"/>
-          <animate attributeName="opacity" dur="9s" repeatCount="indefinite" keyTimes="0;.22;.26;.7;.74;1" values="0;0;1;1;0;0"/>
-        </line>
-      </g>
-      <!-- refrigerante + gelo + bolhas dentro do copo -->
-      <g clip-path="url(#c2clip)">
-        <rect x="130" y="600" width="140" height="220" fill="url(#c2cola)">
-          <animate attributeName="y" dur="9s" repeatCount="indefinite" keyTimes="0;.26;.72;.9;.97;1" values="600;600;408;408;600;600"/>
-        </rect>
-        <rect x="130" y="594" width="140" height="12" rx="6" fill="#fff3ea" opacity=".9">
-          <animate attributeName="y" dur="9s" repeatCount="indefinite" keyTimes="0;.26;.72;.9;.97;1" values="594;594;398;398;594;594"/>
-          <animate attributeName="height" dur="9s" repeatCount="indefinite" keyTimes="0;.26;.72;.8;.9;1" values="6;6;16;10;8;6"/>
-        </rect>
-        <g fill="#fff" fill-opacity=".55" stroke="#fff" stroke-opacity=".9" stroke-width="2">
-          <rect x="166" y="560" width="30" height="30" rx="7" transform="rotate(-12 181 575)">
-            <animate attributeName="y" dur="9s" repeatCount="indefinite" keyTimes="0;.3;.72;.9;.97;1" values="560;560;412;412;560;560"/>
-          </rect>
-          <rect x="204" y="566" width="28" height="28" rx="7" transform="rotate(14 218 580)">
-            <animate attributeName="y" dur="9s" repeatCount="indefinite" keyTimes="0;.34;.72;.9;.97;1" values="566;566;420;420;566;566"/>
-          </rect>
-          <rect x="184" y="572" width="24" height="24" rx="6" transform="rotate(30 196 584)">
-            <animate attributeName="y" dur="9s" repeatCount="indefinite" keyTimes="0;.4;.74;.9;.97;1" values="572;572;440;440;572;572"/>
-          </rect>
-        </g>
-        <g fill="none" stroke="#ffe7dc" stroke-opacity=".8" stroke-width="1.5">
-          <circle cx="170" cy="590" r="3"><animate attributeName="cy" dur="1.7s" repeatCount="indefinite" values="592;420"/></circle>
-          <circle cx="232" cy="590" r="2.4"><animate attributeName="cy" dur="1.3s" repeatCount="indefinite" values="592;430"/></circle>
-          <circle cx="200" cy="590" r="2"><animate attributeName="cy" dur="2.1s" repeatCount="indefinite" values="592;410"/></circle>
-          <circle cx="215" cy="590" r="3.2"><animate attributeName="cy" dur="1.9s" begin=".6s" repeatCount="indefinite" values="592;416"/></circle>
-          <circle cx="184" cy="590" r="2.6"><animate attributeName="cy" dur="1.5s" begin=".3s" repeatCount="indefinite" values="592;424"/></circle>
-        </g>
-      </g>
-      <!-- copo -->
-      <polygon points="146,386 254,386 244,596 156,596" fill="url(#c2glass)" stroke="#fff" stroke-width="3" stroke-linejoin="round"/>
-      <path d="M156 400 L163 580" stroke="#fff" stroke-opacity=".8" stroke-width="5" stroke-linecap="round"/>
-      <ellipse cx="200" cy="386" rx="54" ry="6" fill="none" stroke="#fff" stroke-width="2.5"/>
-      <!-- garrafa (forma genérica, sem marca) girando em torno da boca -->
-      <g transform="translate(200 300)">
-        <g>
-          <animateTransform attributeName="transform" type="rotate" dur="9s" repeatCount="indefinite" keyTimes="0;.08;.2;.72;.84;1" values="-60;-60;-138;-138;-60;-60" calcMode="spline" keySplines=".4 0 .2 1;.4 0 .2 1;0 0 1 1;.4 0 .2 1;0 0 1 1"/>
-          <animate attributeName="opacity" dur="9s" repeatCount="indefinite" keyTimes="0;.06;.88;.96;1" values="0;1;1;0;0"/>
-          <g transform="translate(-30 0)">
-            <path d="M24 0H36V16C36 26 48 32 48 46C48 60 42 66 42 80C42 96 52 104 52 124V184C52 192 47 198 40 198H20C13 198 8 192 8 184V124C8 104 18 96 18 80C18 66 12 60 12 46C12 32 24 26 24 16Z" fill="url(#c2bottle)" stroke="#fff" stroke-opacity=".7" stroke-width="2"/>
-            <path d="M8 132 C 22 118 38 146 52 128" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round"/>
-            <path d="M14 60 C 14 80 20 90 20 110" fill="none" stroke="#fff" stroke-opacity=".45" stroke-width="4" stroke-linecap="round"/>
-            <rect x="22" y="-9" width="16" height="10" rx="3" fill="#8f0008"/>
-          </g>
-        </g>
-      </g>
-      <!-- respingos na boca do copo -->
-      <g fill="#7a1a0c">
-        <circle cx="188" cy="396" r="3"><animate attributeName="opacity" dur="9s" repeatCount="indefinite" keyTimes="0;.6;.66;.72;1" values="0;0;1;0;0"/><animate attributeName="cy" dur="9s" repeatCount="indefinite" keyTimes="0;.6;.72;1" values="410;410;380;380"/></circle>
-        <circle cx="214" cy="396" r="2.5"><animate attributeName="opacity" dur="9s" repeatCount="indefinite" keyTimes="0;.62;.68;.74;1" values="0;0;1;0;0"/><animate attributeName="cy" dur="9s" repeatCount="indefinite" keyTimes="0;.62;.74;1" values="410;410;376;376"/></circle>
-      </g>
-    </svg>
     <div class="grain"></div>
   </div>
 
@@ -105,6 +34,7 @@
       <p class="splash-sub">Estoque e validades sob controle</p>
       <div class="loader-line"><i id="splash-bar"></i></div>
       <p class="splash-status" id="splash-status">Iniciando…</p>
+      <p class="splash-ver" id="splash-ver">Versão 1.4.0</p>
     </div>
     <footer class="splash-foot">
       <strong>FlowLabs Studio</strong>

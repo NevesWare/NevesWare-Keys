@@ -8,7 +8,7 @@
   const SKEY = 'rs.settings.v1';
 
   const DEFAULTS = {
-    theme: 'dark',            // 'dark' | 'light' | 'system' | 'coca' | 'coca2'
+    theme: 'dark',            // 'dark' | 'light' | 'system' | 'coca'
     accent: 'violet',
     blur: 24,
     bg: 'aurora',             // 'aurora' | 'gradient' | 'solid'
@@ -21,7 +21,7 @@
     notif: { enabled: true, daysBefore: 7, hour: 9, minute: 0, notifyExpired: true, inAppBadge: true, allStores: true },
     a11y: { fontScale: 1, contrast: false, reduceMotion: false, solid: false, bold: false, large: false },
     /* Compatibilidade com tamanhos de tela e aparelhos */
-    compat: { layout: 'auto', scale: 'auto', orientation: 'auto', lite: false, noTransitions: false, gpu: true, init: false },
+    compat: { universal: false, layout: 'auto', scale: 'auto', orientation: 'auto', lite: false, noTransitions: false, gpu: true, init: false },
     security: { pin: '', lockOnResume: false },
     export: { format: 'pdf', filter: 'all', sort: 'expiry', scope: 'current', include: { barcode: true, category: true, qty: true } },
     productsSort: 'expiry',
@@ -56,6 +56,7 @@
 
     async load() {
       try { this.settings = merge(DEFAULTS, JSON.parse(localStorage.getItem(SKEY) || 'null')); } catch (e) { this.settings = merge(DEFAULTS, null); }
+      if (this.settings.theme === 'coca2') { this.settings.theme = 'coca'; this.saveSettings(); } // Coca 2.0 foi removido
       this.autoCompat();
       if (this.settings.theme === 'coca') { /* tema especial mantém tudo vermelho */ }
       await this.loadAccount();
@@ -141,11 +142,11 @@
     },
     get(path) { return path.split('.').reduce((o, k) => (o == null ? o : o[k]), this.settings); },
 
-    isCoca() { return this.settings.theme === 'coca' || this.settings.theme === 'coca2'; },
-    isCoca2() { return this.settings.theme === 'coca2'; },
+    isCoca() { return this.settings.theme === 'coca'; },
+    isCoca2() { return false; },
     isDark() {
       const t = this.settings.theme;
-      if (t === 'coca' || t === 'coca2') return false;
+      if (t === 'coca') return false;
       if (t === 'system') return !window.matchMedia || window.matchMedia('(prefers-color-scheme: dark)').matches;
       return t !== 'light';
     },
@@ -176,13 +177,13 @@
       flag('data-solid', s.a11y.solid);
       flag('data-bold', s.a11y.bold);
       flag('data-large', s.a11y.large);
-      flag('data-coca2', this.isCoca2());
       flag('data-lite', cp.lite);
       flag('data-no-transitions', cp.noTransitions);
       RS.native.setSystemBars(dark);
-      RS.native.setImmersive(s.fullscreen !== false);
+      RS.native.setImmersive(s.fullscreen !== false && !cp.universal);
       RS.native.setOrientation(cp.orientation);
-      RS.native.setGpu(s.compat.gpu !== false && !cp.safe);
+      RS.native.setGpu(cp.gpu && !cp.safe);
+      flag('data-universal', cp.universal);
       // O ícone NÃO troca mais sozinho (trocar com o app aberto fazia o Android fechá-lo).
       // A troca é opcional, pelo botão em Aparência, e só acontece quando o app sai da tela.
       if (RS.fx) RS.fx.update();
@@ -200,10 +201,14 @@
     },
     compatInfo() {
       const c = this.settings.compat, d = this.device();
-      const layout = c.layout === 'auto' ? (d.tablet ? 'tablet' : d.kind === 'small' ? 'compact' : 'phone') : c.layout;
-      let scale = c.scale === 'auto' ? (layout === 'compact' ? 0.92 : layout === 'tablet' ? 1.08 : 1) : Number(c.scale);
-      const orientation = c.orientation === 'auto' ? (d.tablet ? 'auto' : 'portrait') : c.orientation;
-      return { layout, scale: scale || 1, orientation, lite: !!c.lite || d.safe, noTransitions: !!c.noTransitions || d.safe, safe: d.safe, device: d };
+      const uni = !!c.universal || d.safe;   // modo compatibilidade de dispositivo
+      const auto = (v) => uni || v === 'auto';
+      const layout = auto(c.layout) ? (d.tablet ? 'tablet' : d.kind === 'small' ? 'compact' : 'phone') : c.layout;
+      // escala pela menor largura da tela (funciona para qualquer DPI)
+      const autoScale = d.sw < 330 ? 0.86 : d.sw < 360 ? 0.92 : d.sw >= 720 ? 1.12 : d.sw >= 600 ? 1.06 : 1;
+      const scale = auto(c.scale) ? autoScale : Number(c.scale);
+      const orientation = auto(c.orientation) ? (d.tablet ? 'auto' : 'portrait') : c.orientation;
+      return { layout, scale: scale || 1, orientation, universal: uni, lite: uni || !!c.lite, noTransitions: uni || !!c.noTransitions, gpu: c.gpu !== false, safe: d.safe, device: d };
     },
     /* Primeira abertura: ajusta sozinho para aparelhos mais fracos */
     autoCompat() {
@@ -211,7 +216,7 @@
       if (c.init) return;
       const d = this.device();
       c.init = true;
-      if (d.lowEnd) { c.lite = true; c.noTransitions = d.sdk && d.sdk < 24; }
+      if (d.lowEnd) c.universal = true;
       this.saveSettings();
     },
 

@@ -111,3 +111,10 @@ Pacote: `com.flowlabs.rsstock` · Ícones em `res/mipmap-*` (inclui ícone adapt
   em ciclo). Agora é um botão opcional em Aparência e a troca só acontece com o app fora da tela.
 - Resgate na abertura: se travar por 12 s, aparece “Abrir em modo seguro” (tema padrão, sem efeitos pesados).
 - Depois de um fechamento, o app reabre com o tema padrão e em modo seguro.
+
+## v1.4.0
+- Tema Coca 2.0 removido (fica só o Coca). Quem estava no Coca 2.0 passa para o Coca.
+- Compatibilidade refeita: botão **Modo compatibilidade de dispositivo** (qualquer Android 5.0+ até o mais recente,
+  qualquer tela e DPI): sem efeitos pesados, barras do sistema visíveis, escala pela largura da tela, cores simples.
+  Opções detalhadas em “Avançado”.
+- Versão exibida na abertura e no login.
