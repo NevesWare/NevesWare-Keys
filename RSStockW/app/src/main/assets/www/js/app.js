@@ -62,6 +62,7 @@
     if (old) old.removeAttribute('id');
     // sobras de transições anteriores (toques rápidos) saem na hora
     Array.from(stage.children).forEach(v => { if (v !== old) v.remove(); });
+    if (old) old.classList.remove('p-in-right', 'p-in-left', 'c-in-zoom', 'c-in-up', 'c-in-right', 'c-in-left');
 
     // Atualização da MESMA tela (sincronização, dados mudaram): sem animação de entrada
     // e mantendo a rolagem — antes a tela "piscava" e voltava para o topo.
@@ -78,21 +79,36 @@
       return;
     }
 
-    const anim = {
-      forward: ['v-in-right', 'v-out-left'], back: ['v-in-left', 'v-out-right'],
-      'tab-right': ['v-in-right', 'v-out-left'], 'tab-left': ['v-in-left', 'v-out-right'],
-      fade: ['v-in-fade', 'v-out-fade'], up: ['v-in-up', 'v-out-fade']
-    }[dir];
+    /* Transições sem piscar no Android: as telas NUNCA mudam de opacidade (isso desliga/liga o vidro
+       fosco dos cartões e causava o pisca). Ou elas se empurram (só movimento), ou uma cortina lisa
+       cobre a troca. */
     const style = s.settings.anim || 'suave';
-    const ms = { suave: 340, deslizar: 360, desvanecer: 300, zoom: 340, subir: 360, nenhuma: 0 }[style] || 340;
-    if (anim && ms && !s.settings.a11y.reduceMotion) {
-      view.classList.add(anim[0]);
-      if (old) {
-        old.classList.add(anim[1]);
-        setTimeout(() => old.remove(), ms + 20);
-      }
-      setTimeout(() => view.classList.remove(anim[0]), ms + 40);
-    } else if (old) old.remove();
+    const reduce = s.settings.a11y.reduceMotion || style === 'nenhuma';
+    const side = { forward: 1, 'tab-right': 1, back: -1, 'tab-left': -1 }[dir] || 0;
+    const pushStyle = (style === 'suave' || style === 'deslizar') && side !== 0;
+    if (!old || reduce || !dir || dir === 'none') {
+      if (old) old.remove();
+    } else if (pushStyle) {
+      const ms = style === 'suave' ? 360 : 420;
+      view.classList.add(side > 0 ? 'p-in-right' : 'p-in-left');
+      old.classList.add(side > 0 ? 'p-out-left' : 'p-out-right');
+      setTimeout(() => old.remove(), ms + 30);
+      setTimeout(() => view.classList.remove('p-in-right', 'p-in-left'), ms + 60);
+    } else {
+      // cortina: cobre a tela antiga, troca por baixo e revela a nova com um leve movimento
+      const curtain = document.createElement('div');
+      curtain.className = 'curtain';
+      stage.appendChild(curtain);
+      view.style.visibility = 'hidden';
+      const cls = style === 'zoom' ? 'c-in-zoom' : style === 'subir' || dir === 'up' ? 'c-in-up' : side ? (side > 0 ? 'c-in-right' : 'c-in-left') : 'c-in-zoom';
+      setTimeout(() => {
+        old.remove();
+        view.style.visibility = '';
+        view.classList.add(cls);
+        curtain.classList.add('out');
+        setTimeout(() => { curtain.remove(); view.classList.remove(cls); }, 300);
+      }, 150);
+    }
 
     stage.appendChild(view);
     currentView = view;

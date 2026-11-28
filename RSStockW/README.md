@@ -160,3 +160,7 @@ Pacote: `com.flowlabs.rsstockw` · Ícones em `res/mipmap-*` (inclui ícone adap
 - Edge Function `catalog-seed` (docs/edge-functions/catalog-seed) importa produtos **reais** do Open Food Facts para a tabela `catalog`, em segundo plano: todas as bebidas do Brasil (sucos, néctares, refrigerantes, águas, cervejas, chás, lácteas, energéticos), ~150 marcas brasileiras (só códigos 789/790) e depois produtos do Brasil em geral.
 - Progresso: tabela `catalog_seed` (`select id, done, next_page, added from catalog_seed order by priority`). Total: `select count(*) from catalog`.
 - Só roda com a chave secreta guardada em `app_secrets` (o app não tem acesso). Para retomar se parar: `select net.http_post(url := '<projeto>/functions/v1/catalog-seed', headers := jsonb_build_object('Content-Type','application/json','x-seed-key',(select value from app_secrets where name='seed_key')), body := '{}'::jsonb);`
+
+## v2.7.0 — transições sem piscar
+- Causa do pisca: no WebView do Android, animar a opacidade de uma tela que contém vidro fosco (backdrop-filter) desliga e religa o desfoque no começo e no fim da animação.
+- Agora as telas nunca animam opacidade: **Suave**/**Deslizar** empurram uma tela com a outra (só movimento, sem sobreposição); **Desvanecer**/**Zoom**/**Subir** usam uma cortina lisa da cor do fundo. Entrada em cascata só com movimento. Diálogos, avisos e carregamento sem desfoque (já eram quase opacos).

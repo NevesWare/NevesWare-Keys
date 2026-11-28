@@ -1381,3 +1381,48 @@ svg { flex-shrink: 0; }
 .bc-found .bt small { font-size: .72rem; color: var(--text-2); }
 .lot-row.pulse { animation: lotPulse 1.4s ease 2; }
 @keyframes lotPulse { 50% { box-shadow: 0 0 0 4px rgba(var(--accent-rgb), .35); } }
+
+/* ===================== 2.7 — transições sem piscar (Android WebView) =====================
+   Regra de ouro: a tela inteira nunca anima opacidade. No WebView, opacidade animada num
+   elemento que contém vidro fosco (backdrop-filter) desliga e religa o desfoque no início e
+   no fim da animação — era isso que "piscava". Agora: só transform (empurrar) ou cortina lisa. */
+.view { will-change: transform; }
+.view.p-in-right, .view.p-in-left, .view.p-out-left, .view.p-out-right,
+.view.c-in-zoom, .view.c-in-up, .view.c-in-right, .view.c-in-left { opacity: 1 !important; }
+.view.p-out-left, .view.p-out-right { pointer-events: none; z-index: 1; }
+.view.p-in-right, .view.p-in-left { z-index: 2; }
+
+/* Suave (padrão) e Deslizar: as duas telas andam juntas a mesma distância → nunca se sobrepõem */
+.view.p-in-right { animation: pFrom .36s cubic-bezier(.32,.72,0,1) both; --px: 100%; }
+.view.p-in-left { animation: pFrom .36s cubic-bezier(.32,.72,0,1) both; --px: -100%; }
+.view.p-out-left { animation: pTo .36s cubic-bezier(.32,.72,0,1) both; --px: -100%; }
+.view.p-out-right { animation: pTo .36s cubic-bezier(.32,.72,0,1) both; --px: 100%; }
+:root[data-anim="deslizar"] .view.p-in-right, :root[data-anim="deslizar"] .view.p-in-left,
+:root[data-anim="deslizar"] .view.p-out-left, :root[data-anim="deslizar"] .view.p-out-right { animation-duration: .42s; animation-timing-function: cubic-bezier(.65,0,.35,1); }
+@keyframes pFrom { from { transform: translate3d(var(--px), 0, 0); } to { transform: translate3d(0, 0, 0); } }
+@keyframes pTo { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(var(--px), 0, 0); } }
+
+/* Cortina (Desvanecer, Zoom, Subir e aberturas): lisa, sem vidro — pode animar opacidade à vontade */
+.curtain { position: absolute; inset: 0; z-index: 5; pointer-events: none; background: var(--bg);
+  animation: curtIn .15s ease-out both; }
+.curtain.out { animation: curtOut .3s ease-in both; }
+@keyframes curtIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes curtOut { from { opacity: 1; } to { opacity: 0; } }
+:root[data-theme="coca"] .curtain { background: #fff5f5; }
+:root[data-theme="riosul"] .curtain { background: #f3f7ff; }
+.view.c-in-zoom { animation: cZoom .3s cubic-bezier(.2,.8,.2,1) both; }
+.view.c-in-up { animation: cUp .3s cubic-bezier(.2,.8,.2,1) both; }
+.view.c-in-right { animation: cSide .3s cubic-bezier(.2,.8,.2,1) both; --cx: 28px; }
+.view.c-in-left { animation: cSide .3s cubic-bezier(.2,.8,.2,1) both; --cx: -28px; }
+@keyframes cZoom { from { transform: scale(.96); } to { transform: none; } }
+@keyframes cUp { from { transform: translate3d(0, 26px, 0); } to { transform: none; } }
+@keyframes cSide { from { transform: translate3d(var(--cx), 0, 0); } to { transform: none; } }
+
+/* Entrada em cascata: só movimento (opacidade em cartão de vidro também piscava) */
+.stagger > * { animation: rise3 .34s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes rise3 { from { transform: translate3d(0, 12px, 0); } to { transform: none; } }
+.view.p-in-right .stagger > *, .view.p-in-left .stagger > * { animation: none; }   /* a tela já está entrando */
+:root[data-anim="nenhuma"] .stagger > *, :root[data-anim="nenhuma"] .view { animation: none !important; }
+/* diálogos/avisos/carregamento animam opacidade e já são quase opacos: sem desfoque = sem pisca */
+.dialog.glass, .toast.glass, .loading-card.glass, .save-bar.glass { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+.loading-overlay { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
